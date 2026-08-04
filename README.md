@@ -20,16 +20,18 @@ It is a static site for GitHub Pages and uses Supabase Auth. There is no applica
 
 All future user-owned tables must enable Row Level Security before the app writes data.
 
-## One-time setup
+## Live infrastructure
+
+- App: <https://neolorenzo.github.io/Lorenzos-Lifting-Ledger/>
+- Supabase project: `Lorenzo's Lifting Ledger` (`yfhmjwkscqbpzblrpsoy`, London)
+- Production Site URL and redirect allow-list are configured in Supabase.
+- GitHub Pages deploys from `main` at `/ (root)` with HTTPS enforced.
+
+## Remaining Google setup
 
 1. In Google Cloud Console, create an OAuth 2.0 Client ID of type **Web application**.
 2. Add `https://yfhmjwkscqbpzblrpsoy.supabase.co/auth/v1/callback` as its authorized redirect URI.
 3. In Supabase, open **Authentication → Providers → Google**, enable Google, and enter the Google client ID and client secret. The secret stays in Supabase and must never be committed.
-4. In Supabase, open **Authentication → URL Configuration**:
-   - Site URL: `https://neolorenzo.github.io/Lorenzos-Lifting-Ledger/`
-   - Redirect URL: `https://neolorenzo.github.io/Lorenzos-Lifting-Ledger/`
-   - Optional local redirect: `http://localhost:8000/`
-5. In the GitHub repository, enable Pages from the `main` branch and `/ (root)`.
 
 ## Local check
 
