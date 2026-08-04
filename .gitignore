@@ -1,0 +1,18 @@
+# Local dependencies and tools
+node_modules/
+.wrangler/
+.next/
+.vinext/
+dist/
+out/
+
+# Local secrets. Never commit any environment file.
+.env
+.env.*
+!.env.example
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+*.log
+

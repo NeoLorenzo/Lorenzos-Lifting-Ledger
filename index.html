@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#111827" />
+    <meta name="description" content="Lorenzo's Lifting Ledger" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./icons/icon.svg" />
+    <link rel="stylesheet" href="./styles.css" />
+    <title>Lorenzo's Lifting Ledger</title>
+  </head>
+  <body>
+    <main class="shell" aria-live="polite">
+      <section id="loading" class="card">
+        <p>Loading…</p>
+      </section>
+
+      <section id="signed-out" class="card" hidden>
+        <button id="google-sign-in" class="google-button" type="button">
+          <span class="google-mark" aria-hidden="true">G</span>
+          Continue with Google
+        </button>
+        <p id="auth-error" class="error" role="alert" hidden></p>
+      </section>
+
+      <section id="signed-in" class="card" hidden>
+        <h1>Hello world</h1>
+        <button id="sign-out" class="link-button" type="button">Sign out</button>
+      </section>
+    </main>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
