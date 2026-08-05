@@ -88,6 +88,7 @@ h1 {
 }
 
 .lift-list,
+.exercise-list,
 .set-list {
   padding: 0;
   list-style: none;
@@ -100,23 +101,41 @@ h1 {
   text-align: left;
 }
 
-.lift-entry {
+.session-entry {
   padding: 1rem;
   border: 1px solid #374151;
   border-radius: 0.8rem;
   background: #1f2937;
 }
 
-.lift-entry h2 {
+.session-entry h2,
+.exercise-entry h3 {
   margin: 0;
   font-size: 1rem;
   line-height: 1.35;
 }
 
-.lift-context {
+.session-context,
+.exercise-context {
   margin-top: 0.35rem;
   color: #9ca3af;
   font-size: 0.85rem;
+}
+
+.exercise-list {
+  display: grid;
+  gap: 0.65rem;
+  margin: 1rem 0 0;
+}
+
+.exercise-entry {
+  padding: 0.8rem;
+  border-radius: 0.65rem;
+  background: #111827;
+}
+
+.exercise-entry h3 {
+  font-size: 0.95rem;
 }
 
 .set-list {
@@ -129,7 +148,7 @@ h1 {
 .set-list li {
   padding: 0.35rem 0.55rem;
   border-radius: 999px;
-  background: #111827;
+  background: #1f2937;
   color: #d1d5db;
   font-size: 0.8rem;
 }

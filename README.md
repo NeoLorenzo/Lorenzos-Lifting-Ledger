@@ -23,12 +23,14 @@ All future user-owned tables must enable Row Level Security before the app write
 ## Data model
 
 - `data_imports` records source provenance and checksums per user.
-- `lift_entries` stores an exercise, gym, date, and optional equipment ID.
-- `lift_sets` stores each numbered Weight/Reps pair, allowing any number of sets.
+- `gyms` is the top-level owner-scoped gym list.
+- `workout_sessions` stores each dated visit to a gym.
+- `session_exercises` stores the ordered exercises and optional equipment IDs in a session.
+- `exercise_sets` stores each numbered weight/reps pair, optional RPE, and warm-up, drop-set, and superset flags.
 
-All three tables use `owner_id` references to `auth.users`. Row Level Security limits select, insert, update, and delete operations to the signed-in owner. The initial CSV remains local and is ignored by Git because this repository is public.
+Every user-data table has an `owner_id` reference to `auth.users`. Row Level Security limits select, insert, update, and delete operations to the signed-in owner. Parent/child foreign keys also include the owner ID so records cannot be connected across users. The initial CSV remains local and is ignored by Git because this repository is public.
 
-The initial import contains 1,908 exercise rows and 4,498 set rows spanning 23 January 2023 through 4 August 2026. A positional comparison found zero missing or mismatched rows after import.
+The initial import contains 11 gyms, 403 inferred sessions, 1,908 session exercises, and 4,498 sets spanning 23 January 2023 through 4 August 2026. Historical sessions are inferred from user + gym + date because the source CSV contains no workout time. A positional comparison found zero missing or mismatched rows after import.
 
 ## Live infrastructure
 

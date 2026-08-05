@@ -28,8 +28,11 @@ test("uses Google OAuth without privileged credentials", async () => {
 
   assert.match(app, /provider: "google"/);
   assert.match(app, /flowType: "pkce"/);
-  assert.match(app, /\.from\("lift_entries"\)/);
-  assert.match(app, /lift_sets\(set_number, weight, reps\)/);
+  assert.match(app, /\.from\("workout_sessions"\)/);
+  assert.match(app, /session_exercises\(id, exercise_order, exercise, equipment_id, exercise_sets/);
+  assert.match(app, /is_warmup/);
+  assert.match(app, /is_drop_set/);
+  assert.match(app, /is_superset/);
   assert.match(app, /supabase-js@\d+\.\d+\.\d+/);
   assert.doesNotMatch(app, /supabase-js@2(?:["/])/);
   assert.doesNotMatch(assignments, /service[_-]?role/i);
