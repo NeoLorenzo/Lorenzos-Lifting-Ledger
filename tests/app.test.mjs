@@ -13,7 +13,8 @@ test("ships an installable app shell", async () => {
 
   assert.match(html, /rel="manifest"/);
   assert.match(html, /Continue with Google/);
-  assert.match(html, /Hello world/);
+  assert.match(html, /Your lifts/);
+  assert.doesNotMatch(html, /Hello world/i);
   assert.equal(JSON.parse(manifest).display, "standalone");
   assert.match(serviceWorker, /addEventListener\("fetch"/);
 });
@@ -27,6 +28,8 @@ test("uses Google OAuth without privileged credentials", async () => {
 
   assert.match(app, /provider: "google"/);
   assert.match(app, /flowType: "pkce"/);
+  assert.match(app, /\.from\("lift_entries"\)/);
+  assert.match(app, /lift_sets\(set_number, weight, reps\)/);
   assert.match(app, /supabase-js@\d+\.\d+\.\d+/);
   assert.doesNotMatch(app, /supabase-js@2(?:["/])/);
   assert.doesNotMatch(assignments, /service[_-]?role/i);

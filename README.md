@@ -2,12 +2,12 @@
 
 A deliberately tiny, installable PWA that proves the authentication foundation for a future lifting tracker.
 
-The current app has exactly two states:
+The current app has two states:
 
 - signed out: **Continue with Google**
-- signed in: **Hello world** and a sign-out control
+- signed in: the authenticated user's imported lift data and a sign-out control
 
-It is a static site for GitHub Pages and uses Supabase Auth. There is no application database schema yet.
+It is a static site for GitHub Pages and uses Supabase Auth plus an owner-scoped Postgres database.
 
 ## Security model
 
@@ -19,6 +19,16 @@ It is a static site for GitHub Pages and uses Supabase Auth. There is no applica
 - private access tokens
 
 All future user-owned tables must enable Row Level Security before the app writes data.
+
+## Data model
+
+- `data_imports` records source provenance and checksums per user.
+- `lift_entries` stores an exercise, gym, date, and optional equipment ID.
+- `lift_sets` stores each numbered Weight/Reps pair, allowing any number of sets.
+
+All three tables use `owner_id` references to `auth.users`. Row Level Security limits select, insert, update, and delete operations to the signed-in owner. The initial CSV remains local and is ignored by Git because this repository is public.
+
+The initial import contains 1,908 exercise rows and 4,498 set rows spanning 23 January 2023 through 4 August 2026. A positional comparison found zero missing or mismatched rows after import.
 
 ## Live infrastructure
 

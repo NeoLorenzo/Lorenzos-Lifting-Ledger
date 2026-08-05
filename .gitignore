@@ -5,6 +5,7 @@ node_modules/
 .vinext/
 dist/
 out/
+.tmp/
 
 # Local secrets. Never commit any environment file.
 .env
@@ -16,3 +17,5 @@ out/
 Thumbs.db
 *.log
 
+# Personal source exports stay local; imported rows are protected by Supabase RLS.
+Lorenzo Gym Data - All Gym Data.csv

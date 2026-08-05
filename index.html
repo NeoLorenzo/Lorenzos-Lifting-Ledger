@@ -26,8 +26,15 @@
       </section>
 
       <section id="signed-in" class="card" hidden>
-        <h1>Hello world</h1>
-        <button id="sign-out" class="link-button" type="button">Sign out</button>
+        <header class="data-header">
+          <div>
+            <h1>Your lifts</h1>
+            <p id="dataset-status">Loading your data…</p>
+          </div>
+          <button id="sign-out" class="link-button" type="button">Sign out</button>
+        </header>
+        <ol id="lift-list" class="lift-list"></ol>
+        <button id="load-more" class="load-more" type="button" hidden>Load more</button>
       </section>
     </main>
 

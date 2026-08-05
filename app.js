@@ -7,6 +7,15 @@ const signedInView = document.querySelector("#signed-in");
 const signInButton = document.querySelector("#google-sign-in");
 const signOutButton = document.querySelector("#sign-out");
 const errorMessage = document.querySelector("#auth-error");
+const datasetStatus = document.querySelector("#dataset-status");
+const liftList = document.querySelector("#lift-list");
+const loadMoreButton = document.querySelector("#load-more");
+const pageSize = 50;
+let loadedRows = 0;
+let totalRows = 0;
+let loadingRows = false;
+let supabaseClient = null;
+let activeUserId = null;
 
 const configured =
   SUPABASE_URL.startsWith("https://") &&
@@ -26,6 +35,7 @@ if (!configured) {
       persistSession: true,
     },
   });
+  supabaseClient = supabase;
 
   signInButton.addEventListener("click", async () => {
     clearError();
@@ -54,6 +64,10 @@ if (!configured) {
     }
   });
 
+  loadMoreButton.addEventListener("click", () => {
+    void loadLifts(supabase);
+  });
+
   supabase.auth.onAuthStateChange((_event, session) => {
     renderSession(session);
   });
@@ -77,11 +91,16 @@ if ("serviceWorker" in navigator) {
 
 function renderSession(session) {
   if (session) {
+    if (activeUserId === session.user.id && !signedInView.hidden) return;
+
+    activeUserId = session.user.id;
     loadingView.hidden = true;
     signedOutView.hidden = true;
     signedInView.hidden = false;
     signOutButton.disabled = false;
     clearError();
+    resetLiftList();
+    window.setTimeout(() => void loadLifts(supabaseClient), 0);
     return;
   }
 
@@ -89,10 +108,12 @@ function renderSession(session) {
 }
 
 function showSignedOut() {
+  activeUserId = null;
   loadingView.hidden = true;
   signedInView.hidden = true;
   signedOutView.hidden = false;
   signInButton.disabled = false;
+  resetLiftList();
 }
 
 function showError(message) {
@@ -103,4 +124,86 @@ function showError(message) {
 function clearError() {
   errorMessage.textContent = "";
   errorMessage.hidden = true;
+}
+
+async function loadLifts(supabase) {
+  if (loadingRows || loadedRows >= totalRows && totalRows !== 0) return;
+
+  loadingRows = true;
+  loadMoreButton.disabled = true;
+  datasetStatus.textContent = loadedRows === 0 ? "Loading your data…" : `${totalRows.toLocaleString()} imported exercise rows`;
+
+  const { data, error, count } = await supabase
+    .from("lift_entries")
+    .select(
+      "id, source_row, performed_on, gym, equipment_id, exercise, lift_sets(set_number, weight, reps)",
+      { count: "exact" },
+    )
+    .order("performed_on", { ascending: false })
+    .order("source_row", { ascending: false })
+    .range(loadedRows, loadedRows + pageSize - 1);
+
+  loadingRows = false;
+
+  if (error) {
+    datasetStatus.textContent = `Could not load your lifts: ${error.message}`;
+    loadMoreButton.hidden = true;
+    return;
+  }
+
+  totalRows = count ?? data.length;
+  appendLiftRows(data);
+  loadedRows += data.length;
+  datasetStatus.textContent = `${totalRows.toLocaleString()} imported exercise rows`;
+  loadMoreButton.hidden = loadedRows >= totalRows;
+  loadMoreButton.disabled = false;
+}
+
+function appendLiftRows(rows) {
+  const fragment = document.createDocumentFragment();
+
+  for (const row of rows) {
+    const item = document.createElement("li");
+    item.className = "lift-entry";
+
+    const heading = document.createElement("h2");
+    heading.textContent = row.exercise;
+
+    const context = document.createElement("p");
+    context.className = "lift-context";
+    context.textContent = [formatDate(row.performed_on), row.gym, row.equipment_id]
+      .filter(Boolean)
+      .join(" · ");
+
+    const sets = document.createElement("ul");
+    sets.className = "set-list";
+
+    for (const set of [...row.lift_sets].sort((a, b) => a.set_number - b.set_number)) {
+      const setItem = document.createElement("li");
+      const weight = set.weight === null ? "— kg" : `${Number(set.weight).toLocaleString()} kg`;
+      const reps = set.reps === null ? "— reps" : `${set.reps} reps`;
+      setItem.textContent = `Set ${set.set_number}: ${weight} × ${reps}`;
+      sets.append(setItem);
+    }
+
+    item.append(heading, context, sets);
+    fragment.append(item);
+  }
+
+  liftList.append(fragment);
+}
+
+function resetLiftList() {
+  loadedRows = 0;
+  totalRows = 0;
+  loadingRows = false;
+  liftList.replaceChildren();
+  loadMoreButton.hidden = true;
+  loadMoreButton.disabled = false;
+  datasetStatus.textContent = "Loading your data…";
+}
+
+function formatDate(isoDate) {
+  const [year, month, day] = isoDate.split("-").map(Number);
+  return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(year, month - 1, day));
 }
