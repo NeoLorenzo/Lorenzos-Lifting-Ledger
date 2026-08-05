@@ -285,4 +285,12 @@ comment on table public.lift_entries is
 comment on table public.lift_sets is
   'Legacy import table retained temporarily for reconciliation; the app uses exercise_sets.';
 
+drop policy "Users can create their own lift entries" on public.lift_entries;
+drop policy "Users can update their own lift entries" on public.lift_entries;
+drop policy "Users can delete their own lift entries" on public.lift_entries;
+drop policy "Users can create their own lift sets" on public.lift_sets;
+drop policy "Users can update their own lift sets" on public.lift_sets;
+drop policy "Users can delete their own lift sets" on public.lift_sets;
+revoke insert, update, delete on public.lift_entries, public.lift_sets from authenticated;
+
 commit;
