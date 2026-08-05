@@ -33,6 +33,10 @@ test("uses Google OAuth without privileged credentials", async () => {
   assert.match(app, /is_warmup/);
   assert.match(app, /is_drop_set/);
   assert.match(app, /is_superset/);
+  assert.match(app, /estimated_1rm_brzycki/);
+  assert.match(app, /estimated_1rm_epley/);
+  assert.match(app, /estimated_1rm_low/);
+  assert.match(app, /estimated_1rm_high/);
   assert.match(app, /supabase-js@\d+\.\d+\.\d+/);
   assert.doesNotMatch(app, /supabase-js@2(?:["/])/);
   assert.doesNotMatch(assignments, /service[_-]?role/i);

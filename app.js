@@ -136,7 +136,7 @@ async function loadSessions(supabase) {
   const { data, error, count } = await supabase
     .from("workout_sessions")
     .select(
-      "id, performed_on, gyms(name), session_exercises(id, exercise_order, exercise, equipment_id, exercise_sets(set_number, weight, reps, rpe, is_warmup, is_drop_set, is_superset))",
+      "id, performed_on, gyms(name), session_exercises(id, exercise_order, exercise, equipment_id, exercise_sets(set_number, weight, reps, rpe, is_warmup, is_drop_set, is_superset, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_low, estimated_1rm_high))",
       { count: "exact" },
     )
     .eq("owner_id", activeUserId)
@@ -219,6 +219,7 @@ function createExerciseItem(exercise) {
     const weight = set.weight === null ? "— kg" : `${Number(set.weight).toLocaleString()} kg`;
     const reps = set.reps === null ? "— reps" : `${set.reps} reps`;
     const labels = [
+      formatOneRepMaxRange(set.estimated_1rm_low, set.estimated_1rm_high),
       set.is_warmup ? "Warm-up" : null,
       set.is_drop_set ? "Drop set" : null,
       set.is_superset ? "Superset" : null,
@@ -230,6 +231,16 @@ function createExerciseItem(exercise) {
 
   item.append(heading, context, sets);
   return item;
+}
+
+function formatOneRepMaxRange(low, high) {
+  if (low === null || high === null) return null;
+
+  const lowLabel = Number(low).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  const highLabel = Number(high).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  return lowLabel === highLabel
+    ? `Estimated 1RM ${lowLabel} kg`
+    : `Estimated 1RM ${lowLabel}–${highLabel} kg`;
 }
 
 function resetLiftList() {

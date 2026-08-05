@@ -26,11 +26,13 @@ All future user-owned tables must enable Row Level Security before the app write
 - `gyms` is the top-level owner-scoped gym list.
 - `workout_sessions` stores each dated visit to a gym.
 - `session_exercises` stores the ordered exercises and optional equipment IDs in a session.
-- `exercise_sets` stores each numbered weight/reps pair, optional RPE, and warm-up, drop-set, and superset flags.
+- `exercise_sets` stores each numbered weight/reps pair, optional RPE, warm-up/drop-set/superset flags, and generated Brzycki/Epley estimated 1RM values with a low/high range.
 
 Every user-data table has an `owner_id` reference to `auth.users`. Row Level Security limits select, insert, update, and delete operations to the signed-in owner. Parent/child foreign keys also include the owner ID so records cannot be connected across users. The initial CSV remains local and is ignored by Git because this repository is public.
 
 The initial import contains 11 gyms, 403 inferred sessions, 1,908 session exercises, and 4,498 sets spanning 23 January 2023 through 4 August 2026. Historical sessions are inferred from user + gym + date because the source CSV contains no workout time. A positional comparison found zero missing or mismatched rows after import.
+
+Estimated 1RM values are calculated by Postgres whenever weight or reps changes. Brzycki uses `weight × 36 ÷ (37 − reps)` and Epley uses `weight × (1 + reps ÷ 30)`. The range stores the lower and higher estimates, rounded to two decimal places. Ranges remain empty when a source set has no reps or falls outside Brzycki's valid 1–36 rep domain.
 
 ## Live infrastructure
 
