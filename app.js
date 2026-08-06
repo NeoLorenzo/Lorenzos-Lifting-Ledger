@@ -8,6 +8,8 @@ const signInButton = document.querySelector("#google-sign-in");
 const signOutButton = document.querySelector("#sign-out");
 const errorMessage = document.querySelector("#auth-error");
 const datasetStatus = document.querySelector("#dataset-status");
+const exerciseStatus = document.querySelector("#exercise-status");
+const exerciseCatalogue = document.querySelector("#exercise-catalogue");
 const liftList = document.querySelector("#lift-list");
 const loadMoreButton = document.querySelector("#load-more");
 const pageSize = 20;
@@ -99,8 +101,12 @@ function renderSession(session) {
     signedInView.hidden = false;
     signOutButton.disabled = false;
     clearError();
+    resetExerciseCatalogue();
     resetLiftList();
-    window.setTimeout(() => void loadSessions(supabaseClient), 0);
+    window.setTimeout(() => {
+      void loadExerciseCatalogue(supabaseClient);
+      void loadSessions(supabaseClient);
+    }, 0);
     return;
   }
 
@@ -113,6 +119,7 @@ function showSignedOut() {
   signedInView.hidden = true;
   signedOutView.hidden = false;
   signInButton.disabled = false;
+  resetExerciseCatalogue();
   resetLiftList();
 }
 
@@ -124,6 +131,48 @@ function showError(message) {
 function clearError() {
   errorMessage.textContent = "";
   errorMessage.hidden = true;
+}
+
+async function loadExerciseCatalogue(supabase) {
+  const requestedUserId = activeUserId;
+  const batchSize = 1000;
+  const exercises = [];
+  let expectedCount = null;
+
+  exerciseStatus.textContent = "Loading your exercises…";
+  exerciseCatalogue.replaceChildren();
+
+  while (expectedCount === null || exercises.length < expectedCount) {
+    const start = exercises.length;
+    const { data, error, count } = await supabase
+      .from("exercises")
+      .select("id, name, canonical_exercise_id", { count: start === 0 ? "exact" : undefined })
+      .eq("owner_id", requestedUserId)
+      .order("name", { ascending: true })
+      .order("id", { ascending: true })
+      .range(start, start + batchSize - 1);
+
+    if (requestedUserId !== activeUserId) return;
+
+    if (error) {
+      exerciseStatus.textContent = `Could not load your exercises: ${error.message}`;
+      return;
+    }
+
+    if (expectedCount === null) expectedCount = count ?? data.length;
+    exercises.push(...data);
+    if (data.length < batchSize) break;
+  }
+
+  const fragment = document.createDocumentFragment();
+  for (const exercise of exercises) {
+    const item = document.createElement("li");
+    item.textContent = exercise.name;
+    fragment.append(item);
+  }
+
+  exerciseCatalogue.append(fragment);
+  exerciseStatus.textContent = `${exercises.length.toLocaleString()} exercises · alphabetical`;
 }
 
 async function loadSessions(supabase) {
@@ -251,6 +300,11 @@ function resetLiftList() {
   loadMoreButton.hidden = true;
   loadMoreButton.disabled = false;
   datasetStatus.textContent = "Loading your data…";
+}
+
+function resetExerciseCatalogue() {
+  exerciseCatalogue.replaceChildren();
+  exerciseStatus.textContent = "Loading your exercises…";
 }
 
 function formatDate(isoDate) {

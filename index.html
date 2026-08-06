@@ -8,7 +8,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=3" />
+    <link rel="stylesheet" href="./styles.css?v=4" />
     <title>Lorenzo's Lifting Ledger</title>
   </head>
   <body>
@@ -33,11 +33,17 @@
           </div>
           <button id="sign-out" class="link-button" type="button">Sign out</button>
         </header>
+        <section class="catalogue-panel" aria-labelledby="exercise-catalogue-heading">
+          <h2 id="exercise-catalogue-heading">Exercise catalogue</h2>
+          <p id="exercise-status">Loading your exercises…</p>
+          <ol id="exercise-catalogue" class="catalogue-list"></ol>
+        </section>
+        <h2 class="history-heading">Workout history</h2>
         <ol id="lift-list" class="lift-list"></ol>
         <button id="load-more" class="load-more" type="button" hidden>Load more</button>
       </section>
     </main>
 
-    <script type="module" src="./app.js?v=4"></script>
+    <script type="module" src="./app.js?v=5"></script>
   </body>
 </html>

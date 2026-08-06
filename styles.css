@@ -87,6 +87,47 @@ h1 {
   color: #9ca3af;
 }
 
+.catalogue-panel {
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  border: 1px solid #374151;
+  border-radius: 0.8rem;
+  background: #1f2937;
+  text-align: left;
+}
+
+.catalogue-panel h2,
+.history-heading {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+#exercise-status {
+  margin-top: 0.35rem;
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+.catalogue-list {
+  margin: 1rem 0 0;
+  padding-left: 1.75rem;
+  columns: 2;
+  column-gap: 2.5rem;
+}
+
+.catalogue-list li {
+  break-inside: avoid;
+  padding: 0.25rem 0;
+  color: #e5e7eb;
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.history-heading {
+  margin-bottom: 0.75rem;
+  text-align: left;
+}
+
 .lift-list,
 .exercise-list,
 .set-list {
@@ -171,6 +212,10 @@ h1 {
 
   .data-header h1 {
     font-size: 2rem;
+  }
+
+  .catalogue-list {
+    columns: 1;
   }
 }
 
