@@ -21,6 +21,17 @@ test("ships an installable app shell", async () => {
   assert.match(serviceWorker, /addEventListener\("fetch"/);
 });
 
+test("provides a dependency-free local development command", async () => {
+  const [packageJson, devServer] = await Promise.all([
+    read("package.json"),
+    read("scripts/dev-server.mjs"),
+  ]);
+
+  assert.equal(JSON.parse(packageJson).scripts.dev, "node scripts/dev-server.mjs");
+  assert.match(devServer, /Cache-Control": "no-store"/);
+  assert.match(devServer, /5173/);
+});
+
 test("uses Google OAuth without privileged credentials", async () => {
   const [app, config] = await Promise.all([read("app.js"), read("config.js")]);
   const assignments = config
@@ -32,7 +43,8 @@ test("uses Google OAuth without privileged credentials", async () => {
   assert.match(app, /flowType: "pkce"/);
   assert.match(app, /\.from\("workout_sessions"\)/);
   assert.match(app, /\.from\("exercises"\)/);
-  assert.match(app, /\.eq\("owner_id", requestedUserId\)/);
+  assert.match(app, /\.eq\("is_active", true\)/);
+  assert.doesNotMatch(app, /\.from\("exercises"\)[\s\S]{0,250}\.eq\("owner_id"/);
   assert.match(app, /\.order\("name", \{ ascending: true \}\)/);
   assert.match(app, /session_exercises\(id, exercise_order, exercise, equipment_id, exercise_sets/);
   assert.match(app, /is_warmup/);
@@ -48,16 +60,44 @@ test("uses Google OAuth without privileged credentials", async () => {
   assert.doesNotMatch(assignments, /client[_-]?secret/i);
 });
 
-test("models exercises independently from performed equipment", async () => {
-  const migration = await read("supabase/migrations/20260806153407_create_exercise_catalogue.sql");
-  const exerciseTable = migration.match(/create table public\.exercises \(([\s\S]*?)\n\);/i)?.[1] ?? "";
+test("uses global versioned exercise and movement reference data", async () => {
+  const [catalogueMigration, movementMigration] = await Promise.all([
+    read("supabase/migrations/20260806153407_create_exercise_catalogue.sql"),
+    read("supabase/migrations/20260807140438_global_exercise_and_movement_model.sql"),
+  ]);
 
-  assert.match(exerciseTable, /owner_id uuid not null/);
-  assert.match(exerciseTable, /canonical_exercise_id bigint/);
-  assert.doesNotMatch(exerciseTable, /equipment_id/);
-  assert.match(migration, /add column exercise_id bigint/);
-  assert.match(migration, /references public\.exercises\(id, owner_id\)/);
-  assert.match(migration, /alter column exercise_id set not null/);
-  assert.match(migration, /alter table public\.exercises enable row level security/);
-  assert.match(migration, /revoke all on public\.exercises from anon/);
+  assert.doesNotMatch(movementMigration, /add column equipment_id/);
+  assert.match(movementMigration, /drop column owner_id/);
+  assert.match(movementMigration, /create table public\.exercise_aliases/);
+  assert.match(movementMigration, /create table public\.movement_patterns/);
+  assert.match(movementMigration, /create table public\.movement_mapping_versions/);
+  assert.match(movementMigration, /create table public\.exercise_movement_pattern_coefficients/);
+  assert.match(movementMigration, /numeric\(4, 3\).*between 0 and 1/);
+  assert.match(movementMigration, /5600/);
+  assert.match(movementMigration, /where coefficient > 0/);
+  assert.match(movementMigration, /grant select on public\.exercises/);
+  assert.match(movementMigration, /from anon, authenticated/);
+  assert.match(catalogueMigration, /alter column exercise_id set not null/);
+});
+
+test("provides accessible Home and My data navigation with user-owned charts", async () => {
+  const [html, app, styles] = await Promise.all([
+    read("index.html"),
+    read("app.js"),
+    read("styles.css"),
+  ]);
+
+  assert.match(html, /id="menu-toggle"/);
+  assert.match(html, /data-page="home"[^>]*aria-current="page"/);
+  assert.match(html, /data-page="my-data"/);
+  assert.match(html, /How these numbers are calculated/);
+  assert.match(html, /Recorded volume by month/);
+  assert.match(app, /fetchOwnedRows\(supabase, "workout_sessions"/);
+  assert.match(app, /fetchOwnedRows\(supabase, "session_exercises"/);
+  assert.match(app, /"exercise_sets"/);
+  assert.match(app, /\.eq\("owner_id", ownerId\)/);
+  assert.match(app, /if \(set\.is_warmup\) continue/);
+  assert.match(app, /Number\(set\.weight\) \* Number\(set\.reps\)/);
+  assert.match(styles, /\.vertical-chart/);
+  assert.match(styles, /\.horizontal-chart/);
 });

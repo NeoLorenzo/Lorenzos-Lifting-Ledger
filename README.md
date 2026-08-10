@@ -5,9 +5,9 @@ A deliberately tiny, installable PWA that proves the authentication foundation f
 The current app has two states:
 
 - signed out: **Continue with Google**
-- signed in: the authenticated user's complete exercise catalogue, imported lift data, and a sign-out control
+- signed in: the global exercise catalogue, the authenticated user's imported lift data, and a sign-out control
 
-It is a static site for GitHub Pages and uses Supabase Auth plus an owner-scoped Postgres database.
+It is a static site for GitHub Pages and uses Supabase Auth plus owner-scoped workout data and global reference data in Postgres.
 
 ## Security model
 
@@ -23,17 +23,23 @@ All future user-owned tables must enable Row Level Security before the app write
 ## Data model
 
 - `data_imports` records source provenance and checksums per user.
-- `exercises` is each user's private exercise-name catalogue. Distinct names remain separate and can later be mapped to a canonical exercise without rewriting history.
+- `exercises` is the global, app-managed exercise catalogue shared by every user.
+- `exercise_aliases` maps historical or alternative labels to global exercises without displaying duplicate exercises in the catalogue.
+- `movement_patterns` defines the global biomechanical dimensions used by the movement matrix.
+- `movement_mapping_versions` records immutable published matrix metadata and source hashes.
+- `exercise_movement_pattern_coefficients` stores every exercise-by-pattern cell for each matrix version, including explicit zeroes.
 - `gyms` is the top-level owner-scoped gym list.
 - `workout_sessions` stores each dated visit to a gym.
 - `session_exercises` stores the ordered exercise occurrences, their catalogue reference, the original historical label, and any equipment ID used in that session.
 - `exercise_sets` stores each numbered weight/reps pair, optional RPE, warm-up/drop-set/superset flags, and generated Brzycki/Epley estimated 1RM values with a low/high range.
 
-Every user-data table has an `owner_id` reference to `auth.users`. Row Level Security limits select, insert, update, and delete operations to the signed-in owner. Parent/child foreign keys also include the owner ID so records cannot be connected across users. The initial CSV remains local and is ignored by Git because this repository is public.
+Every user-data table has an `owner_id` reference to `auth.users`. Row Level Security limits select, insert, update, and delete operations to the signed-in owner. Parent/child foreign keys also include the owner ID so records cannot be connected across users. Global exercise and movement reference tables are readable by authenticated users but are not writable from the public client. The initial gym-data CSV remains local and is ignored by Git because this repository is public.
 
-The initial import contains 287 private exercise definitions, 11 gyms, 403 inferred sessions, 1,908 session exercises, and 4,498 sets spanning 23 January 2023 through 4 August 2026. Historical sessions are inferred from user + gym + date because the source CSV contains no workout time. A positional comparison found zero missing or mismatched rows after import.
+The current dataset contains 140 global exercise definitions, 40 movement patterns, one published 5,600-cell mapping version, 11 gyms, 404 inferred sessions, 1,909 session exercises, and 4,499 sets spanning 23 January 2023 through 4 August 2026. Historical sessions are inferred from user + gym + date because the source CSV contains no workout time. A positional comparison found zero missing or mismatched rows after import.
 
-Exercise names are currently kept distinct, including non-standard labels. Only leading, trailing, and repeated whitespace is normalized in the catalogue. The original label remains on each historical session exercise. Equipment IDs also remain on session exercises rather than exercise definitions because different machines for the same movement can have different resistance profiles.
+Exercise names are globally standardized, while aliases can resolve old import labels without creating duplicate catalogue entries. The original label remains on each historical session exercise. Equipment IDs also remain on session exercises rather than exercise definitions because different machines for the same movement can have different resistance profiles.
+
+The movement-pattern schema, access model, import guarantees, and current follow-up work are documented in [Movement-pattern data model](docs/MOVEMENT_PATTERN_DATA_MODEL.md). Coefficient semantics and limitations are documented separately in [Movement-pattern contribution coefficients](docs/MOVEMENT_PATTERN_COEFFICIENTS.md).
 
 Estimated 1RM values are calculated by Postgres whenever weight or reps changes. Brzycki uses `weight × 36 ÷ (37 − reps)` and Epley uses `weight × (1 + reps ÷ 30)`. The range stores the lower and higher estimates, rounded to two decimal places. Ranges remain empty when a source set has no reps or falls outside Brzycki's valid 1–36 rep domain.
 
@@ -55,10 +61,10 @@ Estimated 1RM values are calculated by Postgres whenever weight or reps changes.
 OAuth callbacks require an HTTP origin; do not open `index.html` directly from disk.
 
 ```powershell
-python -m http.server 8000
+npm run dev
 ```
 
-Then visit `http://localhost:8000/`.
+Then visit `http://127.0.0.1:5173/`. The development server disables browser caching so frontend edits appear after a refresh.
 
 Run the repository checks with:
 

@@ -12,12 +12,45 @@ const exerciseStatus = document.querySelector("#exercise-status");
 const exerciseCatalogue = document.querySelector("#exercise-catalogue");
 const liftList = document.querySelector("#lift-list");
 const loadMoreButton = document.querySelector("#load-more");
+const menuToggle = document.querySelector("#menu-toggle");
+const appMenu = document.querySelector("#app-menu");
+const menuBackdrop = document.querySelector("#menu-backdrop");
+const currentPageTitle = document.querySelector("#current-page-title");
+const menuItems = [...document.querySelectorAll("[data-page]")];
+const pagePanels = [...document.querySelectorAll("[data-page-panel]")];
+const dashboardStatus = document.querySelector("#dashboard-status");
+const metricGrid = document.querySelector("#metric-grid");
+const sessionsChart = document.querySelector("#sessions-chart");
+const volumeChart = document.querySelector("#volume-chart");
+const exerciseChart = document.querySelector("#exercise-chart");
 const pageSize = 20;
 let loadedRows = 0;
 let totalRows = 0;
 let loadingRows = false;
 let supabaseClient = null;
 let activeUserId = null;
+let dashboardLoadedForUser = null;
+let dashboardLoadingForUser = null;
+
+menuToggle.addEventListener("click", () => {
+  if (menuToggle.getAttribute("aria-expanded") === "true") {
+    closeMenu();
+  } else {
+    openMenu();
+  }
+});
+
+menuBackdrop.addEventListener("click", closeMenu);
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && menuToggle.getAttribute("aria-expanded") === "true") {
+    closeMenu();
+    menuToggle.focus();
+  }
+});
+
+for (const menuItem of menuItems) {
+  menuItem.addEventListener("click", () => showPage(menuItem.dataset.page));
+}
 
 const configured =
   SUPABASE_URL.startsWith("https://") &&
@@ -101,8 +134,10 @@ function renderSession(session) {
     signedInView.hidden = false;
     signOutButton.disabled = false;
     clearError();
+    showPage("home");
     resetExerciseCatalogue();
     resetLiftList();
+    resetDashboard();
     window.setTimeout(() => {
       void loadExerciseCatalogue(supabaseClient);
       void loadSessions(supabaseClient);
@@ -119,8 +154,10 @@ function showSignedOut() {
   signedInView.hidden = true;
   signedOutView.hidden = false;
   signInButton.disabled = false;
+  closeMenu();
   resetExerciseCatalogue();
   resetLiftList();
+  resetDashboard();
 }
 
 function showError(message) {
@@ -133,21 +170,300 @@ function clearError() {
   errorMessage.hidden = true;
 }
 
+function openMenu() {
+  menuToggle.setAttribute("aria-expanded", "true");
+  menuToggle.setAttribute("aria-label", "Close menu");
+  menuBackdrop.hidden = false;
+  appMenu.hidden = false;
+  appMenu.inert = false;
+  appMenu.setAttribute("aria-hidden", "false");
+  appMenu.querySelector(".menu-item.is-active")?.focus();
+}
+
+function closeMenu() {
+  menuToggle.setAttribute("aria-expanded", "false");
+  menuToggle.setAttribute("aria-label", "Open menu");
+  menuBackdrop.hidden = true;
+  appMenu.hidden = true;
+  appMenu.inert = true;
+  appMenu.setAttribute("aria-hidden", "true");
+}
+
+function showPage(pageName) {
+  const pageTitle = pageName === "my-data" ? "My data" : "Home";
+
+  for (const panel of pagePanels) {
+    panel.hidden = panel.dataset.pagePanel !== pageName;
+  }
+
+  for (const item of menuItems) {
+    const isActive = item.dataset.page === pageName;
+    item.classList.toggle("is-active", isActive);
+    if (isActive) item.setAttribute("aria-current", "page");
+    else item.removeAttribute("aria-current");
+  }
+
+  currentPageTitle.textContent = pageTitle;
+  closeMenu();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  if (pageName === "my-data" && activeUserId && supabaseClient) {
+    void loadDashboard(supabaseClient);
+  }
+}
+
+async function loadDashboard(supabase) {
+  const requestedUserId = activeUserId;
+  if (
+    !requestedUserId ||
+    dashboardLoadedForUser === requestedUserId ||
+    dashboardLoadingForUser === requestedUserId
+  ) return;
+
+  dashboardLoadingForUser = requestedUserId;
+  dashboardStatus.textContent = "Loading your dashboard…";
+
+  try {
+    const [sessions, exercises, sets] = await Promise.all([
+      fetchOwnedRows(supabase, "workout_sessions", "id, performed_on", requestedUserId),
+      fetchOwnedRows(supabase, "session_exercises", "id, session_id, exercise", requestedUserId),
+      fetchOwnedRows(
+        supabase,
+        "exercise_sets",
+        "id, session_exercise_id, weight, reps, is_warmup",
+        requestedUserId,
+      ),
+    ]);
+
+    if (requestedUserId !== activeUserId) return;
+    renderDashboard(sessions, exercises, sets);
+    dashboardLoadedForUser = requestedUserId;
+  } catch (error) {
+    if (requestedUserId !== activeUserId) return;
+    dashboardStatus.textContent = `Could not load your dashboard: ${error.message}`;
+  } finally {
+    if (dashboardLoadingForUser === requestedUserId) dashboardLoadingForUser = null;
+  }
+}
+
+async function fetchOwnedRows(supabase, table, columns, ownerId) {
+  const batchSize = 1000;
+  const rows = [];
+
+  while (true) {
+    const { data, error } = await supabase
+      .from(table)
+      .select(columns)
+      .eq("owner_id", ownerId)
+      .order("id", { ascending: true })
+      .range(rows.length, rows.length + batchSize - 1);
+
+    if (error) throw error;
+    rows.push(...data);
+    if (data.length < batchSize) return rows;
+  }
+}
+
+function renderDashboard(sessions, exercises, sets) {
+  const sessionById = new Map(sessions.map((session) => [session.id, session]));
+  const exerciseById = new Map(exercises.map((exercise) => [exercise.id, exercise]));
+  const monthlySessions = new Map();
+  const monthlyVolume = new Map();
+  const exerciseSetCounts = new Map();
+  let workingSetCount = 0;
+  let recordedVolume = 0;
+
+  for (const session of sessions) {
+    const month = session.performed_on.slice(0, 7);
+    monthlySessions.set(month, (monthlySessions.get(month) ?? 0) + 1);
+  }
+
+  for (const set of sets) {
+    if (set.is_warmup) continue;
+    workingSetCount += 1;
+
+    const exercise = exerciseById.get(set.session_exercise_id);
+    if (exercise) {
+      exerciseSetCounts.set(exercise.exercise, (exerciseSetCounts.get(exercise.exercise) ?? 0) + 1);
+    }
+
+    if (set.weight === null || set.reps === null || !exercise) continue;
+    const session = sessionById.get(exercise.session_id);
+    if (!session) continue;
+    const setVolume = Number(set.weight) * Number(set.reps);
+    const month = session.performed_on.slice(0, 7);
+    recordedVolume += setVolume;
+    monthlyVolume.set(month, (monthlyVolume.get(month) ?? 0) + setVolume);
+  }
+
+  renderMetrics([
+    { label: "Sessions", value: sessions.length.toLocaleString(), note: "Dated workout records" },
+    { label: "Working sets", value: workingSetCount.toLocaleString(), note: "Warm-ups excluded" },
+    { label: "Recorded volume", value: formatCompactNumber(recordedVolume), note: "kg × reps" },
+  ]);
+
+  const monthKeys = getLatestMonthKeys(sessions, 12);
+  renderVerticalChart(
+    sessionsChart,
+    monthKeys.map((month) => ({ label: formatMonthLabel(month), value: monthlySessions.get(month) ?? 0 })),
+    (value) => value.toLocaleString(),
+  );
+  renderVerticalChart(
+    volumeChart,
+    monthKeys.map((month) => ({ label: formatMonthLabel(month), value: monthlyVolume.get(month) ?? 0 })),
+    formatCompactNumber,
+  );
+
+  const topExercises = [...exerciseSetCounts]
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
+    .slice(0, 6);
+  renderHorizontalChart(exerciseChart, topExercises);
+
+  dashboardStatus.textContent = sessions.length
+    ? `Based on ${sessions.length.toLocaleString()} sessions in your training history`
+    : "No workout data yet";
+}
+
+function renderMetrics(metrics) {
+  const fragment = document.createDocumentFragment();
+
+  for (const metric of metrics) {
+    const card = document.createElement("article");
+    card.className = "metric-card";
+    const label = document.createElement("p");
+    label.className = "metric-label";
+    label.textContent = metric.label;
+    const value = document.createElement("p");
+    value.className = "metric-value";
+    value.textContent = metric.value;
+    const note = document.createElement("p");
+    note.className = "metric-note";
+    note.textContent = metric.note;
+    card.append(label, value, note);
+    fragment.append(card);
+  }
+
+  metricGrid.replaceChildren(fragment);
+}
+
+function renderVerticalChart(container, values, formatValue) {
+  if (!values.length) {
+    renderEmptyChart(container, "Your monthly chart will appear after your first session.");
+    return;
+  }
+
+  const maximum = Math.max(...values.map((item) => item.value), 1);
+  const fragment = document.createDocumentFragment();
+
+  for (const item of values) {
+    const column = document.createElement("div");
+    column.className = "vertical-bar-item";
+    column.setAttribute("aria-label", `${item.label}: ${formatValue(item.value)}`);
+
+    const track = document.createElement("div");
+    track.className = "vertical-bar-track";
+    const height = item.value === 0 ? 0 : Math.max((item.value / maximum) * 100, 3);
+    track.style.setProperty("--bar-height", `${height}%`);
+
+    const value = document.createElement("span");
+    value.className = "bar-value";
+    value.textContent = formatValue(item.value);
+    const bar = document.createElement("span");
+    bar.className = "vertical-bar";
+    bar.style.height = `${height}%`;
+    const label = document.createElement("span");
+    label.className = "bar-label";
+    label.textContent = item.label;
+    track.append(value, bar);
+    column.append(track, label);
+    fragment.append(column);
+  }
+
+  container.replaceChildren(fragment);
+}
+
+function renderHorizontalChart(container, values) {
+  if (!values.length) {
+    renderEmptyChart(container, "Your most-trained exercises will appear here.");
+    return;
+  }
+
+  const maximum = Math.max(...values.map((item) => item.value), 1);
+  const fragment = document.createDocumentFragment();
+
+  for (const item of values) {
+    const row = document.createElement("div");
+    row.className = "horizontal-bar-item";
+    row.setAttribute("aria-label", `${item.label}: ${item.value.toLocaleString()} working sets`);
+    const label = document.createElement("span");
+    label.className = "horizontal-label";
+    label.textContent = item.label;
+    const track = document.createElement("span");
+    track.className = "horizontal-track";
+    const bar = document.createElement("span");
+    bar.className = "horizontal-bar";
+    bar.style.width = `${(item.value / maximum) * 100}%`;
+    const value = document.createElement("span");
+    value.className = "horizontal-value";
+    value.textContent = item.value.toLocaleString();
+    track.append(bar);
+    row.append(label, track, value);
+    fragment.append(row);
+  }
+
+  container.replaceChildren(fragment);
+}
+
+function renderEmptyChart(container, message) {
+  const empty = document.createElement("p");
+  empty.className = "empty-chart";
+  empty.textContent = message;
+  container.replaceChildren(empty);
+}
+
+function getLatestMonthKeys(sessions, count) {
+  if (!sessions.length) return [];
+  const latest = sessions.reduce(
+    (current, session) => session.performed_on > current ? session.performed_on : current,
+    sessions[0].performed_on,
+  );
+  const [year, month] = latest.slice(0, 7).split("-").map(Number);
+  const keys = [];
+
+  for (let offset = count - 1; offset >= 0; offset -= 1) {
+    const date = new Date(Date.UTC(year, month - 1 - offset, 1));
+    keys.push(`${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`);
+  }
+
+  return keys;
+}
+
+function formatMonthLabel(monthKey) {
+  const [year, month] = monthKey.split("-").map(Number);
+  return new Intl.DateTimeFormat(undefined, { month: "short", year: "2-digit", timeZone: "UTC" })
+    .format(new Date(Date.UTC(year, month - 1, 1)))
+    .replace(" ", " ’");
+}
+
+function formatCompactNumber(value) {
+  return new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(value);
+}
+
 async function loadExerciseCatalogue(supabase) {
   const requestedUserId = activeUserId;
   const batchSize = 1000;
   const exercises = [];
   let expectedCount = null;
 
-  exerciseStatus.textContent = "Loading your exercises…";
+  exerciseStatus.textContent = "Loading exercises…";
   exerciseCatalogue.replaceChildren();
 
   while (expectedCount === null || exercises.length < expectedCount) {
     const start = exercises.length;
     const { data, error, count } = await supabase
       .from("exercises")
-      .select("id, name, canonical_exercise_id", { count: start === 0 ? "exact" : undefined })
-      .eq("owner_id", requestedUserId)
+      .select("id, code, name", { count: start === 0 ? "exact" : undefined })
+      .eq("is_active", true)
       .order("name", { ascending: true })
       .order("id", { ascending: true })
       .range(start, start + batchSize - 1);
@@ -172,7 +488,7 @@ async function loadExerciseCatalogue(supabase) {
   }
 
   exerciseCatalogue.append(fragment);
-  exerciseStatus.textContent = `${exercises.length.toLocaleString()} exercises · alphabetical`;
+  exerciseStatus.textContent = `${exercises.length.toLocaleString()} global exercises · alphabetical`;
 }
 
 async function loadSessions(supabase) {
@@ -304,7 +620,17 @@ function resetLiftList() {
 
 function resetExerciseCatalogue() {
   exerciseCatalogue.replaceChildren();
-  exerciseStatus.textContent = "Loading your exercises…";
+  exerciseStatus.textContent = "Loading exercises…";
+}
+
+function resetDashboard() {
+  dashboardLoadedForUser = null;
+  dashboardLoadingForUser = null;
+  dashboardStatus.textContent = "Loading your dashboard…";
+  metricGrid.replaceChildren();
+  sessionsChart.replaceChildren();
+  volumeChart.replaceChildren();
+  exerciseChart.replaceChildren();
 }
 
 function formatDate(isoDate) {

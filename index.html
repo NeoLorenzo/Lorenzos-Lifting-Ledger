@@ -8,16 +8,16 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=4" />
+    <link rel="stylesheet" href="./styles.css?v=5" />
     <title>Lorenzo's Lifting Ledger</title>
   </head>
   <body>
     <main class="shell" aria-live="polite">
-      <section id="loading" class="card">
+      <section id="loading" class="card auth-card">
         <p>Loading…</p>
       </section>
 
-      <section id="signed-out" class="card" hidden>
+      <section id="signed-out" class="card auth-card" hidden>
         <button id="google-sign-in" class="google-button" type="button">
           <span class="google-mark" aria-hidden="true">G</span>
           Continue with Google
@@ -25,25 +25,108 @@
         <p id="auth-error" class="error" role="alert" hidden></p>
       </section>
 
-      <section id="signed-in" class="card" hidden>
-        <header class="data-header">
-          <div>
-            <h1>Your lifts</h1>
-            <p id="dataset-status">Loading your data…</p>
+      <section id="signed-in" class="app-view" hidden>
+        <header class="top-bar">
+          <button id="menu-toggle" class="menu-toggle" type="button" aria-label="Open menu" aria-controls="app-menu" aria-expanded="false">
+            <span></span><span></span><span></span>
+          </button>
+          <div class="brand-lockup">
+            <span>Lifting Ledger</span>
+            <strong id="current-page-title">Home</strong>
           </div>
           <button id="sign-out" class="link-button" type="button">Sign out</button>
         </header>
-        <section class="catalogue-panel" aria-labelledby="exercise-catalogue-heading">
-          <h2 id="exercise-catalogue-heading">Exercise catalogue</h2>
-          <p id="exercise-status">Loading your exercises…</p>
-          <ol id="exercise-catalogue" class="catalogue-list"></ol>
+
+        <div id="menu-backdrop" class="menu-backdrop" hidden></div>
+        <aside id="app-menu" class="app-menu" aria-label="Main menu" aria-hidden="true" inert hidden>
+          <div class="menu-heading">Navigate</div>
+          <nav>
+            <button class="menu-item is-active" type="button" data-page="home" aria-current="page">
+              <span class="menu-icon" aria-hidden="true">⌂</span>
+              Home
+            </button>
+            <button class="menu-item" type="button" data-page="my-data">
+              <span class="menu-icon chart-icon" aria-hidden="true"><i></i><i></i><i></i></span>
+              My data
+            </button>
+          </nav>
+        </aside>
+
+        <section id="home-page" class="page-panel" data-page-panel="home">
+          <header class="data-header">
+            <div>
+              <p class="eyebrow">Training log</p>
+              <h1>Your lifts</h1>
+              <p id="dataset-status">Loading your data…</p>
+            </div>
+          </header>
+          <section class="catalogue-panel" aria-labelledby="exercise-catalogue-heading">
+            <h2 id="exercise-catalogue-heading">Exercise catalogue</h2>
+            <p id="exercise-status">Loading your exercises…</p>
+            <ol id="exercise-catalogue" class="catalogue-list"></ol>
+          </section>
+          <h2 class="history-heading">Workout history</h2>
+          <ol id="lift-list" class="lift-list"></ol>
+          <button id="load-more" class="load-more" type="button" hidden>Load more</button>
         </section>
-        <h2 class="history-heading">Workout history</h2>
-        <ol id="lift-list" class="lift-list"></ol>
-        <button id="load-more" class="load-more" type="button" hidden>Load more</button>
+
+        <section id="my-data-page" class="page-panel" data-page-panel="my-data" hidden>
+          <header class="dashboard-header">
+            <p class="eyebrow">Your training, at a glance</p>
+            <h1>My data</h1>
+            <p id="dashboard-status">Loading your dashboard…</p>
+          </header>
+
+          <div id="metric-grid" class="metric-grid" aria-label="Training summary"></div>
+
+          <div class="dashboard-grid">
+            <section class="chart-card chart-card-wide" aria-labelledby="sessions-chart-title">
+              <div class="chart-heading">
+                <div>
+                  <p class="chart-kicker">Consistency</p>
+                  <h2 id="sessions-chart-title">Sessions by month</h2>
+                </div>
+                <span class="chart-unit">sessions</span>
+              </div>
+              <div id="sessions-chart" class="vertical-chart" role="img" aria-label="Workout sessions over the latest twelve months in your history"></div>
+            </section>
+
+            <section class="chart-card chart-card-wide" aria-labelledby="volume-chart-title">
+              <div class="chart-heading">
+                <div>
+                  <p class="chart-kicker">Work performed</p>
+                  <h2 id="volume-chart-title">Recorded volume by month</h2>
+                </div>
+                <span class="chart-unit">kg × reps</span>
+              </div>
+              <div id="volume-chart" class="vertical-chart volume-chart" role="img" aria-label="Recorded training volume over the latest twelve months in your history"></div>
+            </section>
+
+            <section class="chart-card chart-card-full" aria-labelledby="exercise-chart-title">
+              <div class="chart-heading">
+                <div>
+                  <p class="chart-kicker">Most trained</p>
+                  <h2 id="exercise-chart-title">Top exercises</h2>
+                </div>
+                <span class="chart-unit">working sets</span>
+              </div>
+              <div id="exercise-chart" class="horizontal-chart" role="img" aria-label="Exercises ranked by number of working sets"></div>
+            </section>
+          </div>
+
+          <details class="method-card">
+            <summary>How these numbers are calculated</summary>
+            <div class="method-copy">
+              <p><strong>Sessions</strong> is a direct count of your dated workout-session records.</p>
+              <p><strong>Working sets</strong> counts set records that are not marked as warm-ups.</p>
+              <p><strong>Recorded volume</strong> adds weight in kilograms × reps for every working set where both values exist. It is a simple log total, not a measure of effort, fatigue, muscle growth, or work against gravity.</p>
+              <p>The monthly charts show the latest 12 calendar months covered by your history, including months with no sessions. Top exercises are ranked by working-set count. Incomplete sets are retained in counts but excluded from volume.</p>
+            </div>
+          </details>
+        </section>
       </section>
     </main>
 
-    <script type="module" src="./app.js?v=5"></script>
+    <script type="module" src="./app.js?v=7"></script>
   </body>
 </html>
