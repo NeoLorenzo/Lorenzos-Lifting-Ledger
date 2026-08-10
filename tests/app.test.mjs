@@ -374,8 +374,60 @@ test("provides a modelled muscle-exposure dashboard without tonnage", async () =
   assert.doesNotMatch(app, /\$\{weight\}\s*×\s*\$\{reps\}/);
   assert.match(styles, /\.muscle-exposure-grid/);
   assert.match(styles, /\.trend-chart/);
+  assert.match(app, /createElementNS\("http:\/\/www\.w3\.org\/2000\/svg", "polyline"\)/);
+  assert.match(app, /className = "progression-y-axis"/);
+  assert.match(app, /className = "progression-x-labels"/);
+  assert.match(app, /getRepeatedExercises\(periodRecords\)/);
+  assert.match(app, /selectRepresentativeSetsBySeries/);
+  assert.match(app, /className = "progression-legend"/);
+  assert.match(app, /className = "progression-tooltip"/);
+  assert.match(app, /marker\.tabIndex = 0/);
+  assert.doesNotMatch(app, /representatives\.slice\(0,\s*12\)/);
+  assert.match(styles, /\.progression-line/);
+  assert.match(styles, /\.progression-marker:hover \.progression-tooltip/);
+  assert.match(app, /formatPercentageChange\(item\.current, item\.previous\)/);
+  assert.match(app, /formatPercentageChange\(group\.current, group\.previous\)/);
+  assert.match(app, /"New this period"/);
+  assert.match(app, /change-positive/);
+  assert.match(app, /change-negative/);
+  assert.match(styles, /\.change-positive > strong[\s\S]*#4ade80/);
+  assert.match(styles, /\.change-negative > strong[\s\S]*#fb7185/);
+  assert.doesNotMatch(app, /delta\.textContent = `\$\{formatSigned/);
   assert.match(policy, /Never use or display weight × reps/);
   assert.match(policy, /prefer fewer meaningful metrics/i);
+});
+
+test("defines and applies one per-dumbbell weight convention", async () => {
+  const [html, app, designRules, readme] = await Promise.all([
+    read("index.html"),
+    read("app.js"),
+    read("docs/DESIGN_RULES.md"),
+    read("README.md"),
+  ]);
+
+  assert.match(html, /Every dumbbell measurement is the weight of one dumbbell/);
+  assert.match(html, /unilateral and bilateral/);
+  assert.match(app, /\? "kg per dumbbell" : "kg"/);
+  assert.match(app, /formatOneRepMaxRange\(set\.estimated_1rm_low, set\.estimated_1rm_high, exercise\.exercise\)/);
+  assert.match(designRules, /Dumbbell weight is always per dumbbell/);
+  assert.match(designRules, /never infer or display the combined weight/i);
+  assert.match(readme, /stored value is always the weight of \*\*one dumbbell\*\*/);
+});
+
+test("defines consistent exercise and directional color rules", async () => {
+  const [app, styles, designRules] = await Promise.all([
+    read("app.js"),
+    read("styles.css"),
+    read("docs/DESIGN_RULES.md"),
+  ]);
+
+  assert.match(app, /EXERCISE_SERIES_COLORS/);
+  assert.match(app, /stableStringHash\(`\$\{exerciseName\}:\$\{seriesKey\}`\)/);
+  assert.match(styles, /background: var\(--series-color/);
+  assert.match(designRules, /same exact exercise and equipment identity must keep the same color/i);
+  assert.match(designRules, /Positive increases are green/);
+  assert.match(designRules, /Negative decreases are red/);
+  assert.match(designRules, /Color must never be the only way/i);
 });
 
 test("provides a transparent Literature page for the app's scientific foundations", async () => {

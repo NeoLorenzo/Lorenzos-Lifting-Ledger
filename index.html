@@ -16,7 +16,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=13" />
+    <link rel="stylesheet" href="./styles.css?v=14" />
     <title>Lorenzo's Lifting Ledger | Evidence-aware training data</title>
     <script type="application/ld+json">
       {
@@ -121,7 +121,7 @@
                 <p>The app does not turn every input into a single score. It preserves the underlying performance data, then applies documented models only where they add a defensible interpretation.</p>
               </header>
               <ol class="process-grid">
-                <li><span>01</span><h3>Log the set</h3><p>Record the exercise, load, repetitions, set type and proximity to failure. Warm-ups remain distinct from working sets.</p></li>
+                <li><span>01</span><h3>Log the set</h3><p>Record the exercise, load, repetitions, set type and proximity to failure. Dumbbell load always means the weight of one dumbbell, including bilateral exercises. Warm-ups remain distinct from working sets.</p></li>
                 <li><span>02</span><h3>Resolve the exercise</h3><p>Workout history and the global catalogue use the same exercise identity, avoiding silent duplication and broken trends.</p></li>
                 <li><span>03</span><h3>Map relevant muscles</h3><p>An authored exercise-to-muscle layer identifies worthwhile hypertrophic relevance for a sufficiently hard set performed as intended.</p></li>
                 <li><span>04</span><h3>Read the trend</h3><p>Session history and personal statistics emphasize consistency, hard sets and exercise-specific progression rather than decorative totals.</p></li>
@@ -151,7 +151,7 @@
               <div class="measure-table" role="table" aria-label="Training information and its purpose">
                 <div class="measure-row measure-head" role="row"><span role="columnheader">Signal</span><span role="columnheader">Purpose</span><span role="columnheader">Boundary</span></div>
                 <div class="measure-row" role="row"><strong role="cell">Working sets</strong><span role="cell">A practical starting point for relevant training exposure.</span><span role="cell">A set still depends on effort, execution and exercise context.</span></div>
-                <div class="measure-row" role="row"><strong role="cell">Load + repetitions</strong><span role="cell">Tracks performance within an exercise over time.</span><span role="cell">Not combined into cross-exercise tonnage.</span></div>
+                <div class="measure-row" role="row"><strong role="cell">Load + repetitions</strong><span role="cell">Tracks performance within an exercise over time.</span><span role="cell">Dumbbell load is per dumbbell—never the combined pair—and is not combined into cross-exercise tonnage.</span></div>
                 <div class="measure-row" role="row"><strong role="cell">RIR</strong><span role="cell">Preserves proximity-to-failure context.</span><span role="cell">Self-reported and interpreted with appropriate caution.</span></div>
                 <div class="measure-row" role="row"><strong role="cell">Muscle relevance</strong><span role="cell">Connects a hard set to muscles worth considering.</span><span role="cell">An authored relevance model, not measured force or growth.</span></div>
                 <div class="measure-row" role="row"><strong role="cell">Estimated 1RM range</strong><span role="cell">Offers exercise-specific performance context.</span><span role="cell">An equation-based estimate, never a measured maximum.</span></div>
@@ -253,6 +253,7 @@
               <p>Browse the global exercise catalogue used throughout your training data.</p>
             </div>
           </header>
+          <aside class="weight-convention-note" aria-label="Dumbbell weight convention"><strong>Dumbbell weight rule</strong><span>Every dumbbell measurement is the weight of one dumbbell. This is unchanged for unilateral and bilateral exercises; never use the combined weight of the pair.</span></aside>
           <section class="catalogue-panel" aria-labelledby="exercise-catalogue-heading">
             <h2 id="exercise-catalogue-heading">Exercise catalogue</h2>
             <p id="exercise-status">Loading your exercises…</p>
@@ -268,6 +269,7 @@
               <p id="dataset-status">Loading your sessions…</p>
             </div>
           </header>
+          <aside class="weight-convention-note" aria-label="Dumbbell weight convention"><strong>Dumbbell weight rule</strong><span>Every dumbbell measurement below is the weight of one dumbbell, whether the exercise is unilateral or bilateral.</span></aside>
           <fieldset class="muscle-view-control">
             <legend>Muscle view</legend>
             <div class="muscle-view-toggle">
@@ -340,9 +342,10 @@
 
             <section class="dashboard-section progression-section" aria-labelledby="progression-title">
               <div class="section-heading progression-heading">
-                <div><p class="section-kicker">Exercise-specific performance</p><h2 id="progression-title">Exercise progression</h2><p>Estimated 1RM is secondary context for the same exercise only—not a measured max or a comparison between machines and free weights.</p></div>
+                <div><p class="section-kicker">Exercise-specific performance</p><h2 id="progression-title">Exercise progression</h2><p>Estimated 1RM is secondary context for the same exercise only—not a measured max. Different machines or equipment are shown as separate, color-keyed lines.</p></div>
                 <label class="exercise-select-label" for="progression-exercise">Exercise<select id="progression-exercise"></select></label>
               </div>
+              <p class="weight-convention-note compact-weight-note"><strong>Dumbbell weight rule</strong><span>For every dumbbell exercise, logged load and estimated 1RM are shown per dumbbell, for unilateral and bilateral movements.</span></p>
               <p id="progression-status" class="section-note"></p>
               <div id="progression-chart" class="progression-chart" role="img"></div>
               <div id="progression-history" class="performance-history"></div>
@@ -352,7 +355,7 @@
               <div class="section-heading compact-heading"><div><p class="section-kicker">Last 4 weeks vs previous 4 weeks</p><h2 id="recent-title">Recent change</h2></div></div>
               <div id="recent-overview" class="recent-overview"></div>
               <div id="recent-groups" class="recent-groups"></div>
-              <p class="section-note">Changes are descriptive and are not recommendations about how much a muscle should be trained.</p>
+              <p class="section-note">Percentage change uses the previous 4 weeks as the baseline. “New this period” is shown when that baseline is zero. Increases are green and decreases are red, with a signed text label so color is never the only cue. Changes are descriptive and are not recommendations about how much a muscle should be trained.</p>
             </section>
 
             <details class="method-card">
@@ -360,7 +363,7 @@
               <div class="method-copy">
                 <p><strong>Sessions</strong> counts dated workout records in the selected period. <strong>Working sets</strong> excludes warm-ups. <strong>Exercises trained</strong> counts exact catalogue exercise names with a working set.</p>
                 <p><strong>Modelled muscle exposure</strong> adds the authored exercise–muscle relevance coefficient for every working set. A UI group's value uses the highest child-muscle coefficient for each set, preventing groups with more anatomical entities from being inflated.</p>
-                <p><strong>Exercise progression</strong> selects one representative working set per session: highest valid estimated-1RM midpoint, otherwise highest load, with repetitions breaking load ties.</p>
+                <p><strong>Exercise progression</strong> includes exercises recorded in at least two sessions and selects one representative working set per equipment identity in each session: highest valid estimated-1RM midpoint, otherwise highest load, with repetitions breaking load ties. Equipment identities share the chart scale but keep separate lines and colors.</p>
               </div>
             </details>
           </div>
@@ -527,6 +530,7 @@
               </div>
               <h2>Estimated one-rep max</h2>
               <p>The app reports a range from the Brzycki and Epley equations using the logged load and repetitions. This is an estimate of exercise-specific performance, not a direct measurement of maximal strength.</p>
+              <p class="weight-convention-note compact-weight-note"><strong>Dumbbell weight rule</strong><span>For dumbbell exercises, both the formula input and reported estimate use the weight of one dumbbell, never the combined pair.</span></p>
               <div class="formula-block" aria-label="One repetition maximum formulas">
                 <p><span>Brzycki</span> weight × 36 ÷ (37 − reps)</p>
                 <p><span>Epley</span> weight × (1 + reps ÷ 30)</p>
@@ -556,6 +560,6 @@
       </section>
     </main>
 
-    <script type="module" src="./app.js?v=21"></script>
+    <script type="module" src="./app.js?v=22"></script>
   </body>
 </html>

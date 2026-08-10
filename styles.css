@@ -873,6 +873,28 @@ h1 {
   color: #94a3b8;
 }
 
+.weight-convention-note {
+  display: flex;
+  gap: 0.45rem 0.8rem;
+  align-items: baseline;
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.9rem;
+  border-left: 3px solid #60a5fa;
+  background: rgba(37, 99, 235, 0.09);
+  color: #a7b4c8;
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.weight-convention-note strong {
+  flex: 0 0 auto;
+  color: #dbeafe;
+}
+
+.compact-weight-note {
+  margin: 1rem 0 0.5rem;
+}
+
 .history-header {
   padding-bottom: 1.35rem;
 }
@@ -1673,8 +1695,7 @@ h1 {
   gap: 1.5rem;
 }
 
-.trend-chart,
-.progression-chart {
+.trend-chart {
   display: flex;
   gap: clamp(0.22rem, 1vw, 0.65rem);
   align-items: stretch;
@@ -1683,8 +1704,7 @@ h1 {
   border-bottom: 1px solid #334155;
 }
 
-.trend-column,
-.progression-point {
+.trend-column {
   display: grid;
   grid-template-rows: auto 1fr auto;
   gap: 0.35rem;
@@ -1697,8 +1717,7 @@ h1 {
   grid-template-rows: auto 9rem auto;
 }
 
-.trend-value,
-.progression-point > span:first-child {
+.trend-value {
   color: #94a3b8;
   font-size: 0.64rem;
 }
@@ -1717,8 +1736,7 @@ h1 {
   background: linear-gradient(180deg, #60a5fa, #2563eb);
 }
 
-.trend-label,
-.progression-point time {
+.trend-label {
   overflow: hidden;
   color: #64748b;
   font-size: 0.61rem;
@@ -1757,26 +1775,212 @@ h1 {
 }
 
 .progression-chart {
-  position: relative;
-  min-height: 10rem;
+  display: grid;
+  grid-template-columns: 4.8rem minmax(0, 1fr);
+  gap: 0.65rem;
   margin: 0.75rem 0 1.25rem;
+  padding-top: 2.25rem;
   border-top: 1px solid rgba(51, 65, 85, 0.5);
 }
 
-.progression-point {
-  position: relative;
+.progression-legend {
+  display: flex;
+  grid-column: 1 / -1;
+  flex-wrap: wrap;
+  gap: 0.45rem 1rem;
+  margin-top: -1.5rem;
+  margin-bottom: 1.15rem;
+  color: #94a3b8;
+  font-size: 0.68rem;
 }
 
-.progression-point > span:nth-child(2) {
+.progression-legend > span,
+.performance-series {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.progression-legend i,
+.performance-series i {
+  width: 0.62rem;
+  height: 0.62rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--series-color);
+}
+
+.progression-y-axis {
+  position: relative;
+  height: 14rem;
+  border-right: 1px solid #475569;
+}
+
+.progression-axis-title {
   position: absolute;
-  left: 50%;
+  top: -1.65rem;
+  left: 0;
+  width: max-content;
+  color: #94a3b8;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.progression-y-ticks {
+  position: absolute;
+  inset: 0;
+}
+
+.progression-y-ticks span {
+  position: absolute;
+  right: 0.55rem;
+  color: #718096;
+  font-size: 0.63rem;
+  font-variant-numeric: tabular-nums;
+  transform: translateY(50%);
+}
+
+.progression-chart-body {
+  min-width: 0;
+}
+
+.progression-plot {
+  position: relative;
+  height: 14rem;
+  border-bottom: 1px solid #475569;
+}
+
+.progression-plot svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.progression-grid-lines line {
+  stroke: rgba(71, 85, 105, 0.46);
+  stroke-width: 0.5;
+  vector-effect: non-scaling-stroke;
+}
+
+.progression-line {
+  fill: none;
+  stroke: #60a5fa;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.25;
+  vector-effect: non-scaling-stroke;
+}
+
+.progression-marker {
+  position: absolute;
+  z-index: 1;
   width: 0.65rem;
   height: 0.65rem;
-  border: 2px solid #bfdbfe;
-  border-radius: 50%;
-  background: #2563eb;
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.16);
   transform: translate(-50%, 50%);
+}
+
+.progression-marker-dot {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 2px solid #dbeafe;
+  border-radius: 50%;
+  background: var(--series-color, #2563eb);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--series-color, #2563eb) 20%, transparent);
+}
+
+.progression-marker:focus-visible {
+  outline: none;
+}
+
+.progression-marker:focus-visible .progression-marker-dot {
+  outline: 2px solid #f8fafc;
+  outline-offset: 3px;
+}
+
+.progression-marker-value {
+  position: absolute;
+  bottom: 1.05rem;
+  left: 50%;
+  color: #bfdbfe;
+  font-size: 0.66rem;
+  font-variant-numeric: tabular-nums;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+
+.progression-tooltip {
+  position: absolute;
+  z-index: 10;
+  bottom: 1.6rem;
+  left: 50%;
+  display: grid;
+  width: max-content;
+  max-width: min(17rem, 72vw);
+  gap: 0.18rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--series-color) 55%, #334155);
+  border-radius: 0.55rem;
+  background: #07101f;
+  box-shadow: 0 0.8rem 2rem rgba(0, 0, 0, 0.34);
+  color: #cbd5e1;
+  font-size: 0.7rem;
+  line-height: 1.35;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 0.25rem);
+  transition: opacity 120ms ease, transform 120ms ease, visibility 120ms ease;
+  visibility: hidden;
+}
+
+.progression-tooltip strong {
+  color: #f8fafc;
+}
+
+.progression-marker:hover .progression-tooltip,
+.progression-marker:focus .progression-tooltip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+  visibility: visible;
+}
+
+.progression-marker.is-start .progression-tooltip {
+  left: -0.35rem;
+  transform: translate(0, 0.25rem);
+}
+
+.progression-marker.is-start:hover .progression-tooltip,
+.progression-marker.is-start:focus .progression-tooltip {
+  transform: translate(0, 0);
+}
+
+.progression-marker.is-end .progression-tooltip {
+  right: -0.35rem;
+  left: auto;
+  transform: translate(0, 0.25rem);
+}
+
+.progression-marker.is-end:hover .progression-tooltip,
+.progression-marker.is-end:focus .progression-tooltip {
+  transform: translate(0, 0);
+}
+
+.progression-x-labels {
+  display: grid;
+  gap: 0;
+  padding-top: 0.6rem;
+}
+
+.progression-x-labels time {
+  min-width: 0;
+  overflow: hidden;
+  color: #718096;
+  font-size: 0.62rem;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .performance-history {
@@ -1785,21 +1989,27 @@ h1 {
 
 .performance-row {
   display: grid;
-  grid-template-columns: 5rem minmax(10rem, 1fr) minmax(11rem, auto);
+  grid-template-columns: 5rem minmax(7rem, 0.8fr) minmax(10rem, 1fr) minmax(11rem, auto);
   gap: 1rem;
-  padding: 0.75rem 0;
+  padding: 0.75rem 0 0.75rem 0.55rem;
+  border-left: 2px solid var(--series-color);
   border-top: 1px solid rgba(51, 65, 85, 0.55);
   align-items: baseline;
   font-size: 0.8rem;
 }
 
 .performance-row time,
-.performance-row span {
+.performance-row > span {
   color: #718096;
 }
 
-.performance-row span {
+.performance-row > span:last-child {
   text-align: right;
+}
+
+.performance-series {
+  color: #94a3b8;
+  font-size: 0.72rem;
 }
 
 .recent-overview {
@@ -1846,6 +2056,18 @@ h1 {
 
 .recent-group-row small {
   grid-column: 1 / -1;
+}
+
+.change-positive > strong {
+  color: #4ade80;
+}
+
+.change-negative > strong {
+  color: #fb7185;
+}
+
+.change-neutral > strong {
+  color: #cbd5e1;
 }
 
 .literature-header {
@@ -2559,13 +2781,52 @@ button:disabled {
   }
 
   .performance-row {
-    grid-template-columns: 4.5rem 1fr;
+    grid-template-columns: 4.5rem minmax(0, 1fr);
     gap: 0.35rem 0.75rem;
   }
 
-  .performance-row span {
+  .performance-row > span,
+  .performance-row > strong {
+    min-width: 0;
     grid-column: 2;
+    overflow-wrap: anywhere;
     text-align: left;
+  }
+
+  .performance-row > time {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .performance-series {
+    grid-row: 1;
+  }
+
+  .weight-convention-note {
+    display: grid;
+  }
+
+  .progression-chart {
+    grid-template-columns: 3rem minmax(0, 1fr);
+    gap: 0.4rem;
+  }
+
+  .progression-legend {
+    gap: 0.35rem 0.7rem;
+  }
+
+  .progression-y-axis,
+  .progression-plot {
+    height: 11rem;
+  }
+
+  .progression-axis-title {
+    font-size: 0.6rem;
+  }
+
+  .progression-y-ticks span,
+  .progression-x-labels time {
+    font-size: 0.56rem;
   }
 
   .trend-value {

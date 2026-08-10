@@ -6,12 +6,17 @@ import {
   calculateExerciseSources,
   calculateExposureTrend,
   calculateMuscleExposure,
+  calculatePercentageChange,
   compareRecentPeriods,
+  createLinearScale,
   createBucketKeys,
   filterByRange,
+  getEquipmentSeriesKey,
   getDateRange,
+  getRepeatedExercises,
   joinDashboardData,
   selectRepresentativeSets,
+  selectRepresentativeSetsBySeries,
   workingSets,
 } from "../analytics.js";
 
@@ -51,6 +56,16 @@ test("joins dashboard records and excludes warm-ups from working sets", () => {
   );
   assert.equal(records.length, 2);
   assert.deepEqual(workingSets(records).map((record) => record.id), [2]);
+});
+
+test("keeps equipment identity on joined dashboard records", () => {
+  const [record] = joinDashboardData(
+    [{ id: 10, performed_on: "2026-08-10" }],
+    [{ id: 20, session_id: 10, exercise_id: 1, exercise: "Press", equipment_id: "Machine A" }],
+    [{ id: 1, session_exercise_id: 20, is_warmup: false }],
+  );
+  assert.equal(record.equipment_id, "Machine A");
+  assert.equal(getEquipmentSeriesKey(record), "equipment-Machine A");
 });
 
 test("calculates independent detailed exposure and max-child UI group exposure", () => {
@@ -121,6 +136,26 @@ test("representative set prefers e1RM midpoint, then load, then reps, and ignore
   assert.deepEqual(selectRepresentativeSets(records, "Press").map((record) => record.id), [6, 3]);
 });
 
+test("progression eligibility requires working sets in at least two sessions", () => {
+  const records = [
+    set({ id: 1, exercise: "Repeated", session_id: 10 }),
+    set({ id: 2, exercise: "Repeated", session_id: 11 }),
+    set({ id: 3, exercise: "One off", session_id: 12 }),
+    set({ id: 4, exercise: "Warm-up only", session_id: 13, is_warmup: true }),
+  ];
+  assert.deepEqual(getRepeatedExercises(records), ["Repeated"]);
+});
+
+test("progression chooses a representative set per session and equipment series", () => {
+  const records = [
+    set({ id: 1, equipment_id: "Machine A", weight: 90 }),
+    set({ id: 2, equipment_id: "Machine A", weight: 100 }),
+    set({ id: 3, equipment_id: "Machine B", weight: 80 }),
+    set({ id: 4, session_id: 11, performed_on: "2026-08-11", equipment_id: "Machine A", weight: 105 }),
+  ];
+  assert.deepEqual(selectRepresentativeSetsBySeries(records, "Press").map((record) => record.id), [2, 3, 4]);
+});
+
 test("handles missing RPE, e1RM, and exercise mappings without inventing values", () => {
   const records = [set({ rpe: null }), set({ id: 2, exercise_id: 99, exercise: "Unknown" })];
   const result = calculateMuscleExposure(records, lookup, groups);
@@ -132,4 +167,21 @@ test("handles missing RPE, e1RM, and exercise mappings without inventing values"
 test("dashboard source contains no tonnage calculation", async () => {
   const source = await readFile(new URL("../analytics.js", import.meta.url), "utf8");
   assert.doesNotMatch(source, /weight\s*\*\s*(?:reps|record\.reps)|(?:reps|record\.reps)\s*\*\s*weight/i);
+});
+
+test("creates a readable linear scale for estimated one-rep-max charts", () => {
+  const scale = createLinearScale([33, 88, 94, 97, 100]);
+  assert.ok(scale.minimum <= 33);
+  assert.ok(scale.maximum >= 100);
+  assert.ok(scale.ticks.length >= 4);
+  assert.equal(scale.position(scale.minimum), 0);
+  assert.equal(scale.position(scale.maximum), 100);
+  assert.ok(scale.position(88) > scale.position(33));
+});
+
+test("calculates recent percentage changes without infinite zero-baseline values", () => {
+  assert.equal(calculatePercentageChange(15, 8), 87.5);
+  assert.equal(calculatePercentageChange(6, 8), -25);
+  assert.equal(calculatePercentageChange(8, 8), 0);
+  assert.equal(calculatePercentageChange(5, 0), null);
 });

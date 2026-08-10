@@ -90,6 +90,7 @@ export function joinDashboardData(sessions, exercises, sets) {
       performed_on: session.performed_on,
       exercise_id: exercise.exercise_id,
       exercise: exercise.exercise,
+      equipment_id: exercise.equipment_id ?? null,
     }];
   });
 }
@@ -237,6 +238,41 @@ export function selectRepresentativeSets(records, exerciseName) {
   return [...bySession.values()].sort((a, b) => a.performed_on.localeCompare(b.performed_on));
 }
 
+export function getEquipmentSeriesKey(record) {
+  const equipmentId = record?.equipment_id;
+  return equipmentId === null || equipmentId === undefined || equipmentId === ""
+    ? "equipment-unrecorded"
+    : `equipment-${String(equipmentId)}`;
+}
+
+export function selectRepresentativeSetsBySeries(records, exerciseName) {
+  const bySessionAndSeries = new Map();
+  for (const record of workingSets(records).filter((item) => item.exercise === exerciseName)) {
+    const seriesKey = getEquipmentSeriesKey(record);
+    const key = `${seriesKey}:${record.session_id}`;
+    const selected = bySessionAndSeries.get(key);
+    // Each machine receives its own representative working set within a session.
+    if (!selected || comparePerformanceSets(record, selected) > 0) bySessionAndSeries.set(key, record);
+  }
+  return [...bySessionAndSeries.values()].sort((a, b) => (
+    a.performed_on.localeCompare(b.performed_on)
+    || getEquipmentSeriesKey(a).localeCompare(getEquipmentSeriesKey(b))
+  ));
+}
+
+export function getRepeatedExercises(records, minimumSessions = 2) {
+  const sessionsByExercise = new Map();
+  for (const record of workingSets(records)) {
+    const sessions = sessionsByExercise.get(record.exercise) ?? new Set();
+    sessions.add(record.session_id);
+    sessionsByExercise.set(record.exercise, sessions);
+  }
+  return [...sessionsByExercise]
+    .filter(([, sessions]) => sessions.size >= minimumSessions)
+    .map(([exercise]) => exercise)
+    .sort((a, b) => a.localeCompare(b));
+}
+
 export function chooseDefaultExercise(records) {
   const stats = new Map();
   for (const record of workingSets(records)) {
@@ -245,8 +281,7 @@ export function chooseDefaultExercise(records) {
     if (record.performed_on > stat.latest) stat.latest = record.performed_on;
     stats.set(record.exercise, stat);
   }
-  const repeated = [...stats.values()].filter((stat) => stat.sessions.size >= 2);
-  const candidates = repeated.length ? repeated : [...stats.values()];
+  const candidates = [...stats.values()].filter((stat) => stat.sessions.size >= 2);
   return candidates.sort((a, b) => b.sessions.size - a.sessions.size || b.latest.localeCompare(a.latest) || a.exercise.localeCompare(b.exercise))[0]?.exercise ?? null;
 }
 
@@ -284,4 +319,42 @@ export function getEstimatedOneRepMax(set) {
   const low = Number(set.estimated_1rm_low);
   const high = Number(set.estimated_1rm_high);
   return Number.isFinite(low) && Number.isFinite(high) && low > 0 && high >= low ? (low + high) / 2 : null;
+}
+
+function niceStep(value) {
+  const magnitude = 10 ** Math.floor(Math.log10(Math.max(value, Number.EPSILON)));
+  const normalized = value / magnitude;
+  if (normalized <= 1) return magnitude;
+  if (normalized <= 2) return 2 * magnitude;
+  if (normalized <= 5) return 5 * magnitude;
+  return 10 * magnitude;
+}
+
+export function createLinearScale(values, targetTickCount = 5) {
+  const finite = values.map(Number).filter((value) => Number.isFinite(value));
+  if (!finite.length) return null;
+  const rawMinimum = Math.min(...finite);
+  const rawMaximum = Math.max(...finite);
+  const rawSpread = rawMaximum - rawMinimum;
+  const padding = Math.max(rawSpread * 0.1, rawMaximum * 0.05, 1);
+  const step = niceStep((rawSpread + padding * 2) / Math.max(targetTickCount - 1, 1));
+  const minimum = Math.max(0, Math.floor((rawMinimum - padding) / step) * step);
+  const maximum = Math.max(minimum + step, Math.ceil((rawMaximum + padding) / step) * step);
+  const ticks = [];
+  for (let value = minimum; value <= maximum + step / 2; value += step) ticks.push(Number(value.toFixed(10)));
+  return {
+    minimum,
+    maximum,
+    ticks,
+    position(value) {
+      return ((Number(value) - minimum) / (maximum - minimum)) * 100;
+    },
+  };
+}
+
+export function calculatePercentageChange(current, previous) {
+  const currentValue = Number(current);
+  const previousValue = Number(previous);
+  if (!Number.isFinite(currentValue) || !Number.isFinite(previousValue) || previousValue === 0) return null;
+  return ((currentValue - previousValue) / previousValue) * 100;
 }

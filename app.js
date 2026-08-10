@@ -5,14 +5,18 @@ import {
   calculateExerciseSources,
   calculateExposureTrend,
   calculateMuscleExposure,
+  calculatePercentageChange,
   chooseDefaultExercise,
   compareRecentPeriods,
+  createLinearScale,
   filterByRange,
   getDateRange,
+  getEquipmentSeriesKey,
   getEstimatedOneRepMax,
   getGroupCatalogue,
+  getRepeatedExercises,
   joinDashboardData,
-  selectRepresentativeSets,
+  selectRepresentativeSetsBySeries,
   summarizeTraining,
   workingSets,
 } from "./analytics.js";
@@ -84,6 +88,10 @@ let dashboardData = null;
 let dashboardRange = "8w";
 let selectedDashboardGroup = null;
 let selectedProgressionExercise = null;
+const EXERCISE_SERIES_COLORS = Object.freeze([
+  "#60a5fa", "#c084fc", "#f59e0b", "#22d3ee", "#f472b6",
+  "#818cf8", "#fb923c", "#2dd4bf", "#eab308", "#a78bfa",
+]);
 
 menuToggle.addEventListener("click", () => {
   if (menuToggle.getAttribute("aria-expanded") === "true") {
@@ -420,7 +428,7 @@ async function loadDashboard(supabase) {
   try {
     const [sessions, exercises, sets] = await Promise.all([
       fetchOwnedRows(supabase, "workout_sessions", "id, performed_on", requestedUserId),
-      fetchOwnedRows(supabase, "session_exercises", "id, session_id, exercise_id, exercise", requestedUserId),
+      fetchOwnedRows(supabase, "session_exercises", "id, session_id, exercise_id, exercise, equipment_id", requestedUserId),
       fetchOwnedRows(
         supabase,
         "exercise_sets",
@@ -507,7 +515,7 @@ function renderDashboard() {
   }
   renderSelectedMuscle(groups, exposure, periodRecords, range);
 
-  const periodExercises = [...new Set(periodWorkingSets.map((record) => record.exercise))].sort();
+  const periodExercises = getRepeatedExercises(periodRecords);
   if (!periodExercises.includes(selectedProgressionExercise)) selectedProgressionExercise = chooseDefaultExercise(periodRecords);
   renderProgressionOptions(periodExercises);
   renderExerciseProgression();
@@ -665,64 +673,167 @@ function renderProgressionOptions(exercises) {
 
 function renderExerciseProgression() {
   if (!dashboardData || !selectedProgressionExercise) {
-    progressionStatus.textContent = "No working-set performance records are available in this period.";
+    progressionStatus.textContent = "Exercise progression appears after an exercise has working sets in at least two sessions in this period.";
     progressionChart.replaceChildren();
     progressionHistory.replaceChildren();
     return;
   }
   const range = getDateRange(dashboardRange, new Date(), dashboardData.sessions);
-  const representatives = selectRepresentativeSets(filterByRange(dashboardData.records, range), selectedProgressionExercise);
+  const representatives = selectRepresentativeSetsBySeries(filterByRange(dashboardData.records, range), selectedProgressionExercise);
   const estimates = representatives.map((record) => ({ record, value: getEstimatedOneRepMax(record) })).filter((item) => item.value !== null);
-  progressionStatus.textContent = representatives.length < 2
-    ? "One representative session is available; log another appearance to establish a trend."
-    : `One representative working set per session · ${representatives.length} sessions`;
-  renderProgressionTrend(estimates, representatives.length);
+  const sessionCount = new Set(representatives.map((record) => record.session_id)).size;
+  const seriesKeys = [...new Set(representatives.map(getEquipmentSeriesKey))];
+  const seriesColors = assignExerciseSeriesColors(selectedProgressionExercise, seriesKeys);
+  progressionStatus.textContent = `${sessionCount} sessions · one representative working set per machine in each session`;
+  renderProgressionTrend(estimates, sessionCount, seriesColors);
   const fragment = document.createDocumentFragment();
-  for (const record of [...representatives].reverse().slice(0, 12)) {
+  for (const record of [...representatives].reverse()) {
     const row = document.createElement("div");
     row.className = "performance-row";
+    row.style.setProperty("--series-color", seriesColors.get(getEquipmentSeriesKey(record)));
     const date = document.createElement("time");
     date.dateTime = record.performed_on;
     date.textContent = formatShortDate(record.performed_on);
+    const series = document.createElement("span");
+    series.className = "performance-series";
+    const swatch = document.createElement("i");
+    swatch.setAttribute("aria-hidden", "true");
+    const seriesLabel = document.createElement("span");
+    seriesLabel.textContent = formatEquipmentLabel(record.equipment_id);
+    series.append(swatch, seriesLabel);
     const performance = document.createElement("strong");
-    const load = record.weight === null ? "Load not recorded" : `${formatDecimal(Number(record.weight))} kg`;
+    const load = record.weight === null ? "Load not recorded" : `${formatDecimal(Number(record.weight))} ${formatWeightUnit(record.exercise)}`;
     const reps = record.reps === null ? "reps not recorded" : `${record.reps} ${record.reps === 1 ? "rep" : "reps"}`;
     performance.textContent = `${load} × ${reps}`;
     const context = document.createElement("span");
     const estimate = getEstimatedOneRepMax(record);
-    context.textContent = [record.rpe === null ? "RPE not recorded" : `RPE ${formatDecimal(Number(record.rpe))}`, estimate === null ? null : `e1RM ~${Math.round(estimate)} kg`].filter(Boolean).join(" · ");
-    row.append(date, performance, context);
+    context.textContent = [record.rpe === null ? "RPE not recorded" : `RPE ${formatDecimal(Number(record.rpe))}`, estimate === null ? null : `e1RM ~${Math.round(estimate)} ${formatWeightUnit(record.exercise)}`].filter(Boolean).join(" · ");
+    row.append(date, series, performance, context);
     fragment.append(row);
   }
   progressionHistory.replaceChildren(fragment);
 }
 
-function renderProgressionTrend(estimates, sessionCount) {
+function renderProgressionTrend(estimates, sessionCount, seriesColors) {
   if (sessionCount < 2 || estimates.length < 2) {
     progressionChart.replaceChildren();
     progressionChart.removeAttribute("aria-label");
     return;
   }
-  const minimum = Math.min(...estimates.map((item) => item.value));
-  const maximum = Math.max(...estimates.map((item) => item.value));
-  const spread = Math.max(maximum - minimum, maximum * 0.08, 1);
-  const fragment = document.createDocumentFragment();
-  for (const item of estimates) {
-    const point = document.createElement("div");
-    point.className = "progression-point";
-    point.setAttribute("aria-label", `${formatShortDate(item.record.performed_on)}: estimated 1RM approximately ${Math.round(item.value)} kilograms`);
-    const value = document.createElement("span");
-    value.textContent = `~${Math.round(item.value)}`;
-    const mark = document.createElement("span");
-    mark.style.bottom = `${12 + ((item.value - minimum) / spread) * 68}%`;
-    const label = document.createElement("time");
-    label.dateTime = item.record.performed_on;
-    label.textContent = formatShortDate(item.record.performed_on);
-    point.append(value, mark, label);
-    fragment.append(point);
+  const scale = createLinearScale(estimates.map((item) => item.value));
+  const unit = formatWeightUnit(selectedProgressionExercise);
+  const plottedSeries = [...new Set(estimates.map((item) => getEquipmentSeriesKey(item.record)))].sort();
+  const legend = document.createElement("div");
+  legend.className = "progression-legend";
+  legend.setAttribute("aria-label", "Machine series key");
+  for (const seriesKey of plottedSeries) {
+    const sample = estimates.find((item) => getEquipmentSeriesKey(item.record) === seriesKey)?.record;
+    const item = document.createElement("span");
+    item.style.setProperty("--series-color", seriesColors.get(seriesKey));
+    const swatch = document.createElement("i");
+    swatch.setAttribute("aria-hidden", "true");
+    const label = document.createElement("span");
+    label.textContent = formatEquipmentLabel(sample?.equipment_id);
+    item.append(swatch, label);
+    legend.append(item);
   }
-  progressionChart.replaceChildren(fragment);
-  progressionChart.setAttribute("aria-label", `Estimated one-rep-max trend for ${selectedProgressionExercise}, in kilograms.`);
+  const yAxis = document.createElement("div");
+  yAxis.className = "progression-y-axis";
+  const axisTitle = document.createElement("span");
+  axisTitle.className = "progression-axis-title";
+  axisTitle.textContent = `Estimated 1RM (${unit})`;
+  const tickLayer = document.createElement("div");
+  tickLayer.className = "progression-y-ticks";
+  for (const tick of scale.ticks) {
+    const label = document.createElement("span");
+    label.style.bottom = `${scale.position(tick)}%`;
+    label.textContent = Math.round(tick).toLocaleString();
+    tickLayer.append(label);
+  }
+  yAxis.append(axisTitle, tickLayer);
+
+  const chartBody = document.createElement("div");
+  chartBody.className = "progression-chart-body";
+  const plot = document.createElement("div");
+  plot.className = "progression-plot";
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 100 100");
+  svg.setAttribute("preserveAspectRatio", "none");
+  svg.setAttribute("aria-hidden", "true");
+  const grid = document.createElementNS("http://www.w3.org/2000/svg", "g");
+  grid.setAttribute("class", "progression-grid-lines");
+  for (const tick of scale.ticks) {
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    const y = 100 - scale.position(tick);
+    line.setAttribute("x1", "0");
+    line.setAttribute("x2", "100");
+    line.setAttribute("y1", String(y));
+    line.setAttribute("y2", String(y));
+    grid.append(line);
+  }
+  const dates = [...new Set(estimates.map((item) => item.record.performed_on))].sort();
+  const points = estimates.map((item) => ({
+    ...item,
+    seriesKey: getEquipmentSeriesKey(item.record),
+    x: dates.length === 1 ? 50 : 2 + (dates.indexOf(item.record.performed_on) / (dates.length - 1)) * 96,
+    y: scale.position(item.value),
+  }));
+  svg.append(grid);
+  for (const seriesKey of plottedSeries) {
+    const seriesPoints = points.filter((point) => point.seriesKey === seriesKey).sort((a, b) => a.record.performed_on.localeCompare(b.record.performed_on));
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+    line.setAttribute("class", "progression-line");
+    line.setAttribute("points", seriesPoints.map((point) => `${point.x},${100 - point.y}`).join(" "));
+    line.style.stroke = seriesColors.get(seriesKey);
+    svg.append(line);
+  }
+  plot.append(svg);
+  for (const [index, point] of points.entries()) {
+    const marker = document.createElement("span");
+    marker.className = "progression-marker";
+    if (point.x < 10) marker.classList.add("is-start");
+    if (point.x > 90) marker.classList.add("is-end");
+    marker.style.left = `${point.x}%`;
+    marker.style.bottom = `${point.y}%`;
+    marker.style.setProperty("--series-color", seriesColors.get(point.seriesKey));
+    marker.tabIndex = 0;
+    marker.setAttribute("aria-label", `${formatShortDate(point.record.performed_on)}: estimated 1RM approximately ${Math.round(point.value)} ${unit}`);
+    const value = document.createElement("span");
+    value.className = "progression-marker-value";
+    value.textContent = `~${Math.round(point.value)}`;
+    const dot = document.createElement("span");
+    dot.className = "progression-marker-dot";
+    const tooltip = document.createElement("span");
+    tooltip.className = "progression-tooltip";
+    tooltip.id = `progression-tooltip-${index}`;
+    tooltip.setAttribute("role", "tooltip");
+    const tooltipDate = document.createElement("strong");
+    tooltipDate.textContent = formatShortDate(point.record.performed_on);
+    const tooltipSeries = document.createElement("span");
+    tooltipSeries.textContent = formatEquipmentLabel(point.record.equipment_id);
+    const tooltipPerformance = document.createElement("span");
+    const load = point.record.weight === null ? "Load not recorded" : `${formatDecimal(Number(point.record.weight))} ${unit}`;
+    const reps = point.record.reps === null ? "reps not recorded" : `${point.record.reps} ${point.record.reps === 1 ? "rep" : "reps"}`;
+    tooltipPerformance.textContent = `${load} × ${reps}`;
+    const tooltipContext = document.createElement("span");
+    tooltipContext.textContent = `${point.record.rpe === null ? "RPE not recorded" : `RPE ${formatDecimal(Number(point.record.rpe))}`} · e1RM ~${Math.round(point.value)} ${unit}`;
+    tooltip.append(tooltipDate, tooltipSeries, tooltipPerformance, tooltipContext);
+    marker.setAttribute("aria-describedby", tooltip.id);
+    marker.append(value, dot, tooltip);
+    plot.append(marker);
+  }
+  const xLabels = document.createElement("div");
+  xLabels.className = "progression-x-labels";
+  xLabels.style.gridTemplateColumns = `repeat(${dates.length}, minmax(0, 1fr))`;
+  for (const dateValue of dates) {
+    const date = document.createElement("time");
+    date.dateTime = dateValue;
+    date.textContent = formatShortDate(dateValue);
+    xLabels.append(date);
+  }
+  chartBody.append(plot, xLabels);
+  progressionChart.replaceChildren(legend, yAxis, chartBody);
+  progressionChart.setAttribute("aria-label", `Line chart of estimated one-rep max for ${selectedProgressionExercise}, in ${unit}, with machine series identified by color and text keys.`);
 }
 
 function renderRecentChange(groups) {
@@ -739,8 +850,8 @@ function renderRecentChange(groups) {
   const overviewFragment = document.createDocumentFragment();
   for (const item of overview) {
     const card = document.createElement("div");
-    card.className = "recent-metric";
-    card.innerHTML = `<span>${item.label}</span><strong>${formatSigned(item.delta)}</strong><small>${item.current} now · ${item.previous} before</small>`;
+    card.className = `recent-metric ${getChangeDirectionClass(item.current, item.previous)}`;
+    card.innerHTML = `<span>${item.label}</span><strong>${formatPercentageChange(item.current, item.previous)}</strong><small>${item.current} now · ${item.previous} before</small>`;
     overviewFragment.append(card);
   }
   recentOverview.replaceChildren(overviewFragment);
@@ -748,17 +859,55 @@ function renderRecentChange(groups) {
   const fragment = document.createDocumentFragment();
   for (const group of changed) {
     const row = document.createElement("div");
-    row.className = "recent-group-row";
+    row.className = `recent-group-row ${getChangeDirectionClass(group.current, group.previous)}`;
     const label = document.createElement("span");
     label.textContent = group.name;
     const delta = document.createElement("strong");
-    delta.textContent = `${formatSigned(group.delta)} weighted ${Math.abs(group.delta) === 1 ? "set" : "sets"}`;
+    delta.textContent = formatPercentageChange(group.current, group.previous);
     const context = document.createElement("small");
     context.textContent = `${formatExposure(group.current)} vs ${formatExposure(group.previous)}`;
     row.append(label, delta, context);
     fragment.append(row);
   }
   recentGroups.replaceChildren(fragment.childNodes.length ? fragment : createEmptyMessage("Muscle-group exposure was unchanged between the two periods."));
+}
+
+function stableStringHash(value) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function assignExerciseSeriesColors(exerciseName, seriesKeys) {
+  const colors = new Map();
+  const usedIndexes = new Set();
+
+  [...seriesKeys].sort().forEach((seriesKey) => {
+    let colorIndex = stableStringHash(`${exerciseName}:${seriesKey}`) % EXERCISE_SERIES_COLORS.length;
+    while (usedIndexes.has(colorIndex) && usedIndexes.size < EXERCISE_SERIES_COLORS.length) {
+      colorIndex = (colorIndex + 1) % EXERCISE_SERIES_COLORS.length;
+    }
+    usedIndexes.add(colorIndex);
+    colors.set(seriesKey, EXERCISE_SERIES_COLORS[colorIndex]);
+  });
+
+  return colors;
+}
+
+function formatEquipmentLabel(equipmentId) {
+  return equipmentId === null || equipmentId === undefined || equipmentId === ""
+    ? "Equipment not recorded"
+    : `Equipment ${equipmentId}`;
+}
+
+function getChangeDirectionClass(current, previous) {
+  const difference = Number(current) - Number(previous);
+  if (difference > 0) return "change-positive";
+  if (difference < 0) return "change-negative";
+  return "change-neutral";
 }
 
 function createEmptyMessage(message) {
@@ -776,9 +925,11 @@ function formatDecimal(value) {
   return Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 });
 }
 
-function formatSigned(value) {
-  const formatted = formatExposure(Math.abs(value));
-  return value > 0 ? `+${formatted}` : value < 0 ? `−${formatted}` : "0";
+function formatPercentageChange(current, previous) {
+  const percentage = calculatePercentageChange(current, previous);
+  if (percentage === null) return Number(current) === 0 ? "No change" : "New this period";
+  const rounded = Math.abs(percentage).toLocaleString(undefined, { maximumFractionDigits: 1 });
+  return percentage > 0 ? `+${rounded}%` : percentage < 0 ? `−${rounded}%` : "0%";
 }
 
 function formatShortDate(value) {
@@ -1082,10 +1233,11 @@ function createExerciseItem(exercise) {
 
   for (const set of [...exercise.exercise_sets].sort((a, b) => a.set_number - b.set_number)) {
     const setItem = document.createElement("li");
-    const weight = set.weight === null ? "— kg" : `${Number(set.weight).toLocaleString()} kg`;
+    const weightUnit = formatWeightUnit(exercise.exercise);
+    const weight = set.weight === null ? `— ${weightUnit}` : `${Number(set.weight).toLocaleString()} ${weightUnit}`;
     const reps = set.reps === null ? "— reps" : `${set.reps} reps`;
     const labels = [
-      formatOneRepMaxRange(set.estimated_1rm_low, set.estimated_1rm_high),
+      formatOneRepMaxRange(set.estimated_1rm_low, set.estimated_1rm_high, exercise.exercise),
       set.is_warmup ? "Warm-up" : null,
       set.is_drop_set ? "Drop set" : null,
       set.is_superset ? "Superset" : null,
@@ -1101,14 +1253,19 @@ function createExerciseItem(exercise) {
   return item;
 }
 
-function formatOneRepMaxRange(low, high) {
+function formatOneRepMaxRange(low, high, exerciseName = "") {
   if (low === null || high === null) return null;
 
   const lowLabel = Number(low).toLocaleString(undefined, { maximumFractionDigits: 2 });
   const highLabel = Number(high).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  const unit = formatWeightUnit(exerciseName);
   return lowLabel === highLabel
-    ? `Estimated 1RM ${lowLabel} kg`
-    : `Estimated 1RM ${lowLabel}–${highLabel} kg`;
+    ? `Estimated 1RM ${lowLabel} ${unit}`
+    : `Estimated 1RM ${lowLabel}–${highLabel} ${unit}`;
+}
+
+function formatWeightUnit(exerciseName) {
+  return /\(Dumbbell\)/i.test(exerciseName ?? "") ? "kg per dumbbell" : "kg";
 }
 
 function resetLiftList() {
