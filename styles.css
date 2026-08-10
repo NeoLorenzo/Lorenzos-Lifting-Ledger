@@ -2864,3 +2864,132 @@ button:disabled {
     scroll-behavior: auto !important;
   }
 }
+
+.session-search {
+  margin: 0 0 1rem;
+  padding: 0.85rem;
+  border: 1px solid #283548;
+  border-radius: 0.85rem;
+  background: rgba(20, 30, 48, 0.82);
+  text-align: left;
+}
+
+.session-search > label,
+.exercise-edit-form label {
+  display: grid;
+  gap: 0.35rem;
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.session-search-field {
+  display: flex;
+  gap: 0.55rem;
+  margin-top: 0.45rem;
+}
+
+.session-search input,
+.exercise-edit-form input {
+  min-width: 0;
+  min-height: 2.7rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid #475569;
+  border-radius: 0.6rem;
+  background: #0b1323;
+  color: #f8fafc;
+  font: inherit;
+}
+
+.session-search input {
+  flex: 1 1 auto;
+}
+
+.session-search button,
+.exercise-edit-button,
+.exercise-edit-actions button {
+  min-height: 2.45rem;
+  padding: 0.5rem 0.8rem;
+  border: 1px solid #475569;
+  border-radius: 0.6rem;
+  background: #1e293b;
+  color: #f8fafc;
+  cursor: pointer;
+}
+
+.session-search > p {
+  margin-top: 0.45rem;
+  color: #94a3b8;
+  font-size: 0.75rem;
+}
+
+.exercise-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.exercise-edit-button {
+  min-height: 2rem;
+  padding: 0.3rem 0.65rem;
+  font-size: 0.75rem;
+}
+
+.exercise-edit-form {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.exercise-edit-equipment {
+  max-width: 24rem;
+}
+
+.exercise-edit-sets {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.exercise-edit-set {
+  display: grid;
+  grid-template-columns: minmax(4rem, auto) repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  align-items: end;
+  padding: 0.7rem;
+  border: 1px solid #334155;
+  border-radius: 0.65rem;
+  background: rgba(30, 41, 59, 0.5);
+}
+
+.exercise-edit-set > strong {
+  align-self: center;
+  color: #e2e8f0;
+  font-size: 0.82rem;
+}
+
+.exercise-edit-status {
+  min-height: 1.2rem;
+  color: #fca5a5;
+  font-size: 0.8rem;
+}
+
+.exercise-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.55rem;
+}
+
+.exercise-edit-actions button[type="submit"] {
+  border-color: #2563eb;
+  background: #2563eb;
+}
+
+@media (max-width: 34rem) {
+  .exercise-edit-set {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .exercise-edit-set > strong {
+    grid-column: 1 / -1;
+  }
+}

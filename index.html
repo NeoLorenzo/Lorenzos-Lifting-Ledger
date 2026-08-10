@@ -16,7 +16,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=14" />
+    <link rel="stylesheet" href="./styles.css?v=15" />
     <title>Lorenzo's Lifting Ledger | Evidence-aware training data</title>
     <script type="application/ld+json">
       {
@@ -270,6 +270,15 @@
             </div>
           </header>
           <aside class="weight-convention-note" aria-label="Dumbbell weight convention"><strong>Dumbbell weight rule</strong><span>Every dumbbell measurement below is the weight of one dumbbell, whether the exercise is unilateral or bilateral.</span></aside>
+          <div class="session-search">
+            <label for="session-search">Search by exercise</label>
+            <div class="session-search-field">
+              <input id="session-search" type="search" list="session-exercise-options" placeholder="e.g. Bench Press" autocomplete="off" />
+              <button id="clear-session-search" type="button" hidden>Clear</button>
+            </div>
+            <datalist id="session-exercise-options"></datalist>
+            <p>Results include sessions containing exercises whose names match your search.</p>
+          </div>
           <fieldset class="muscle-view-control">
             <legend>Muscle view</legend>
             <div class="muscle-view-toggle">
@@ -560,6 +569,6 @@
       </section>
     </main>
 
-    <script type="module" src="./app.js?v=22"></script>
+    <script type="module" src="./app.js?v=23"></script>
   </body>
 </html>

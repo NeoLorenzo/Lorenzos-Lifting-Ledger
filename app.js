@@ -41,6 +41,9 @@ const exerciseStatus = document.querySelector("#exercise-status");
 const exerciseCatalogue = document.querySelector("#exercise-catalogue");
 const liftList = document.querySelector("#lift-list");
 const loadMoreButton = document.querySelector("#load-more");
+const sessionSearch = document.querySelector("#session-search");
+const clearSessionSearchButton = document.querySelector("#clear-session-search");
+const sessionExerciseOptions = document.querySelector("#session-exercise-options");
 const muscleViewInputs = [...document.querySelectorAll('input[name="muscle-view"]')];
 const menuToggle = document.querySelector("#menu-toggle");
 const appMenu = document.querySelector("#app-menu");
@@ -76,6 +79,9 @@ const pageSize = 20;
 let loadedRows = 0;
 let totalRows = 0;
 let loadingRows = false;
+let sessionSearchQuery = "";
+let sessionSearchTimer = null;
+let sessionRequestVersion = 0;
 let supabaseClient = null;
 let activeUserId = null;
 let dashboardLoadedForUser = null;
@@ -136,6 +142,26 @@ muscleExposureGrid.addEventListener("click", (event) => {
 progressionSelect.addEventListener("change", () => {
   selectedProgressionExercise = progressionSelect.value || null;
   renderExerciseProgression();
+});
+
+sessionSearch.addEventListener("input", () => {
+  clearSessionSearchButton.hidden = sessionSearch.value.length === 0;
+  window.clearTimeout(sessionSearchTimer);
+  sessionSearchTimer = window.setTimeout(() => {
+    sessionSearchQuery = sessionSearch.value.trim();
+    resetSessionResults();
+    if (activeUserId && supabaseClient) void loadSessions(supabaseClient);
+  }, 250);
+});
+
+clearSessionSearchButton.addEventListener("click", () => {
+  window.clearTimeout(sessionSearchTimer);
+  sessionSearch.value = "";
+  sessionSearchQuery = "";
+  clearSessionSearchButton.hidden = true;
+  resetSessionResults();
+  if (activeUserId && supabaseClient) void loadSessions(supabaseClient);
+  sessionSearch.focus();
 });
 
 documentBack.addEventListener("click", () => showPage("literature"));
@@ -973,30 +999,45 @@ async function loadExerciseCatalogue(supabase) {
   }
 
   const fragment = document.createDocumentFragment();
+  const options = document.createDocumentFragment();
   for (const exercise of exercises) {
     const item = document.createElement("li");
     item.textContent = exercise.name;
     fragment.append(item);
+
+    const option = document.createElement("option");
+    option.value = exercise.name;
+    options.append(option);
   }
 
   exerciseCatalogue.append(fragment);
   exerciseStatus.textContent = `${exercises.length.toLocaleString()} global exercises · alphabetical`;
+  sessionExerciseOptions.replaceChildren(options);
 }
 
 async function loadSessions(supabase) {
   if (loadingRows || loadedRows >= totalRows && totalRows !== 0) return;
+  const requestVersion = sessionRequestVersion;
+  const requestedUserId = activeUserId;
+  const requestedSearch = sessionSearchQuery;
 
   loadingRows = true;
   loadMoreButton.disabled = true;
   datasetStatus.textContent = loadedRows === 0 ? "Loading your sessions…" : `${totalRows.toLocaleString()} workout sessions`;
 
-  const sessionRequest = supabase
+  let sessionRequest = supabase
     .from("workout_sessions")
     .select(
-      "id, performed_on, gyms(name), session_exercises(id, exercise_id, exercise_order, exercise, equipment_id, exercise_sets(set_number, weight, reps, rpe, is_warmup, is_drop_set, is_superset, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_low, estimated_1rm_high))",
+      `id, performed_on, gyms(name), session_exercises${requestedSearch ? "!inner" : ""}(id, exercise_id, exercise_order, exercise, equipment_id, exercise_sets(id, set_number, weight, reps, rpe, is_warmup, is_drop_set, is_superset, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_low, estimated_1rm_high))`,
       { count: "exact" },
     )
-    .eq("owner_id", activeUserId)
+    .eq("owner_id", requestedUserId);
+
+  if (requestedSearch) {
+    sessionRequest = sessionRequest.ilike("session_exercises.exercise", `%${escapeLikePattern(requestedSearch)}%`);
+  }
+
+  sessionRequest = sessionRequest
     .order("performed_on", { ascending: false })
     .order("id", { ascending: false })
     .range(loadedRows, loadedRows + pageSize - 1);
@@ -1007,6 +1048,7 @@ async function loadSessions(supabase) {
   ]);
   const { data, error, count } = sessionResult;
 
+  if (requestVersion !== sessionRequestVersion || requestedUserId !== activeUserId) return;
   loadingRows = false;
 
   if (error) {
@@ -1022,9 +1064,19 @@ async function loadSessions(supabase) {
     ? `${totalRows.toLocaleString()} workout sessions · Muscle labels unavailable`
     : `${totalRows.toLocaleString()} workout sessions`;
   loadMoreButton.hidden = loadedRows >= totalRows;
+  if (requestedSearch) datasetStatus.textContent = formatSessionResultCount(totalRows, requestedSearch);
   loadMoreButton.disabled = false;
 }
 
+
+function escapeLikePattern(value) {
+  return value.replace(/[\\%_]/g, "\\$&");
+}
+
+function formatSessionResultCount(count, query) {
+  const label = `${count.toLocaleString()} ${count === 1 ? "workout session" : "workout sessions"}`;
+  return query ? `${label} matching "${query}"` : label;
+}
 function appendSessionRows(rows) {
   const fragment = document.createDocumentFragment();
 
@@ -1218,6 +1270,14 @@ function createExerciseItem(exercise) {
   const heading = document.createElement("h3");
   heading.textContent = exercise.exercise;
 
+  const headingRow = document.createElement("div");
+  headingRow.className = "exercise-heading";
+  const editButton = document.createElement("button");
+  editButton.className = "exercise-edit-button";
+  editButton.type = "button";
+  editButton.textContent = "Edit";
+  headingRow.append(heading, editButton);
+
   const context = document.createElement("p");
   context.className = "exercise-context";
   const setCount = exercise.exercise_sets.length;
@@ -1247,10 +1307,156 @@ function createExerciseItem(exercise) {
     sets.append(setItem);
   }
 
-  item.append(heading, context);
+  item.append(headingRow, context);
   if (muscleViews) item.append(muscleViews);
   item.append(sets);
+  editButton.addEventListener("click", () => {
+    showExerciseEditor(item, exercise);
+  });
   return item;
+}
+
+function showExerciseEditor(item, exercise) {
+  const form = document.createElement("form");
+  form.className = "exercise-edit-form";
+
+  const heading = document.createElement("h3");
+  heading.textContent = `Edit ${exercise.exercise}`;
+
+  const equipmentLabel = document.createElement("label");
+  equipmentLabel.className = "exercise-edit-equipment";
+  equipmentLabel.textContent = "Equipment ID";
+  const equipmentInput = document.createElement("input");
+  equipmentInput.type = "text";
+  equipmentInput.value = exercise.equipment_id ?? "";
+  equipmentInput.placeholder = "Not recorded";
+  equipmentLabel.append(equipmentInput);
+
+  const setFields = document.createElement("div");
+  setFields.className = "exercise-edit-sets";
+  const sortedSets = [...exercise.exercise_sets].sort((a, b) => a.set_number - b.set_number);
+
+  for (const set of sortedSets) {
+    const row = document.createElement("div");
+    row.className = "exercise-edit-set";
+    row.dataset.setId = set.id;
+
+    const number = document.createElement("strong");
+    number.textContent = `Set ${set.set_number}`;
+
+    const weightLabel = document.createElement("label");
+    weightLabel.textContent = `Weight (${formatWeightUnit(exercise.exercise)})`;
+    const weightInput = document.createElement("input");
+    weightInput.type = "number";
+    weightInput.name = "weight";
+    weightInput.min = "0";
+    weightInput.step = "any";
+    weightInput.inputMode = "decimal";
+    weightInput.value = set.weight ?? "";
+    weightLabel.append(weightInput);
+
+    const repsLabel = document.createElement("label");
+    repsLabel.textContent = "Reps";
+    const repsInput = document.createElement("input");
+    repsInput.type = "number";
+    repsInput.name = "reps";
+    repsInput.min = "0";
+    repsInput.step = "1";
+    repsInput.inputMode = "numeric";
+    repsInput.value = set.reps ?? "";
+    repsLabel.append(repsInput);
+
+    row.append(number, weightLabel, repsLabel);
+    setFields.append(row);
+  }
+
+  const status = document.createElement("p");
+  status.className = "exercise-edit-status";
+  status.setAttribute("role", "status");
+
+  const actions = document.createElement("div");
+  actions.className = "exercise-edit-actions";
+  const cancelButton = document.createElement("button");
+  cancelButton.type = "button";
+  cancelButton.textContent = "Cancel";
+  const saveButton = document.createElement("button");
+  saveButton.type = "submit";
+  saveButton.textContent = "Save";
+  actions.append(cancelButton, saveButton);
+
+  form.append(heading, equipmentLabel, setFields, status, actions);
+  item.replaceChildren(form);
+  equipmentInput.focus();
+
+  cancelButton.addEventListener("click", () => {
+    item.replaceWith(createExerciseItem(exercise));
+  });
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    status.textContent = "";
+
+    const setUpdates = sortedSets.map((set) => {
+      const row = setFields.querySelector(`[data-set-id="${set.id}"]`);
+      const weightInput = row.querySelector('[name="weight"]');
+      const repsInput = row.querySelector('[name="reps"]');
+      weightInput.setCustomValidity("");
+      repsInput.setCustomValidity("");
+      const weight = weightInput.value === "" ? null : Number(weightInput.value);
+      const reps = repsInput.value === "" ? null : Number(repsInput.value);
+      if (weight === null && reps === null) {
+        weightInput.setCustomValidity("Enter a weight or repetition count for this set.");
+      }
+      return { id: set.id, weight, reps };
+    });
+
+    if (!form.reportValidity()) return;
+    for (const control of form.elements) control.disabled = true;
+    status.textContent = "Saving...";
+
+    try {
+      await saveExerciseChanges(exercise, equipmentInput.value.trim() || null, setUpdates);
+      item.replaceWith(createExerciseItem(exercise));
+      datasetStatus.textContent = "Exercise saved. Estimated 1RM values updated.";
+    } catch (error) {
+      status.textContent = `Could not save changes: ${error.message}`;
+      for (const control of form.elements) control.disabled = false;
+    }
+  });
+}
+
+async function saveExerciseChanges(exercise, equipmentId, setUpdates) {
+  if (!supabaseClient || !activeUserId) throw new Error("You are no longer signed in.");
+  const requestedUserId = activeUserId;
+  const equipmentRequest = supabaseClient
+    .from("session_exercises")
+    .update({ equipment_id: equipmentId })
+    .eq("id", exercise.id)
+    .eq("owner_id", requestedUserId)
+    .select("id, equipment_id")
+    .single();
+
+  const setRequests = setUpdates.map((set) => supabaseClient
+    .from("exercise_sets")
+    .update({ weight: set.weight, reps: set.reps })
+    .eq("id", set.id)
+    .eq("session_exercise_id", exercise.id)
+    .eq("owner_id", requestedUserId)
+    .select("id, weight, reps, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_low, estimated_1rm_high")
+    .single());
+
+  const [equipmentResult, ...setResults] = await Promise.all([equipmentRequest, ...setRequests]);
+  const failedResult = [equipmentResult, ...setResults].find((result) => result.error);
+  if (failedResult) throw failedResult.error;
+  if (requestedUserId !== activeUserId) throw new Error("Your session changed while saving.");
+
+  exercise.equipment_id = equipmentResult.data.equipment_id;
+  const savedSets = new Map(setResults.map((result) => [String(result.data.id), result.data]));
+  for (const set of exercise.exercise_sets) {
+    const saved = savedSets.get(String(set.id));
+    if (saved) Object.assign(set, saved);
+  }
+  resetDashboard();
 }
 
 function formatOneRepMaxRange(low, high, exerciseName = "") {
@@ -1268,8 +1474,23 @@ function formatWeightUnit(exerciseName) {
   return /\(Dumbbell\)/i.test(exerciseName ?? "") ? "kg per dumbbell" : "kg";
 }
 
-function resetLiftList() {
+function resetSessionResults() {
+  sessionRequestVersion += 1;
   loadedRows = 0;
+  totalRows = 0;
+  loadingRows = false;
+  liftList.replaceChildren();
+  loadMoreButton.hidden = true;
+  loadMoreButton.disabled = false;
+  datasetStatus.textContent = sessionSearchQuery ? `Searching for "${sessionSearchQuery}"...` : "Loading your sessions...";
+}
+
+function resetLiftList() {
+  window.clearTimeout(sessionSearchTimer);
+  sessionSearch.value = "";
+  sessionSearchQuery = "";
+  clearSessionSearchButton.hidden = true;
+  resetSessionResults();
   totalRows = 0;
   loadingRows = false;
   liftList.replaceChildren();

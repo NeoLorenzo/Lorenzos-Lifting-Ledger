@@ -90,7 +90,7 @@ test("uses Google OAuth without privileged credentials", async () => {
   assert.match(app, /\.eq\("is_active", true\)/);
   assert.doesNotMatch(app, /\.from\("exercises"\)[\s\S]{0,250}\.eq\("owner_id"/);
   assert.match(app, /\.order\("name", \{ ascending: true \}\)/);
-  assert.match(app, /session_exercises\(id, exercise_id, exercise_order, exercise, equipment_id, exercise_sets/);
+  assert.match(app, /session_exercises\$\{requestedSearch[\s\S]+\}\(id, exercise_id, exercise_order, exercise, equipment_id, exercise_sets/);
   assert.match(app, /"session-history": "Session history"/);
   assert.match(app, /is_warmup/);
   assert.match(app, /is_drop_set/);
@@ -301,7 +301,7 @@ test("renders collapsed sessions with toggleable exercise-level muscle pills", a
     read("docs/MUSCLE_GROUP_TAXONOMY.md"),
   ]);
 
-  assert.match(app, /session_exercises\(id, exercise_id, exercise_order/);
+  assert.match(app, /session_exercises\$\{requestedSearch[\s\S]+\}\(id, exercise_id, exercise_order/);
   assert.match(app, /\.from\("exercise_muscle_relevance_versions"\)/);
   assert.match(app, /\.from\("exercise_muscle_relevance_coefficients"\)/);
   assert.match(app, /\.from\("muscles"\)/);
@@ -500,4 +500,27 @@ test("renders repository literature as safe in-app document pages", async () => 
   assert.match(rendered, /&lt;unsafe&gt;/);
   assert.match(rendered, /data-document="muscle-taxonomy"/);
   assert.doesNotMatch(rendered, /<unsafe>/);
+});
+
+test("searches session history by exercise and edits owned exercise sets", async () => {
+  const [html, app, styles, oneRepMaxMigration] = await Promise.all([
+    read("index.html"),
+    read("app.js"),
+    read("styles.css"),
+    read("supabase/migrations/20260805184116_add_estimated_one_rep_max_range.sql"),
+  ]);
+
+  assert.match(html, /id="session-search"[^>]+type="search"/);
+  assert.match(html, /id="session-exercise-options"/);
+  assert.match(app, /session_exercises\$\{requestedSearch \? "!inner" : ""\}/);
+  assert.match(app, /\.ilike\("session_exercises\.exercise"/);
+  assert.match(app, /exercise_sets\(id, set_number, weight, reps/);
+  assert.match(app, /showExerciseEditor\(item, exercise\)/);
+  assert.match(app, /\.from\("session_exercises"\)[\s\S]+\.update\(\{ equipment_id: equipmentId \}\)/);
+  assert.match(app, /\.from\("exercise_sets"\)[\s\S]+\.update\(\{ weight: set\.weight, reps: set\.reps \}\)/);
+  assert.match(app, /\.eq\("owner_id", requestedUserId\)/);
+  assert.match(app, /estimated_1rm_low, estimated_1rm_high/);
+  assert.match(oneRepMaxMigration, /generated always as/);
+  assert.match(styles, /\.session-search/);
+  assert.match(styles, /\.exercise-edit-set/);
 });
