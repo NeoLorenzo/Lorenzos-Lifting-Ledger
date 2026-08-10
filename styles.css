@@ -270,6 +270,85 @@ h1 {
   padding-bottom: 1.35rem;
 }
 
+.muscle-view-control {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.45rem 1rem;
+  align-items: center;
+  margin: 0 0 1rem;
+  padding: 0.8rem;
+  border: 1px solid #283548;
+  border-radius: 0.85rem;
+  background: rgba(20, 30, 48, 0.82);
+  text-align: left;
+}
+
+.muscle-view-control legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+}
+
+.muscle-view-control > p {
+  grid-column: 2;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.muscle-view-control::before {
+  color: #cbd5e1;
+  content: "Muscle view";
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.muscle-view-toggle {
+  display: inline-grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 18rem);
+  padding: 0.2rem;
+  border: 1px solid #334155;
+  border-radius: 0.7rem;
+  background: #0b1323;
+}
+
+.muscle-view-toggle label {
+  position: relative;
+  cursor: pointer;
+}
+
+.muscle-view-toggle input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.muscle-view-toggle span {
+  display: block;
+  padding: 0.45rem 0.75rem;
+  border-radius: 0.5rem;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 750;
+  text-align: center;
+}
+
+.muscle-view-toggle input:checked + span {
+  background: #2563eb;
+  color: #fff;
+  box-shadow: 0 0.35rem 0.9rem rgba(37, 99, 235, 0.2);
+}
+
+.muscle-view-toggle input:focus-visible + span {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
 .catalogue-panel,
 .session-entry,
 .chart-card,
@@ -328,8 +407,50 @@ h1 {
 }
 
 .session-entry {
-  padding: clamp(1rem, 4vw, 1.35rem);
+  overflow: hidden;
   border-radius: 1rem;
+}
+
+.session-summary {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: clamp(1rem, 4vw, 1.35rem);
+  cursor: pointer;
+  list-style: none;
+}
+
+.session-summary::-webkit-details-marker {
+  display: none;
+}
+
+.session-summary::after {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-right: 2px solid #64748b;
+  border-bottom: 2px solid #64748b;
+  content: "";
+  transform: rotate(45deg);
+  transition: transform 160ms ease, border-color 160ms ease;
+}
+
+.session-entry[open] .session-summary::after {
+  transform: rotate(225deg);
+}
+
+.session-summary:hover {
+  background: rgba(30, 41, 59, 0.38);
+}
+
+.session-summary:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: -2px;
+}
+
+.session-summary-copy {
+  min-width: 0;
 }
 
 .session-entry h2,
@@ -349,7 +470,85 @@ h1 {
 .exercise-list {
   display: grid;
   gap: 0.65rem;
-  margin: 1rem 0 0;
+  margin: 0;
+  padding: 0 clamp(1rem, 4vw, 1.35rem) clamp(1rem, 4vw, 1.35rem);
+  border-top: 1px solid rgba(71, 85, 105, 0.45);
+}
+
+.exercise-list::before {
+  height: 0.35rem;
+  content: "";
+}
+
+.muscle-pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.38rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.session-muscles,
+.exercise-muscles {
+  margin-top: 0.7rem;
+}
+
+.session-muscles .muscle-pill-list,
+.exercise-muscles .muscle-pill-list {
+  margin-top: 0;
+}
+
+.session-entry[open] .session-muscles {
+  display: none;
+}
+
+.muscle-pill-list:empty {
+  display: none;
+}
+
+.muscle-pill {
+  --muscle-hue: 212;
+  max-width: 100%;
+  overflow: hidden;
+  padding: 0.28rem 0.55rem;
+  border: 1px solid hsl(var(--muscle-hue) 75% 62% / 0.42);
+  border-radius: 999px;
+  background: hsl(var(--muscle-hue) 72% 46% / 0.15);
+  color: hsl(var(--muscle-hue) 88% 82%);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.muscle-group-abs { --muscle-hue: 42; }
+.muscle-group-adductors { --muscle-hue: 320; }
+.muscle-group-back { --muscle-hue: 198; }
+.muscle-group-biceps { --muscle-hue: 260; }
+.muscle-group-calves { --muscle-hue: 88; }
+.muscle-group-chest { --muscle-hue: 345; }
+.muscle-group-forearms { --muscle-hue: 168; }
+.muscle-group-glutes { --muscle-hue: 292; }
+.muscle-group-hamstrings { --muscle-hue: 22; }
+.muscle-group-hip_flexors { --muscle-hue: 58; }
+.muscle-group-quads { --muscle-hue: 126; }
+.muscle-group-shoulders { --muscle-hue: 222; }
+.muscle-group-triceps { --muscle-hue: 4; }
+
+@media (max-width: 34rem) {
+  .muscle-view-control {
+    grid-template-columns: 1fr;
+  }
+
+  .muscle-view-control > p {
+    grid-column: 1;
+  }
+
+  .muscle-view-toggle {
+    width: 100%;
+  }
 }
 
 .exercise-entry {

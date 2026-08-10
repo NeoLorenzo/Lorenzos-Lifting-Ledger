@@ -8,7 +8,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=9" />
+    <link rel="stylesheet" href="./styles.css?v=11" />
     <title>Lorenzo's Lifting Ledger</title>
   </head>
   <body>
@@ -83,6 +83,20 @@
               <p id="dataset-status">Loading your sessions…</p>
             </div>
           </header>
+          <fieldset class="muscle-view-control">
+            <legend>Muscle view</legend>
+            <div class="muscle-view-toggle">
+              <label>
+                <input type="radio" name="muscle-view" value="ui" checked />
+                <span>Simplified</span>
+              </label>
+              <label>
+                <input type="radio" name="muscle-view" value="detailed" />
+                <span>Detailed</span>
+              </label>
+            </div>
+            <p>Simplified uses UI muscle groups. Detailed shows the underlying muscle entities.</p>
+          </fieldset>
           <ol id="lift-list" class="lift-list"></ol>
           <button id="load-more" class="load-more" type="button" hidden>Load more</button>
         </section>
@@ -223,8 +237,53 @@
 
             <article class="literature-card">
               <div class="literature-card-topline">
-                <span class="evidence-badge decision-badge">Product decision</span>
+                <span class="evidence-badge model-badge">Derived functional model</span>
                 <span class="literature-number">05</span>
+              </div>
+              <h2>Exercise to muscle composition</h2>
+              <p>The exercise × muscle matrix is the transparent product of the exercise-to-pattern and pattern-to-muscle matrices. It traces every exercise to every canonical muscle without pretending the result is a measured hypertrophy score.</p>
+              <ul class="science-list">
+                <li>Each cell is a sum of movement-path products.</li>
+                <li>Raw scores are never normalized or capped and may exceed one.</li>
+                <li>The model preserves both upstream version identities.</li>
+              </ul>
+              <button class="document-link" type="button" data-document="exercise-muscle-composition">Read the composition method <span aria-hidden="true">→</span></button>
+            </article>
+
+            <article class="literature-card">
+              <div class="literature-card-topline">
+                <span class="evidence-badge model-badge">Exercise-specific model</span>
+                <span class="literature-number">06</span>
+              </div>
+              <h2>Hypertrophic relevance by exercise</h2>
+              <p>This authored 138 × 40 layer filters anatomical possibility through exercise context. It assigns worthwhile hypertrophic relevance under the assumption of one sufficiently hard set, intended technique, and a normal/full useful range of motion.</p>
+              <ul class="science-list">
+                <li>Values range from 0 to 1 in five documented relevance levels.</li>
+                <li>Coefficients are independent, not percentages, and are never normalized.</li>
+                <li>Effort, set count, progression, execution, and fatigue remain separate downstream variables.</li>
+              </ul>
+              <button class="document-link" type="button" data-document="exercise-muscle-relevance">Read the hypertrophic-relevance method <span aria-hidden="true">→</span></button>
+            </article>
+
+            <article class="literature-card">
+              <div class="literature-card-topline">
+                <span class="evidence-badge decision-badge">Model limitations</span>
+                <span class="literature-number">07</span>
+              </div>
+              <h2>Current mapping limitations</h2>
+              <p>The present exercise → movement pattern → muscle function pipeline is a useful first-pass anatomical model, but it is not yet calibrated as a quantitative model of hypertrophic stimulus.</p>
+              <ul class="science-list">
+                <li>Joint actions do not determine force-sharing between synergists.</li>
+                <li>Muscle length, resistance profiles, and biarticular interference remain incomplete.</li>
+                <li>Longitudinal exercise-specific hypertrophy evidence is not yet a calibration layer.</li>
+              </ul>
+              <button class="document-link" type="button" data-document="mapping-limitations">Read the current limitations <span aria-hidden="true">→</span></button>
+            </article>
+
+            <article class="literature-card">
+              <div class="literature-card-topline">
+                <span class="evidence-badge decision-badge">Product decision</span>
+                <span class="literature-number">08</span>
               </div>
               <h2>Why tonnage is excluded</h2>
               <p>External mass multiplied by repetitions is not used as a hypertrophy, workload, progression, or personal-statistics metric. It ignores effort, biomechanics, resistance profiles, technique, muscle contribution, and differences between exercises.</p>
@@ -238,8 +297,23 @@
 
             <article class="literature-card">
               <div class="literature-card-topline">
+                <span class="evidence-badge protocol-badge">Product standard</span>
+                <span class="literature-number">09</span>
+              </div>
+              <h2>Design rules</h2>
+              <p>The app's product standard requires transparent calculations, defensible metrics, owner-scoped data, and interfaces that expose the meaning and limitations of modelled results.</p>
+              <ul class="science-list">
+                <li>No magic math or unexplained scores.</li>
+                <li>Scientific uncertainty must remain visible.</li>
+                <li>Fewer meaningful metrics are preferred to decorative statistics.</li>
+              </ul>
+              <button class="document-link" type="button" data-document="design-rules">Read the design rules <span aria-hidden="true">→</span></button>
+            </article>
+
+            <article class="literature-card">
+              <div class="literature-card-topline">
                 <span class="evidence-badge estimate-badge">Calculated estimate</span>
-                <span class="literature-number">06</span>
+                <span class="literature-number">10</span>
               </div>
               <h2>Estimated one-rep max</h2>
               <p>The app reports a range from the Brzycki and Epley equations using the logged load and repetitions. This is an estimate of exercise-specific performance, not a direct measurement of maximal strength.</p>
@@ -272,6 +346,6 @@
       </section>
     </main>
 
-    <script type="module" src="./app.js?v=12"></script>
+    <script type="module" src="./app.js?v=19"></script>
   </body>
 </html>

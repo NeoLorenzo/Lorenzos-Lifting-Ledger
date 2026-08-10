@@ -54,7 +54,7 @@ test("uses Google OAuth without privileged credentials", async () => {
   assert.match(app, /\.eq\("is_active", true\)/);
   assert.doesNotMatch(app, /\.from\("exercises"\)[\s\S]{0,250}\.eq\("owner_id"/);
   assert.match(app, /\.order\("name", \{ ascending: true \}\)/);
-  assert.match(app, /session_exercises\(id, exercise_order, exercise, equipment_id, exercise_sets/);
+  assert.match(app, /session_exercises\(id, exercise_id, exercise_order, exercise, equipment_id, exercise_sets/);
   assert.match(app, /"session-history": "Session history"/);
   assert.match(app, /is_warmup/);
   assert.match(app, /is_drop_set/);
@@ -70,10 +70,11 @@ test("uses Google OAuth without privileged credentials", async () => {
 });
 
 test("uses global versioned exercise and movement reference data", async () => {
-  const [catalogueMigration, movementMigration, catalogueSyncMigration, muscleMigration] = await Promise.all([
+  const [catalogueMigration, movementMigration, catalogueSyncMigration, consolidationMigration, muscleMigration] = await Promise.all([
     read("supabase/migrations/20260806153407_create_exercise_catalogue.sql"),
     read("supabase/migrations/20260807140438_global_exercise_and_movement_model.sql"),
     read("supabase/migrations/20260810182625_add_close_grip_incline_press.sql"),
+    read("supabase/migrations/20260810195322_consolidate_exercise_definitions.sql"),
     read("supabase/migrations/20260810183743_create_muscle_catalogue.sql"),
   ]);
 
@@ -93,6 +94,12 @@ test("uses global versioned exercise and movement reference data", async () => {
   assert.match(catalogueSyncMigration, /Press \(Machine\) \(Incline\) \(Plate Loaded\) \(Close Grip\)/);
   assert.match(catalogueSyncMigration, /141/);
   assert.match(catalogueSyncMigration, /5640/);
+  assert.match(consolidationMigration, /exercise_definitions_2026_08_10/);
+  assert.match(consolidationMigration, /Consolidated 138 by 40 movement-pattern matrix/);
+  assert.match(consolidationMigration, /exercise_press_machine_incline_plate_loaded_close_neutral_grip/);
+  assert.match(consolidationMigration, /5520/);
+  assert.match(consolidationMigration, /1152/);
+  assert.match(consolidationMigration, /56a34dfe0c65f4e95d706190c05baf9defd743994225ac7e897d3cff64d9465c/);
   assert.match(muscleMigration, /create table public\.muscles/);
   assert.match(muscleMigration, /generated always as identity primary key/);
   assert.match(muscleMigration, /Authenticated users can read muscles/);
@@ -106,12 +113,20 @@ test("uses global versioned exercise and movement reference data", async () => {
   assert.match(movementMuscleMigration, /112/);
   assert.match(movementMuscleMigration, /coefficient between 0 and 1/);
   assert.match(movementMuscleMigration, /from anon, authenticated/);
+  const exerciseMuscleMigration = await read("supabase/migrations/20260810194801_create_exercise_muscle_matrix.sql");
+  assert.match(exerciseMuscleMigration, /create table public\.exercise_muscle_mapping_versions/);
+  assert.match(exerciseMuscleMigration, /create table public\.exercise_muscle_coefficients/);
+  assert.match(exerciseMuscleMigration, /raw_sum_product_v1/);
+  assert.match(exerciseMuscleMigration, /sum\(exercise_pattern\.coefficient \* pattern_muscle\.coefficient\)/);
+  assert.match(exerciseMuscleMigration, /5640/);
+  assert.match(exerciseMuscleMigration, /1171/);
+  assert.match(exerciseMuscleMigration, /from anon, authenticated/);
 });
 
 test("keeps the authoritative movement-to-muscle source intact", async () => {
   const [matrix, documentation, importScript, indexMigration] = await Promise.all([
     read("Movement_Pattern_to_Muscle_Function_Matrix.csv"),
-    read("Movement_Pattern_to_Muscle_Function_README.md"),
+    read("docs/MOVEMENT_PATTERN_TO_MUSCLE_FUNCTION.md"),
     read("scripts/prepare_movement_muscle_import.py"),
     read("supabase/migrations/20260810185010_index_movement_pattern_muscle_foreign_key.sql"),
   ]);
@@ -133,16 +148,163 @@ test("keeps the authoritative movement-to-muscle source intact", async () => {
   assert.match(indexMigration, /movement_pattern_muscle_coefficients_pattern_idx/);
 });
 
+test("documents the derived exercise-to-muscle matrix without overstating it", async () => {
+  const [documentation, derivationScript] = await Promise.all([
+    read("docs/EXERCISE_MUSCLE_COMPOSITION.md"),
+    read("scripts/derive_exercise_muscle_matrix.py"),
+  ]);
+
+  assert.match(documentation, /^# Exercise × Muscle Functional Composition Matrix/);
+  assert.match(documentation, /ordinary matrix multiplication/i);
+  assert.match(documentation, /No row or column is normalized/i);
+  assert.match(documentation, /not capped at `1\.0`/i);
+  assert.match(documentation, /not a direct exercise-to-muscle hypertrophy matrix/i);
+  assert.match(documentation, /5d2aa404f975039f337aea446bf07e3fbad6c299786858fab9c62e2f0419cdf5/);
+  assert.match(derivationScript, /raw_sum_product_v1/);
+  assert.match(derivationScript, /sum\(products, Decimal\(0\)\)/);
+});
+
+test("uses the authored exercise-to-muscle hypertrophic relevance layer", async () => {
+  const [matrix, catalogue, functionalMatrix, documentation, importScript, migration, app] = await Promise.all([
+    read("EXERCISE_TO_MUSCLE_HYPERTROPHIC_RELEVANCE.csv"),
+    read("Movement Pattern Mapping Matrix - Mapping_Matrix.csv"),
+    read("Movement_Pattern_to_Muscle_Function_Matrix.csv"),
+    read("docs/EXERCISE_TO_MUSCLE_HYPERTROPHIC_RELEVANCE.md"),
+    read("scripts/prepare_exercise_muscle_relevance_import.py"),
+    read("supabase/migrations/20260810203718_add_exercise_muscle_hypertrophic_relevance.sql"),
+    read("app.js"),
+  ]);
+  const rows = matrix.trim().split(/\r?\n/).map((row) => row.split(","));
+  const catalogueNames = catalogue.trim().split(/\r?\n/).slice(1).map((row) => row.split(",", 1)[0]);
+  const functionalHeaders = functionalMatrix.split(/\r?\n/, 1)[0].split(",").slice(1);
+  const coefficients = rows.slice(1).flatMap((row) => row.slice(1).map(Number));
+  const names = rows.slice(1).map((row) => row[0]);
+
+  assert.equal(rows.length, 139);
+  assert.ok(rows.every((row) => row.length === 41));
+  assert.deepEqual(rows[0].slice(1), functionalHeaders);
+  assert.deepEqual([...names].sort(), [...catalogueNames].sort());
+  assert.equal(new Set(names).size, 138);
+  assert.equal(coefficients.length, 5520);
+  assert.equal(coefficients.filter((value) => value > 0).length, 723);
+  assert.equal(coefficients.filter((value) => value === 0.25).length, 141);
+  assert.equal(coefficients.filter((value) => value === 0.5).length, 178);
+  assert.equal(coefficients.filter((value) => value === 0.75).length, 218);
+  assert.equal(coefficients.filter((value) => value === 1).length, 186);
+  assert.ok(coefficients.every((value) => [0, 0.25, 0.5, 0.75, 1].includes(value)));
+  assert.equal(
+    createHash("sha256").update(matrix).digest("hex"),
+    "d02a9b06f62c634dfac77643e6f46282e0e08015d9c995fcfad63c392db8faa2",
+  );
+  assert.match(documentation, /^# Exercise → Muscle Hypertrophic Relevance Matrix/);
+  assert.match(documentation, /not percentages/i);
+  assert.match(documentation, /ea447d03fdc8284768512a47fb713a5670bfd7f507155df8bbf3337285b3de3f/);
+  assert.match(importScript, /ALLOWED_COEFFICIENTS/);
+  assert.match(importScript, /exercise rows do not exactly match the current catalogue/);
+  assert.match(migration, /create table public\.exercise_muscle_relevance_versions/);
+  assert.match(migration, /create table public\.exercise_muscle_relevance_coefficients/);
+  assert.match(migration, /relevance in \(0, 0\.25, 0\.50, 0\.75, 1\.00\)/);
+  assert.match(migration, /enable row level security/);
+  assert.match(migration, /from anon, authenticated/);
+  assert.match(migration, /grant select on table public\.exercise_muscle_relevance_coefficients to authenticated/);
+  assert.match(app, /\.from\("exercise_muscle_relevance_versions"\)/);
+  assert.match(app, /\.from\("exercise_muscle_relevance_coefficients"\)/);
+  assert.match(app, /\.gt\("relevance", 0\)/);
+});
+
 test("uses exercise-specific names without legacy muscle-group prefixes", async () => {
-  const matrix = await read("Movement Pattern Mapping Matrix - Mapping_Matrix.csv");
+  const [matrix, workoutData] = await Promise.all([
+    read("Movement Pattern Mapping Matrix - Mapping_Matrix.csv"),
+    read("Lorenzo Gym Data - All Gym Data.csv"),
+  ]);
   const names = matrix.trim().split(/\r?\n/).slice(1).map((line) => line.split(",", 1)[0]);
   const legacyPrefix = /^(?:Abs|Adductors|Back|Biceps|Calves|Chest|Forearms|Glutes|Hamstrings|Legs|Quads|Shoulders|Triceps) - /;
+  const retiredNames = [
+    "Back Extentions (Dumbbell)",
+    "Back Extentions (Dumbbell) (45)",
+    "Back Extentions (Dumbbell) (55)",
+    "Fly (Cable) (Bent Over Standing)",
+    "Fly (Cable) (Kneeling)",
+    "Fly (Cable) (Seated)",
+    "Press (Machine) (Incline) (Plate Loaded) (Close Grip)",
+    "Thinker Curls (Cable) (Unilateral)",
+    "Curl (Cable) (EZ Bar)",
+    "French Press (Cable) (EZ Bar)",
+    "Overhead Press (Landmine) (Kneeling)",
+    "Pullover (Cable) (EZ Bar)",
+  ];
 
-  assert.equal(names.length, 141);
-  assert.equal(new Set(names).size, 141);
-  assert.ok(names.includes("Press (Machine) (Incline) (Plate Loaded) (Close Grip)"));
+  assert.equal(names.length, 138);
+  assert.equal(new Set(names).size, 138);
+  assert.ok(names.includes("Back Extensions (Dumbbell)"));
+  assert.ok(names.includes("Chest Fly (Cable) (Bent Over Standing) (Horizontal)"));
+  assert.ok(names.includes("Chest Fly (Cable) (Kneeling) (Horizontal)"));
+  assert.ok(names.includes("Chest Fly (Cable) (Seated) (Horizontal)"));
+  assert.ok(names.includes("Press (Machine) (Incline) (Plate Loaded) (Close Neutral Grip)"));
+  assert.ok(names.includes("Wrist Curls (Cable) (Unilateral)"));
+  assert.ok(names.includes("Curl (Cable) (EZ Bar Attachment)"));
+  assert.ok(names.includes("French Press (Cable) (EZ Bar Attachment)"));
+  assert.ok(names.includes("Overhead Press (Landmine) (Barbell) (Kneeling)"));
+  assert.ok(names.includes("Pullover (Cable) (EZ Bar Attachment)"));
+  assert.ok(retiredNames.every((name) => !names.includes(name)));
+  assert.ok(retiredNames.every((name) => !workoutData.split(/\r?\n/).some((row) => row.split(",")[3] === name)));
+  assert.equal(
+    createHash("sha256").update(matrix).digest("hex"),
+    "93cc08e6b5c4751f7e8d3b7546a2bf4ea2fc567d25a9aea1f7c85087ceaa6c27",
+  );
   assert.equal(names.filter((name) => name.startsWith("Overhead Press")).length, 7);
   assert.equal(names.filter((name) => legacyPrefix.test(name)).length, 0);
+});
+
+test("renders collapsed sessions with toggleable exercise-level muscle pills", async () => {
+  const [html, app, styles, uiGroupMigration, taxonomy] = await Promise.all([
+    read("index.html"),
+    read("app.js"),
+    read("styles.css"),
+    read("supabase/migrations/20260810191604_add_ui_muscle_groups.sql"),
+    read("docs/MUSCLE_GROUP_TAXONOMY.md"),
+  ]);
+
+  assert.match(app, /session_exercises\(id, exercise_id, exercise_order/);
+  assert.match(app, /\.from\("exercise_muscle_relevance_versions"\)/);
+  assert.match(app, /\.from\("exercise_muscle_relevance_coefficients"\)/);
+  assert.match(app, /\.from\("muscles"\)/);
+  assert.match(app, /ui_muscle_groups\(code, name, source_order\)/);
+  assert.match(app, /\.gt\("relevance", 0\)/);
+  assert.match(app, /document\.createElement\("details"\)/);
+  assert.match(app, /document\.createElement\("summary"\)/);
+  assert.match(app, /disclosure\.append\(summary, exerciseList\)/);
+  assert.doesNotMatch(app, /disclosure\.open\s*=|setAttribute\("open"/);
+  assert.match(app, /exercise\.exercise_sets\.some\(\(set\) => !set\.is_warmup\)/);
+  assert.match(app, /className = `muscle-pill muscle-group-\$\{muscle\.uiGroup\.code\}`/);
+  assert.match(app, /if \(muscleViews\) item\.append\(muscleViews\)/);
+  assert.match(app, /summaryCopy\.append\(heading, context\)/);
+  assert.match(app, /if \(sessionMuscleViews\) summaryCopy\.append\(sessionMuscleViews\)/);
+  assert.match(app, /createMuscleViews\(muscles, "session-muscles", "Session"\)/);
+  assert.match(app, /createMuscleViews\([\s\S]*"exercise-muscles",[\s\S]*"Exercise"/);
+  assert.doesNotMatch(app, /createSessionMusclePills/);
+  assert.match(app, /list\.hidden = view !== muscleViewMode/);
+  assert.match(app, /list\.dataset\.muscleView !== mode/);
+  assert.match(html, /name="muscle-view" value="ui" checked/);
+  assert.match(html, /name="muscle-view" value="detailed"/);
+  assert.match(html, /Simplified uses UI muscle groups/);
+  assert.match(styles, /\.session-summary:focus-visible/);
+  assert.match(styles, /\.session-entry\[open\]/);
+  assert.match(styles, /\.muscle-pill-list/);
+  assert.match(styles, /\.muscle-pill/);
+  assert.match(styles, /\.session-entry\[open\] \.session-muscles/);
+  assert.match(styles, /\.muscle-group-abs \{ --muscle-hue:/);
+  assert.match(styles, /\.muscle-group-triceps \{ --muscle-hue:/);
+  assert.match(uiGroupMigration, /create table public\.ui_muscle_groups/);
+  assert.match(uiGroupMigration, /add column ui_muscle_group_id bigint/);
+  assert.match(uiGroupMigration, /alter column ui_muscle_group_id set not null/);
+  assert.match(uiGroupMigration, /Authenticated users can read UI muscle groups/);
+  assert.match(uiGroupMigration, /grant select on table public\.ui_muscle_groups to authenticated/);
+  assert.match(uiGroupMigration, /count\(\*\) from public\.ui_muscle_groups\) <> 13/);
+  assert.match(uiGroupMigration, /count\(distinct ui_muscle_group_id\) from public\.muscles\) <> 13/);
+  assert.match(taxonomy, /# 30\. UI muscle groups/);
+  assert.match(taxonomy, /UI muscle groups are display aggregations only/);
+  assert.match(taxonomy, /`ui_muscle_groups` stores the 13 display groups/);
 });
 
 test("provides meaningful My data statistics without tonnage", async () => {
@@ -189,6 +351,10 @@ test("provides a transparent Literature page for the app's scientific foundation
   assert.match(html, /Muscle-group taxonomy/);
   assert.match(html, /Movement-pattern coefficients/);
   assert.match(html, /Movement pattern to muscle function/);
+  assert.match(html, /Exercise to muscle composition/);
+  assert.match(html, /Hypertrophic relevance by exercise/);
+  assert.match(html, /Current mapping limitations/);
+  assert.match(html, /Design rules/);
   assert.match(html, /Why tonnage is excluded/);
   assert.match(html, /Estimated one-rep max/);
   assert.match(html, /unresolved citation placeholders/i);
@@ -197,6 +363,10 @@ test("provides a transparent Literature page for the app's scientific foundation
   assert.match(html, /data-document="movement-coefficients"/);
   assert.match(html, /data-document="movement-data-model"/);
   assert.match(html, /data-document="movement-muscle-function"/);
+  assert.match(html, /data-document="exercise-muscle-composition"/);
+  assert.match(html, /data-document="exercise-muscle-relevance"/);
+  assert.match(html, /data-document="mapping-limitations"/);
+  assert.match(html, /data-document="design-rules"/);
   assert.match(html, /data-document="no-tonnage"/);
   assert.doesNotMatch(html, /href="[^"]+\.md"/);
   assert.match(app, /literature: "Literature"/);
@@ -205,6 +375,9 @@ test("provides a transparent Literature page for the app's scientific foundation
   assert.match(styles, /\.evidence-badge/);
   assert.match(styles, /\.markdown-reader/);
   assert.match(literature, /MUSCLE_GROUP_TAXONOMY\.md/);
+  assert.match(literature, /CURRENT_LIMITATIONS_OF_MUSCLE_GROUP_MAPPING\.md/);
+  assert.match(literature, /EXERCISE_TO_MUSCLE_HYPERTROPHIC_RELEVANCE\.md/);
+  assert.match(literature, /docs\/DESIGN_RULES\.md/);
   assert.match(taxonomy, /^# Muscle Group Taxonomy for Hypertrophy Modelling/);
 });
 
@@ -222,7 +395,10 @@ test("renders repository literature as safe in-app document pages", async () => 
     "[Taxonomy](MUSCLE_GROUP_TAXONOMY.md)",
   ].join("\n"));
 
-  assert.equal(Object.keys(LITERATURE_DOCUMENTS).length, 7);
+  assert.equal(Object.keys(LITERATURE_DOCUMENTS).length, 10);
+  assert.ok(Object.values(LITERATURE_DOCUMENTS).every((document) => document.path.startsWith("./docs/")));
+  assert.ok(Object.values(LITERATURE_DOCUMENTS).every((document) => /^[A-Z0-9_]+\.md$/.test(document.path.split("/").pop())));
+  await Promise.all(Object.values(LITERATURE_DOCUMENTS).map((document) => read(document.path.replace(/^\.\//, ""))));
   assert.match(rendered, /<h2 id="test-document">Test document<\/h2>/);
   assert.match(rendered, /<strong>strong<\/strong>/);
   assert.match(rendered, /<table>/);

@@ -21,8 +21,23 @@ export const LITERATURE_DOCUMENTS = {
   },
   "movement-muscle-function": {
     title: "Movement Pattern → Muscle Function Matrix",
-    path: "./Movement_Pattern_to_Muscle_Function_README.md",
+    path: "./docs/MOVEMENT_PATTERN_TO_MUSCLE_FUNCTION.md",
     label: "Functional-anatomy model",
+  },
+  "exercise-muscle-composition": {
+    title: "Exercise × Muscle Functional Composition Matrix",
+    path: "./docs/EXERCISE_MUSCLE_COMPOSITION.md",
+    label: "Derived functional model",
+  },
+  "exercise-muscle-relevance": {
+    title: "Exercise → Muscle Hypertrophic Relevance Matrix",
+    path: "./docs/EXERCISE_TO_MUSCLE_HYPERTROPHIC_RELEVANCE.md",
+    label: "Exercise-specific hypertrophy model",
+  },
+  "mapping-limitations": {
+    title: "Current Limitations of Muscle Group Mapping",
+    path: "./docs/CURRENT_LIMITATIONS_OF_MUSCLE_GROUP_MAPPING.md",
+    label: "Model limitations",
   },
   "no-tonnage": {
     title: "Why the App Does Not Track Tonnage",
@@ -31,7 +46,7 @@ export const LITERATURE_DOCUMENTS = {
   },
   "design-rules": {
     title: "Lorenzo's Lifting Ledger — Design Rules",
-    path: "./DESIGN_RULES.md",
+    path: "./docs/DESIGN_RULES.md",
     label: "Product standard",
   },
 };

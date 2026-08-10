@@ -31,6 +31,10 @@ All future user-owned tables must enable Row Level Security before the app write
 - `exercise_movement_pattern_coefficients` stores every exercise-by-pattern cell for each matrix version, including explicit zeroes.
 - `movement_muscle_mapping_versions` records immutable movement-pattern-to-muscle functional-matrix metadata and source hashes.
 - `movement_pattern_muscle_coefficients` stores all 1,600 explicit cells in each 40-by-40 functional matrix version.
+- `exercise_muscle_mapping_versions` records the exact upstream versions and composition algorithm used for each derived exercise-to-muscle matrix.
+- `exercise_muscle_coefficients` stores all 5,520 explicit raw composition scores in the current 138-by-40 derived matrix.
+- `exercise_muscle_relevance_versions` records immutable provenance for the authored exercise-specific hypertrophic-relevance layer.
+- `exercise_muscle_relevance_coefficients` stores all 5,520 explicit relevance cells using the documented `0`, `0.25`, `0.50`, `0.75`, and `1.00` contract.
 - `gyms` is the top-level owner-scoped gym list.
 - `workout_sessions` stores each dated visit to a gym.
 - `session_exercises` stores the ordered exercise occurrences, their catalogue reference, the original historical label, and any equipment ID used in that session.
@@ -38,11 +42,11 @@ All future user-owned tables must enable Row Level Security before the app write
 
 Every user-data table has an `owner_id` reference to `auth.users`. Row Level Security limits select, insert, update, and delete operations to the signed-in owner. Parent/child foreign keys also include the owner ID so records cannot be connected across users. Global exercise and movement reference tables are readable by authenticated users but are not writable from the public client. The initial gym-data CSV remains local and is ignored by Git because this repository is public.
 
-The current dataset contains 141 global exercise definitions, 40 movement patterns, 40 muscles, a current 5,640-cell exercise-to-pattern mapping version, a current 1,600-cell movement-pattern-to-muscle functional mapping version, 11 gyms, 407 inferred sessions, 1,936 session exercises, and 4,541 sets spanning 23 January 2023 through 10 August 2026. Historical sessions are inferred from user + gym + date because the source CSV contains no workout time. A positional comparison found zero missing or mismatched rows after import.
+The current dataset contains 138 global exercise definitions, 40 movement patterns, 40 muscles, a current 5,520-cell exercise-to-pattern mapping version, a current 1,600-cell movement-pattern-to-muscle functional mapping version, a current 5,520-cell derived exercise-to-muscle composition version, a current 5,520-cell exercise-to-muscle hypertrophic-relevance version, 11 gyms, 407 inferred sessions, 1,936 session exercises, and 4,541 sets spanning 23 January 2023 through 10 August 2026. Historical sessions are inferred from user + gym + date because the source CSV contains no workout time. A positional comparison found zero missing or mismatched rows after import.
 
 Exercise names are globally standardized, while aliases can resolve old import labels without creating duplicate catalogue entries. The original label remains on each historical session exercise. Equipment IDs also remain on session exercises rather than exercise definitions because different machines for the same movement can have different resistance profiles.
 
-The movement-pattern schema, access model, import guarantees, and current follow-up work are documented in [Movement-pattern data model](docs/MOVEMENT_PATTERN_DATA_MODEL.md). Coefficient semantics and limitations are documented separately in [Movement-pattern contribution coefficients](docs/MOVEMENT_PATTERN_COEFFICIENTS.md). The 40-entity hypertrophy model is defined in [Muscle Group Taxonomy for Hypertrophy Modelling](docs/MUSCLE_GROUP_TAXONOMY.md). The functional link between movement patterns and muscles is documented in [Movement Pattern → Muscle Function Matrix](Movement_Pattern_to_Muscle_Function_README.md).
+The movement-pattern schema, access model, import guarantees, and current follow-up work are documented in [Movement-pattern data model](docs/MOVEMENT_PATTERN_DATA_MODEL.md). Coefficient semantics and limitations are documented separately in [Movement-pattern contribution coefficients](docs/MOVEMENT_PATTERN_COEFFICIENTS.md). The 40-entity hypertrophy model is defined in [Muscle Group Taxonomy for Hypertrophy Modelling](docs/MUSCLE_GROUP_TAXONOMY.md). The functional link between movement patterns and muscles is documented in [Movement Pattern → Muscle Function Matrix](docs/MOVEMENT_PATTERN_TO_MUSCLE_FUNCTION.md). The deterministic matrix product is documented in [Exercise × Muscle Functional Composition Matrix](docs/EXERCISE_MUSCLE_COMPOSITION.md). The exercise-specific filtering and weighting layer is documented in [Exercise → Muscle Hypertrophic Relevance Matrix](docs/EXERCISE_TO_MUSCLE_HYPERTROPHIC_RELEVANCE.md), with shared scientific limits stated in [Current Limitations of Muscle Group Mapping](docs/CURRENT_LIMITATIONS_OF_MUSCLE_GROUP_MAPPING.md).
 
 The app intentionally does not calculate or display weight × reps, tonnage, or volume load. The scientific and product rationale is documented in [Why the app does not track tonnage](docs/WHY_THE_APP_DOES_NOT_TRACK_TONNAGE.md).
 
@@ -84,4 +88,4 @@ npm test
 - `literature.js` — safe in-app Markdown rendering and the Literature document registry
 - `config.js` — public browser configuration only
 - `manifest.webmanifest` and `service-worker.js` — installable PWA metadata and offline shell
-- `docs/` — scientific methods, product decisions, model interpretations, and evidence-quality specifications surfaced through Literature
+- `docs/` — all app-facing scientific methods, product decisions, model interpretations, limitations, and evidence-quality specifications surfaced through Literature; filenames use uppercase snake case

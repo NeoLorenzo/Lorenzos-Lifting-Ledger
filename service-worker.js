@@ -1,20 +1,23 @@
-const CACHE_NAME = "lifting-ledger-v12";
+const CACHE_NAME = "lifting-ledger-v20";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=9",
-  "./app.js?v=12",
+  "./styles.css?v=11",
+  "./app.js?v=19",
   "./literature.js",
   "./config.js",
   "./manifest.webmanifest",
   "./icons/icon.svg",
-  "./DESIGN_RULES.md",
+  "./docs/CURRENT_LIMITATIONS_OF_MUSCLE_GROUP_MAPPING.md",
+  "./docs/DESIGN_RULES.md",
   "./docs/MUSCLE_GROUP_TAXONOMY.md",
+  "./docs/EXERCISE_MUSCLE_COMPOSITION.md",
+  "./docs/EXERCISE_TO_MUSCLE_HYPERTROPHIC_RELEVANCE.md",
   "./docs/MOVEMENT_PATTERN_COEFFICIENTS.md",
   "./docs/MOVEMENT_PATTERN_DATA_MODEL.md",
   "./docs/RESISTANCE_TRAINING_OUTCOME_STUDY_SELECTION_PROTOCOL.md",
   "./docs/WHY_THE_APP_DOES_NOT_TRACK_TONNAGE.md",
-  "./Movement_Pattern_to_Muscle_Function_README.md",
+  "./docs/MOVEMENT_PATTERN_TO_MUSCLE_FUNCTION.md",
 ];
 
 self.addEventListener("install", (event) => {

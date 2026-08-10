@@ -68,6 +68,39 @@ This versioned cell table links `movement_patterns` to `muscles`. Its independen
 
 All 1,600 cells are stored explicitly. The initial cells have `methodology_only` rationale status because the accompanying README documents general evidence constraints rather than a separate written rationale for every cell.
 
+### `exercise_muscle_mapping_versions`
+
+Each row identifies an immutable derived exercise-to-muscle functional-composition matrix. It references the exact exercise-to-pattern and pattern-to-muscle versions used as inputs and records the composition algorithm, formula, payload hash, dimensions, nonzero-cell count, cells above one, maximum score, and publication state.
+
+The current version is `exercise_definitions_2026_08_10` and uses `raw_sum_product_v1`:
+
+```text
+score(exercise, muscle)
+= sum over movement patterns (
+    exercise-pattern coefficient × pattern-muscle coefficient
+  )
+```
+
+It contains 138 exercises, 40 muscles, 5,520 explicit cells, 1,152 nonzero cells, 91 cells above one, and a maximum raw score of `2.0`. Its derived payload SHA-256 is `5d2aa404f975039f337aea446bf07e3fbad6c299786858fab9c62e2f0419cdf5`.
+
+### `exercise_muscle_coefficients`
+
+This versioned cell table stores the raw matrix product for every exercise-muscle pair plus the number of movement-pattern paths with a nonzero product. Its scores use `numeric(10,6)` so the sum of exact three-decimal input products remains exact.
+
+Scores are never normalized or capped and may exceed one. They are derived functional-composition features, not percentages, force shares, or hypertrophy-stimulus estimates. The complete interpretation and limitations are documented in [Exercise × Muscle Functional Composition Matrix](EXERCISE_MUSCLE_COMPOSITION.md).
+
+### `exercise_muscle_relevance_versions`
+
+Each row identifies an immutable published exercise-to-muscle hypertrophic-relevance matrix. It records the exact upstream movement-model versions used to constrain the exercise-specific audit, the source CSV and documentation hashes, the canonical payload hash, dimensions, nonzero-cell count, coefficient contract, and publication state.
+
+The current `initial_2026_08_10` version contains 138 exercises, 40 muscles, 5,520 explicit cells, and 723 nonzero cells. Its values are independent authored relevance levels rather than a deterministic transformation of the functional-composition scores.
+
+### `exercise_muscle_relevance_coefficients`
+
+This versioned cell table stores one explicit `numeric(3,2)` coefficient for every exercise-muscle pair. Allowed values are `0`, `0.25`, `0.50`, `0.75`, and `1.00`. Values are not percentages and rows are not normalized. The full assumptions, construction method, evidence calibration, and limitations are documented in [Exercise → Muscle Hypertrophic Relevance Matrix](EXERCISE_TO_MUSCLE_HYPERTROPHIC_RELEVANCE.md).
+
+Session-history muscle pills use nonzero cells from the current relevance version so incidental anatomical contributors from the functional model are not displayed as worthwhile hypertrophy targets.
+
 ### `movement_mapping_versions`
 
 Each row identifies a complete published matrix. The record stores its source filename, source and normalized-payload SHA-256 hashes, expected dimensions, non-zero cell count, methodology revision, publication state, and change notes.
@@ -85,15 +118,17 @@ The initial version is `initial_2026_08_07`:
 
 Those hashes remain the provenance of the originally published matrix. On 2026-08-10, the source CSV's exercise labels were normalized by removing the legacy muscle-group prefixes and changing shoulder `Press` variants to `Overhead Press`; the coefficients and stable exercise IDs did not change. The renamed CSV has source SHA-256 `29ef2b3d6395f21e3d4c1dfb9a736412f92a45b781bcd6cb767b902a901a0347`.
 
-The current version is `catalogue_sync_2026_08_10`:
+The current version is `exercise_definitions_2026_08_10`:
 
-- 141 exercises derived from the 141 distinct authoritative workout-history names.
-- 40 movement patterns and 5,640 total cells.
-- 559 non-zero cells.
-- Source SHA-256: `6edfd9b03fc1613a6acb9e0685b35c1b6be15f939302b623c012a3db59b8dbf8`.
-- Normalized CSV payload SHA-256: `a46333e27ca6c7ea3da81dfeb7583cf2a0048de8a5d6099d7e7aa4eb4843e51c`.
+- 138 exercises derived from the 138 distinct authoritative workout-history names.
+- 40 movement patterns and 5,520 total cells.
+- 548 non-zero cells.
+- Source SHA-256: `93cc08e6b5c4751f7e8d3b7546a2bf4ea2fc567d25a9aea1f7c85087ceaa6c27`.
+- Normalized CSV payload SHA-256: `b9c35da6e826ad1666fc1893f69e3bbbe6bda524918f21ce6d34bd45f3965318`.
 
-This version adds `Press (Machine) (Incline) (Plate Loaded) (Close Grip)` as a distinct exercise. Its initial coefficients match the non-close-grip machine variant and are explicitly marked as provisional pending exercise-specific biomechanical review.
+These hashes supersede the initially recorded hashes for this version. The reconciliation changed four CSV labels to the authoritative workout-history/catalogue names (`EZ Bar Attachment` and the explicit landmine `Barbell` qualifier); no movement coefficient changed.
+
+This version applies the authoritative exercise-definition cleanup. The three dumbbell back-extension definitions use the no-angle survivor coefficients, and the unilateral wrist-curl definition retains its existing coefficients after absorbing the retired synonym. Renamed exercises retain their prior coefficients unchanged; no collapsed rows are averaged.
 
 ### `exercise_movement_pattern_coefficients`
 
@@ -126,7 +161,7 @@ All global reference tables have Row Level Security enabled.
 
 - `authenticated`: `SELECT` only.
 - `anon`: no table access.
-- Public browser clients cannot alter exercises, aliases, movement patterns, muscles, versions, or coefficients.
+- Public browser clients cannot alter exercises, aliases, movement patterns, muscles, versions, or source or derived coefficients.
 - Workout tables retain their existing owner-scoped RLS policies.
 
 Administrative changes to global reference data must be reviewed and applied through controlled database migrations or equivalent privileged tooling. Secret or service-role credentials must never be exposed to the PWA.

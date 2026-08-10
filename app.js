@@ -13,6 +13,7 @@ const exerciseStatus = document.querySelector("#exercise-status");
 const exerciseCatalogue = document.querySelector("#exercise-catalogue");
 const liftList = document.querySelector("#lift-list");
 const loadMoreButton = document.querySelector("#load-more");
+const muscleViewInputs = [...document.querySelectorAll('input[name="muscle-view"]')];
 const menuToggle = document.querySelector("#menu-toggle");
 const appMenu = document.querySelector("#app-menu");
 const menuBackdrop = document.querySelector("#menu-backdrop");
@@ -38,6 +39,9 @@ let activeUserId = null;
 let dashboardLoadedForUser = null;
 let dashboardLoadingForUser = null;
 let documentRequestId = 0;
+let exerciseMuscleLookup = new Map();
+let exerciseMuscleLookupPromise = null;
+let muscleViewMode = "ui";
 
 menuToggle.addEventListener("click", () => {
   if (menuToggle.getAttribute("aria-expanded") === "true") {
@@ -57,6 +61,12 @@ document.addEventListener("keydown", (event) => {
 
 for (const menuItem of menuItems) {
   menuItem.addEventListener("click", () => showPage(menuItem.dataset.page));
+}
+
+for (const input of muscleViewInputs) {
+  input.addEventListener("change", () => {
+    if (input.checked) setMuscleViewMode(input.value);
+  });
 }
 
 documentBack.addEventListener("click", () => showPage("literature"));
@@ -539,16 +549,22 @@ async function loadSessions(supabase) {
   loadMoreButton.disabled = true;
   datasetStatus.textContent = loadedRows === 0 ? "Loading your sessions…" : `${totalRows.toLocaleString()} workout sessions`;
 
-  const { data, error, count } = await supabase
+  const sessionRequest = supabase
     .from("workout_sessions")
     .select(
-      "id, performed_on, gyms(name), session_exercises(id, exercise_order, exercise, equipment_id, exercise_sets(set_number, weight, reps, rpe, is_warmup, is_drop_set, is_superset, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_low, estimated_1rm_high))",
+      "id, performed_on, gyms(name), session_exercises(id, exercise_id, exercise_order, exercise, equipment_id, exercise_sets(set_number, weight, reps, rpe, is_warmup, is_drop_set, is_superset, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_low, estimated_1rm_high))",
       { count: "exact" },
     )
     .eq("owner_id", activeUserId)
     .order("performed_on", { ascending: false })
     .order("id", { ascending: false })
     .range(loadedRows, loadedRows + pageSize - 1);
+
+  const [sessionResult, muscleMappingError] = await Promise.all([
+    sessionRequest,
+    ensureExerciseMuscleLookup(supabase).then(() => null).catch((error) => error),
+  ]);
+  const { data, error, count } = sessionResult;
 
   loadingRows = false;
 
@@ -561,7 +577,9 @@ async function loadSessions(supabase) {
   totalRows = count ?? data.length;
   appendSessionRows(data);
   loadedRows += data.length;
-  datasetStatus.textContent = `${totalRows.toLocaleString()} workout sessions`;
+  datasetStatus.textContent = muscleMappingError
+    ? `${totalRows.toLocaleString()} workout sessions · Muscle labels unavailable`
+    : `${totalRows.toLocaleString()} workout sessions`;
   loadMoreButton.hidden = loadedRows >= totalRows;
   loadMoreButton.disabled = false;
 }
@@ -571,7 +589,16 @@ function appendSessionRows(rows) {
 
   for (const session of rows) {
     const item = document.createElement("li");
-    item.className = "session-entry";
+    item.className = "session-item";
+
+    const disclosure = document.createElement("details");
+    disclosure.className = "session-entry";
+
+    const summary = document.createElement("summary");
+    summary.className = "session-summary";
+
+    const summaryCopy = document.createElement("div");
+    summaryCopy.className = "session-summary-copy";
 
     const heading = document.createElement("h2");
     heading.textContent = session.gyms?.name ?? "Gym";
@@ -588,6 +615,8 @@ function appendSessionRows(rows) {
     context.className = "session-context";
     context.textContent = `${formatDate(session.performed_on)} · ${exercises.length} exercises · ${workingSetCount} working sets`;
 
+    const sessionMuscleViews = createSessionMuscleViews(exercises);
+
     const exerciseList = document.createElement("ol");
     exerciseList.className = "exercise-list";
 
@@ -595,11 +624,149 @@ function appendSessionRows(rows) {
       exerciseList.append(createExerciseItem(exercise));
     }
 
-    item.append(heading, context, exerciseList);
+    summaryCopy.append(heading, context);
+    if (sessionMuscleViews) summaryCopy.append(sessionMuscleViews);
+    summary.append(summaryCopy);
+    disclosure.append(summary, exerciseList);
+    item.append(disclosure);
     fragment.append(item);
   }
 
   liftList.append(fragment);
+}
+
+function createMusclePillList(muscles, view, scope) {
+  const list = document.createElement("ul");
+  list.className = "muscle-pill-list";
+  list.dataset.muscleView = view;
+  list.hidden = view !== muscleViewMode;
+  list.setAttribute(
+    "aria-label",
+    `${scope} ${view === "ui" ? "simplified muscle groups" : "detailed muscle entities"}`,
+  );
+
+  for (const muscle of muscles) {
+    const pill = document.createElement("li");
+    pill.className = `muscle-pill muscle-group-${muscle.uiGroup.code}`;
+    pill.textContent = muscle.name;
+    pill.title = view === "detailed" ? `${muscle.uiGroup.name} · ${muscle.name}` : muscle.name;
+    list.append(pill);
+  }
+
+  return list;
+}
+
+function createMuscleViews(muscles, containerClass, scope) {
+  const detailedMuscles = [...new Map(
+    muscles.map((muscle) => [muscle.name, muscle]),
+  ).values()].sort(
+    (a, b) => a.sourceOrder - b.sourceOrder || a.name.localeCompare(b.name),
+  );
+  if (detailedMuscles.length === 0) return null;
+
+  const uiMuscles = [...new Map(
+    detailedMuscles.map((muscle) => [muscle.uiGroup.code, {
+      name: muscle.uiGroup.name,
+      sourceOrder: muscle.uiGroup.sourceOrder,
+      uiGroup: muscle.uiGroup,
+    }]),
+  ).values()].sort(
+    (a, b) => a.sourceOrder - b.sourceOrder || a.name.localeCompare(b.name),
+  );
+
+  const container = document.createElement("div");
+  container.className = containerClass;
+  container.append(
+    createMusclePillList(uiMuscles, "ui", scope),
+    createMusclePillList(detailedMuscles, "detailed", scope),
+  );
+  return container;
+}
+
+function createSessionMuscleViews(exercises) {
+  const muscles = exercises.flatMap((exercise) => (
+    exercise.exercise_sets.some((set) => !set.is_warmup)
+      ? exerciseMuscleLookup.get(exercise.exercise_id) ?? []
+      : []
+  ));
+  return createMuscleViews(muscles, "session-muscles", "Session");
+}
+
+function createExerciseMuscleViews(exercise) {
+  if (!exercise.exercise_sets.some((set) => !set.is_warmup)) return null;
+  return createMuscleViews(
+    exerciseMuscleLookup.get(exercise.exercise_id) ?? [],
+    "exercise-muscles",
+    "Exercise",
+  );
+}
+
+function setMuscleViewMode(mode) {
+  if (mode !== "ui" && mode !== "detailed") return;
+  muscleViewMode = mode;
+  for (const list of liftList.querySelectorAll("[data-muscle-view]")) {
+    list.hidden = list.dataset.muscleView !== mode;
+  }
+}
+
+async function ensureExerciseMuscleLookup(supabase) {
+  if (exerciseMuscleLookupPromise) return exerciseMuscleLookupPromise;
+
+  exerciseMuscleLookupPromise = (async () => {
+    const { data: version, error: versionError } = await supabase
+      .from("exercise_muscle_relevance_versions")
+      .select("id")
+      .eq("is_current", true)
+      .single();
+    if (versionError) throw versionError;
+
+    const { data: muscles, error: muscleError } = await supabase
+      .from("muscles")
+      .select("id, name, source_order, ui_muscle_groups(code, name, source_order)")
+      .eq("is_active", true)
+      .order("source_order", { ascending: true });
+    if (muscleError) throw muscleError;
+
+    const coefficients = [];
+    const batchSize = 1000;
+    while (true) {
+      const { data, error } = await supabase
+        .from("exercise_muscle_relevance_coefficients")
+        .select("exercise_id, muscle_id")
+        .eq("mapping_version_id", version.id)
+        .gt("relevance", 0)
+        .order("exercise_id", { ascending: true })
+        .order("muscle_id", { ascending: true })
+        .range(coefficients.length, coefficients.length + batchSize - 1);
+      if (error) throw error;
+      coefficients.push(...data);
+      if (data.length < batchSize) break;
+    }
+
+    const muscleById = new Map(muscles.map((muscle) => [muscle.id, muscle]));
+    const lookup = new Map();
+    for (const coefficient of coefficients) {
+      const muscle = muscleById.get(coefficient.muscle_id);
+      if (!muscle?.ui_muscle_groups) continue;
+      const mappedMuscles = lookup.get(coefficient.exercise_id) ?? [];
+      mappedMuscles.push({
+        name: muscle.name,
+        sourceOrder: muscle.source_order,
+        uiGroup: {
+          code: muscle.ui_muscle_groups.code,
+          name: muscle.ui_muscle_groups.name,
+          sourceOrder: muscle.ui_muscle_groups.source_order,
+        },
+      });
+      lookup.set(coefficient.exercise_id, mappedMuscles);
+    }
+    exerciseMuscleLookup = lookup;
+  })().catch((error) => {
+    exerciseMuscleLookupPromise = null;
+    throw error;
+  });
+
+  return exerciseMuscleLookupPromise;
 }
 
 function createExerciseItem(exercise) {
@@ -620,6 +787,8 @@ function createExerciseItem(exercise) {
   const sets = document.createElement("ul");
   sets.className = "set-list";
 
+  const muscleViews = createExerciseMuscleViews(exercise);
+
   for (const set of [...exercise.exercise_sets].sort((a, b) => a.set_number - b.set_number)) {
     const setItem = document.createElement("li");
     const weight = set.weight === null ? "— kg" : `${Number(set.weight).toLocaleString()} kg`;
@@ -635,7 +804,9 @@ function createExerciseItem(exercise) {
     sets.append(setItem);
   }
 
-  item.append(heading, context, sets);
+  item.append(heading, context);
+  if (muscleViews) item.append(muscleViews);
+  item.append(sets);
   return item;
 }
 

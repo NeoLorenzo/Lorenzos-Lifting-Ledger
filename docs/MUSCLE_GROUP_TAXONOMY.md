@@ -840,7 +840,33 @@ Calves
 
 ---
 
-# 30. Final principle
+# 30. UI muscle groups
+
+The 40 canonical muscle entities above remain the resolution used by the scientific model. For labels, filters, charts, and other interface elements, each entity is also assigned to exactly one larger **UI muscle group**.
+
+UI muscle groups are display aggregations only. They must not replace the underlying entities in exercise-to-muscle calculations or be interpreted as evidence that all members receive the same stimulus.
+
+| UI muscle group | Underlying muscle entities |
+| --- | --- |
+| Abs | Rectus Abdominis; Obliques |
+| Adductors | Adductor Magnus; Other Hip Adductors |
+| Back | Latissimus Dorsi; Teres Major; Upper Trapezius; Middle Trapezius; Lower Trapezius; Rhomboids; Serratus Anterior; Lumbar Erector Spinae |
+| Biceps | Biceps Brachii; Brachialis |
+| Calves | Gastrocnemius; Soleus |
+| Chest | Pectoralis Major — Clavicular; Pectoralis Major — Sternocostal; Pectoralis Minor |
+| Forearms | Brachioradialis; Wrist Flexors; Wrist Extensors; Finger Flexors / Grip |
+| Glutes | Gluteus Maximus; Gluteus Medius + Minimus |
+| Hamstrings | Biceps Femoris — Long Head; Biceps Femoris — Short Head; Semitendinosus; Semimembranosus |
+| Hip Flexors | Iliopsoas |
+| Quads | Rectus Femoris; Vastus Lateralis; Vastus Medialis; Vastus Intermedius |
+| Shoulders | Anterior Deltoid; Lateral Deltoid; Posterior Deltoid |
+| Triceps | Triceps Brachii — Long Head; Triceps Brachii — Lateral Head; Triceps Brachii — Medial Head |
+
+In the backend, `ui_muscle_groups` stores the 13 display groups and `muscles.ui_muscle_group_id` stores the required many-to-one relationship. The foreign key is deliberately separate from the older functional taxonomy label on each muscle.
+
+---
+
+# 31. Final principle
 
 The muscle taxonomy should represent the **maximum useful resolution supported by anatomy and resistance-training evidence**, not the maximum possible anatomical resolution.
 
