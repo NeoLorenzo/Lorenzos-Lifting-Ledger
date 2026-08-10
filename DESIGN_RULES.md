@@ -20,3 +20,11 @@ Explanations must be available inside the relevant app workflow, close to the va
 If the app cannot explain a number honestly and clearly, it must not present that number as meaningful or authoritative.
 
 The current interpretation, limits, and permitted uses of the movement-pattern mapping matrix are defined in [Movement-pattern contribution coefficients](docs/MOVEMENT_PATTERN_COEFFICIENTS.md).
+
+## 2. No tonnage or weight × reps metrics
+
+The app must never calculate, display, or use weight × reps—also called tonnage or volume load—as a hypertrophy, training-volume, workload, progression, or personal-statistics metric.
+
+Load and repetitions remain useful as separate, exercise-specific performance data. Hypertrophy-relevant volume should primarily refer to sufficiently hard working sets and explicitly justified measures derived from them.
+
+The rationale and product-wide implementation rule are defined in [Why the app does not track tonnage](docs/WHY_THE_APP_DOES_NOT_TRACK_TONNAGE.md).

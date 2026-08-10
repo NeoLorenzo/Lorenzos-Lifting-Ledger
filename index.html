@@ -8,7 +8,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=5" />
+    <link rel="stylesheet" href="./styles.css?v=9" />
     <title>Lorenzo's Lifting Ledger</title>
   </head>
   <body>
@@ -45,9 +45,17 @@
               <span class="menu-icon" aria-hidden="true">⌂</span>
               Home
             </button>
+            <button class="menu-item" type="button" data-page="session-history">
+              <span class="menu-icon history-icon" aria-hidden="true"><i></i><i></i><i></i></span>
+              Session history
+            </button>
             <button class="menu-item" type="button" data-page="my-data">
               <span class="menu-icon chart-icon" aria-hidden="true"><i></i><i></i><i></i></span>
               My data
+            </button>
+            <button class="menu-item" type="button" data-page="literature">
+              <span class="menu-icon literature-icon" aria-hidden="true">§</span>
+              Literature
             </button>
           </nav>
         </aside>
@@ -55,9 +63,9 @@
         <section id="home-page" class="page-panel" data-page-panel="home">
           <header class="data-header">
             <div>
-              <p class="eyebrow">Training log</p>
+              <p class="eyebrow">Exercise library</p>
               <h1>Your lifts</h1>
-              <p id="dataset-status">Loading your data…</p>
+              <p>Browse the global exercise catalogue used throughout your training data.</p>
             </div>
           </header>
           <section class="catalogue-panel" aria-labelledby="exercise-catalogue-heading">
@@ -65,7 +73,16 @@
             <p id="exercise-status">Loading your exercises…</p>
             <ol id="exercise-catalogue" class="catalogue-list"></ol>
           </section>
-          <h2 class="history-heading">Workout history</h2>
+        </section>
+
+        <section id="session-history-page" class="page-panel" data-page-panel="session-history" hidden>
+          <header class="data-header history-header">
+            <div>
+              <p class="eyebrow">Training log</p>
+              <h1>Session history</h1>
+              <p id="dataset-status">Loading your sessions…</p>
+            </div>
+          </header>
           <ol id="lift-list" class="lift-list"></ol>
           <button id="load-more" class="load-more" type="button" hidden>Load more</button>
         </section>
@@ -91,15 +108,15 @@
               <div id="sessions-chart" class="vertical-chart" role="img" aria-label="Workout sessions over the latest twelve months in your history"></div>
             </section>
 
-            <section class="chart-card chart-card-wide" aria-labelledby="volume-chart-title">
+            <section class="chart-card chart-card-wide" aria-labelledby="working-sets-chart-title">
               <div class="chart-heading">
                 <div>
-                  <p class="chart-kicker">Work performed</p>
-                  <h2 id="volume-chart-title">Recorded volume by month</h2>
+                  <p class="chart-kicker">Training exposure</p>
+                  <h2 id="working-sets-chart-title">Working sets by month</h2>
                 </div>
-                <span class="chart-unit">kg × reps</span>
+                <span class="chart-unit">working sets</span>
               </div>
-              <div id="volume-chart" class="vertical-chart volume-chart" role="img" aria-label="Recorded training volume over the latest twelve months in your history"></div>
+              <div id="working-sets-chart" class="vertical-chart working-sets-chart" role="img" aria-label="Non-warm-up working sets over the latest twelve months in your history"></div>
             </section>
 
             <section class="chart-card chart-card-full" aria-labelledby="exercise-chart-title">
@@ -119,14 +136,142 @@
             <div class="method-copy">
               <p><strong>Sessions</strong> is a direct count of your dated workout-session records.</p>
               <p><strong>Working sets</strong> counts set records that are not marked as warm-ups.</p>
-              <p><strong>Recorded volume</strong> adds weight in kilograms × reps for every working set where both values exist. It is a simple log total, not a measure of effort, fatigue, muscle growth, or work against gravity.</p>
-              <p>The monthly charts show the latest 12 calendar months covered by your history, including months with no sessions. Top exercises are ranked by working-set count. Incomplete sets are retained in counts but excluded from volume.</p>
+              <p><strong>Exercises trained</strong> counts distinct exercises with at least one working set in your history.</p>
+              <p>The monthly charts show the latest 12 calendar months covered by your history, including months with no sessions. Top exercises are ranked by working-set count.</p>
             </div>
           </details>
+        </section>
+
+        <section id="literature-page" class="page-panel" data-page-panel="literature" hidden>
+          <header class="literature-header">
+            <p class="eyebrow">Scientific foundations</p>
+            <h1>Literature</h1>
+            <p>A transparent record of the evidence, authored models, assumptions, and limits behind the app.</p>
+          </header>
+
+          <section class="science-intro" aria-labelledby="science-standard-title">
+            <div>
+              <p class="chart-kicker">Our standard</p>
+              <h2 id="science-standard-title">Useful claims require more than a citation</h2>
+            </div>
+            <p>The app separates published evidence, calculated estimates, authored product models, and product decisions. A value is not presented as scientific fact merely because it is numerical.</p>
+          </section>
+
+          <div class="literature-grid">
+            <article class="literature-card">
+              <div class="literature-card-topline">
+                <span class="evidence-badge protocol-badge">Evaluation protocol</span>
+                <span class="literature-number">01</span>
+              </div>
+              <h2>How studies are judged</h2>
+              <p>Outcome evidence is assessed claim by claim. The protocol prioritizes direct measurement, trained populations, appropriate comparators, adherence, uncertainty, and whether the study actually isolates the variable being discussed.</p>
+              <ul class="science-list">
+                <li>Evidence is weighted rather than counted as votes.</li>
+                <li>Non-significance is not treated as proof of equivalence.</li>
+                <li>Study quality is not collapsed into a magic numerical score.</li>
+              </ul>
+              <button class="document-link" type="button" data-document="study-selection">Read the study-selection protocol <span aria-hidden="true">→</span></button>
+            </article>
+
+            <article class="literature-card">
+              <div class="literature-card-topline">
+                <span class="evidence-badge taxonomy-badge">Authored taxonomy</span>
+                <span class="literature-number">02</span>
+              </div>
+              <h2>Muscle-group taxonomy</h2>
+              <p>The hypertrophy model begins with 40 muscle entities chosen at the highest anatomical resolution that is both useful and defensible. Muscles are separated when joint function, joint-crossing anatomy, longitudinal evidence, or exercise modelling makes the distinction meaningful.</p>
+              <ul class="science-list">
+                <li>Distinct hypertrophic responses justify added granularity.</li>
+                <li>Regional growth alone does not automatically create a new muscle entity.</li>
+                <li>The taxonomy remains revisable as stronger evidence emerges.</li>
+              </ul>
+              <button class="document-link" type="button" data-document="muscle-taxonomy">Read the muscle taxonomy <span aria-hidden="true">→</span></button>
+            </article>
+
+            <article class="literature-card">
+              <div class="literature-card-topline">
+                <span class="evidence-badge model-badge">Authored model</span>
+                <span class="literature-number">03</span>
+              </div>
+              <h2>Movement-pattern coefficients</h2>
+              <p>The movement matrix organizes exercises across biomechanical dimensions. Its 0–1 coefficients are expert-authored contribution ratings—not percentages, probabilities, measured joint torques, or direct estimates of muscular stimulus.</p>
+              <ul class="science-list">
+                <li>Each movement pattern is an independent dimension.</li>
+                <li>Row totals have no scientific meaning.</li>
+                <li>Small coefficient differences must not be presented as exact.</li>
+              </ul>
+              <div class="document-links">
+                <button class="document-link" type="button" data-document="movement-coefficients">Coefficient interpretation <span aria-hidden="true">→</span></button>
+                <button class="document-link secondary-link" type="button" data-document="movement-data-model">Data model <span aria-hidden="true">→</span></button>
+              </div>
+            </article>
+
+            <article class="literature-card">
+              <div class="literature-card-topline">
+                <span class="evidence-badge model-badge">Functional-anatomy model</span>
+                <span class="literature-number">04</span>
+              </div>
+              <h2>Movement pattern to muscle function</h2>
+              <p>This 40 × 40 matrix records which canonical muscles are anatomically capable of materially producing each movement pattern. Its coefficients are functional priors, not force shares or estimates of hypertrophic stimulus.</p>
+              <ul class="science-list">
+                <li>Coefficients are independent and must not be row-normalized.</li>
+                <li>Joint angle and exercise context can change force-sharing between synergists.</li>
+                <li>Exercise-specific modelling remains a separate downstream layer.</li>
+              </ul>
+              <button class="document-link" type="button" data-document="movement-muscle-function">Read the functional-anatomy model <span aria-hidden="true">→</span></button>
+            </article>
+
+            <article class="literature-card">
+              <div class="literature-card-topline">
+                <span class="evidence-badge decision-badge">Product decision</span>
+                <span class="literature-number">05</span>
+              </div>
+              <h2>Why tonnage is excluded</h2>
+              <p>External mass multiplied by repetitions is not used as a hypertrophy, workload, progression, or personal-statistics metric. It ignores effort, biomechanics, resistance profiles, technique, muscle contribution, and differences between exercises.</p>
+              <ul class="science-list">
+                <li>Load and repetitions remain useful as separate performance data.</li>
+                <li>Hard working sets are a more relevant starting point for training exposure.</li>
+                <li>Decorative metrics are omitted when they cannot guide a decision.</li>
+              </ul>
+              <button class="document-link" type="button" data-document="no-tonnage">Read the tonnage decision <span aria-hidden="true">→</span></button>
+            </article>
+
+            <article class="literature-card">
+              <div class="literature-card-topline">
+                <span class="evidence-badge estimate-badge">Calculated estimate</span>
+                <span class="literature-number">06</span>
+              </div>
+              <h2>Estimated one-rep max</h2>
+              <p>The app reports a range from the Brzycki and Epley equations using the logged load and repetitions. This is an estimate of exercise-specific performance, not a direct measurement of maximal strength.</p>
+              <div class="formula-block" aria-label="One repetition maximum formulas">
+                <p><span>Brzycki</span> weight × 36 ÷ (37 − reps)</p>
+                <p><span>Epley</span> weight × (1 + reps ÷ 30)</p>
+              </div>
+              <p class="limitation-copy">The range is omitted when the inputs are incomplete or outside Brzycki’s 1–36 repetition domain. Equipment, technique, fatigue, and individual response can all affect its accuracy.</p>
+            </article>
+          </div>
+
+          <aside class="citation-notice" aria-labelledby="citation-notice-title">
+            <span class="notice-mark" aria-hidden="true">!</span>
+            <div>
+              <h2 id="citation-notice-title">Evidence library status</h2>
+              <p>The study-selection protocol is a working specification and still contains unresolved citation placeholders. Those passages are not treated as fully sourced claims. Exact study records and bibliographic references will be added here as the evidence library is reviewed.</p>
+            </div>
+          </aside>
+        </section>
+
+        <section id="literature-document-page" class="page-panel document-page" data-page-panel="document" hidden>
+          <button id="document-back" class="document-back" type="button"><span aria-hidden="true">←</span> Literature</button>
+          <header class="document-header">
+            <p id="document-label" class="eyebrow">Literature</p>
+            <h1 id="document-title">Document</h1>
+            <p id="document-status">Loading document…</p>
+          </header>
+          <article id="document-content" class="markdown-reader"></article>
         </section>
       </section>
     </main>
 
-    <script type="module" src="./app.js?v=7"></script>
+    <script type="module" src="./app.js?v=12"></script>
   </body>
 </html>

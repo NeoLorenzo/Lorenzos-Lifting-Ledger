@@ -2,7 +2,7 @@
 
 ## Scope
 
-Exercises, movement patterns, and published mappings are global reference data shared by every signed-in user. User ownership begins with workout records such as gyms, sessions, performed exercises, and sets.
+Exercises, movement patterns, muscles, and published mappings are global reference data shared by every signed-in user. User ownership begins with workout records such as gyms, sessions, performed exercises, and sets.
 
 Equipment is not part of the global exercise definition or movement mapping. The equipment actually used remains on `session_exercises`, allowing two performances of the same exercise to retain different machine identifiers.
 
@@ -44,6 +44,30 @@ Important fields are:
 - `description`: current plain-language structural description.
 - `is_active`: permits retirement without deleting historical mappings.
 
+### `muscles`
+
+The muscle catalogue contains the 40 canonical hypertrophy-model entities defined by `MUSCLE_GROUP_TAXONOMY.md`. Each row has a stable identity and code, an authored display order, a canonical name, a broad anatomical group, an optional description, and an active flag.
+
+The catalogue is intentionally separate from movement patterns. The versioned movement-pattern-to-muscle matrix connects the two models without conflating anatomical function with exercise-specific hypertrophic stimulus.
+
+### `movement_muscle_mapping_versions`
+
+Each row identifies an immutable movement-pattern-to-muscle functional matrix. It stores publication state, source and documentation filenames and hashes, a normalized-payload hash, expected dimensions, non-zero-cell count, and change notes. Only one published version may be current.
+
+The initial version is `initial_2026_08_10`:
+
+- 40 movement patterns and 40 muscles.
+- 1,600 explicit cells, including zeros.
+- 112 non-zero cells.
+- Source SHA-256: `c0664168df7b971c84e24d5a9cebdf04ffde3c09c5eda8726a16559e539e50e2`.
+- Normalized payload SHA-256: `595631fe61e70f75cc848c8caed75f047d16301ee3a42d541b5724a3121f6bf7`.
+
+### `movement_pattern_muscle_coefficients`
+
+This versioned cell table links `movement_patterns` to `muscles`. Its independent `numeric(4,3)` coefficients are functional-anatomy priors: they describe whether and how materially a tracked muscle can produce a movement pattern. They are not percentages, force shares, exercise-to-muscle mappings, or hypertrophy-stimulus scores, and rows must not be normalized.
+
+All 1,600 cells are stored explicitly. The initial cells have `methodology_only` rationale status because the accompanying README documents general evidence constraints rather than a separate written rationale for every cell.
+
 ### `movement_mapping_versions`
 
 Each row identifies a complete published matrix. The record stores its source filename, source and normalized-payload SHA-256 hashes, expected dimensions, non-zero cell count, methodology revision, publication state, and change notes.
@@ -58,6 +82,18 @@ The initial version is `initial_2026_08_07`:
 - 556 non-zero cells.
 - Source SHA-256: `8bc0f6246b0939db59c668de7a95962c2b7a82d3f9445adbef4860177d2241b1`.
 - Normalized payload SHA-256: `01dc8219500127aa1b78498bddbbb44d0d3c1f92b6e3de769b5fa14c8283a801`.
+
+Those hashes remain the provenance of the originally published matrix. On 2026-08-10, the source CSV's exercise labels were normalized by removing the legacy muscle-group prefixes and changing shoulder `Press` variants to `Overhead Press`; the coefficients and stable exercise IDs did not change. The renamed CSV has source SHA-256 `29ef2b3d6395f21e3d4c1dfb9a736412f92a45b781bcd6cb767b902a901a0347`.
+
+The current version is `catalogue_sync_2026_08_10`:
+
+- 141 exercises derived from the 141 distinct authoritative workout-history names.
+- 40 movement patterns and 5,640 total cells.
+- 559 non-zero cells.
+- Source SHA-256: `6edfd9b03fc1613a6acb9e0685b35c1b6be15f939302b623c012a3db59b8dbf8`.
+- Normalized CSV payload SHA-256: `a46333e27ca6c7ea3da81dfeb7583cf2a0048de8a5d6099d7e7aa4eb4843e51c`.
+
+This version adds `Press (Machine) (Incline) (Plate Loaded) (Close Grip)` as a distinct exercise. Its initial coefficients match the non-close-grip machine variant and are explicitly marked as provisional pending exercise-specific biomechanical review.
 
 ### `exercise_movement_pattern_coefficients`
 
@@ -82,7 +118,7 @@ The initial import honestly marks all cells as `methodology_only`: the general c
 
 `session_exercises.exercise_id` now references the global `exercises.id` directly. The owner-scoped composite exercise-catalogue foreign key was removed, but all workout ownership controls remain unchanged on `session_exercises` and its parent/child tables.
 
-`session_exercises.exercise` remains a historical label snapshot. Renaming a global exercise therefore does not rewrite what was originally recorded in an old session.
+`session_exercises.exercise` normally remains a historical label snapshot. A controlled catalogue-wide naming migration may update snapshots when the change is purely taxonomic, as with removing the legacy muscle-group prefixes; stable exercise IDs and set data remain unchanged.
 
 ## Security
 
@@ -90,7 +126,7 @@ All global reference tables have Row Level Security enabled.
 
 - `authenticated`: `SELECT` only.
 - `anon`: no table access.
-- Public browser clients cannot alter exercises, aliases, movement patterns, versions, or coefficients.
+- Public browser clients cannot alter exercises, aliases, movement patterns, muscles, versions, or coefficients.
 - Workout tables retain their existing owner-scoped RLS policies.
 
 Administrative changes to global reference data must be reviewed and applied through controlled database migrations or equivalent privileged tooling. Secret or service-role credentials must never be exposed to the PWA.

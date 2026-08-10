@@ -1,5 +1,6 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.0/+esm";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./config.js";
+import { LITERATURE_DOCUMENTS, renderMarkdown } from "./literature.js";
 
 const loadingView = document.querySelector("#loading");
 const signedOutView = document.querySelector("#signed-out");
@@ -21,8 +22,13 @@ const pagePanels = [...document.querySelectorAll("[data-page-panel]")];
 const dashboardStatus = document.querySelector("#dashboard-status");
 const metricGrid = document.querySelector("#metric-grid");
 const sessionsChart = document.querySelector("#sessions-chart");
-const volumeChart = document.querySelector("#volume-chart");
+const workingSetsChart = document.querySelector("#working-sets-chart");
 const exerciseChart = document.querySelector("#exercise-chart");
+const documentBack = document.querySelector("#document-back");
+const documentLabel = document.querySelector("#document-label");
+const documentTitle = document.querySelector("#document-title");
+const documentStatus = document.querySelector("#document-status");
+const documentContent = document.querySelector("#document-content");
 const pageSize = 20;
 let loadedRows = 0;
 let totalRows = 0;
@@ -31,6 +37,7 @@ let supabaseClient = null;
 let activeUserId = null;
 let dashboardLoadedForUser = null;
 let dashboardLoadingForUser = null;
+let documentRequestId = 0;
 
 menuToggle.addEventListener("click", () => {
   if (menuToggle.getAttribute("aria-expanded") === "true") {
@@ -51,6 +58,14 @@ document.addEventListener("keydown", (event) => {
 for (const menuItem of menuItems) {
   menuItem.addEventListener("click", () => showPage(menuItem.dataset.page));
 }
+
+documentBack.addEventListener("click", () => showPage("literature"));
+document.addEventListener("click", (event) => {
+  const documentLink = event.target.closest("[data-document]");
+  if (!documentLink) return;
+  event.preventDefault();
+  void openLiteratureDocument(documentLink.dataset.document);
+});
 
 const configured =
   SUPABASE_URL.startsWith("https://") &&
@@ -190,14 +205,22 @@ function closeMenu() {
 }
 
 function showPage(pageName) {
-  const pageTitle = pageName === "my-data" ? "My data" : "Home";
+  const pageTitles = {
+    home: "Home",
+    "session-history": "Session history",
+    "my-data": "My data",
+    literature: "Literature",
+    document: "Literature",
+  };
+  const pageTitle = pageTitles[pageName] ?? "Home";
+  const activeMenuPage = pageName === "document" ? "literature" : pageName;
 
   for (const panel of pagePanels) {
     panel.hidden = panel.dataset.pagePanel !== pageName;
   }
 
   for (const item of menuItems) {
-    const isActive = item.dataset.page === pageName;
+    const isActive = item.dataset.page === activeMenuPage;
     item.classList.toggle("is-active", isActive);
     if (isActive) item.setAttribute("aria-current", "page");
     else item.removeAttribute("aria-current");
@@ -208,6 +231,32 @@ function showPage(pageName) {
   window.scrollTo({ top: 0, behavior: "smooth" });
   if (pageName === "my-data" && activeUserId && supabaseClient) {
     void loadDashboard(supabaseClient);
+  }
+}
+
+async function openLiteratureDocument(documentId) {
+  const documentDefinition = LITERATURE_DOCUMENTS[documentId];
+  if (!documentDefinition) return;
+
+  const requestId = ++documentRequestId;
+  showPage("document");
+  documentLabel.textContent = documentDefinition.label;
+  documentTitle.textContent = documentDefinition.title;
+  currentPageTitle.textContent = documentDefinition.title;
+  documentStatus.textContent = "Loading document…";
+  documentStatus.hidden = false;
+  documentContent.replaceChildren();
+
+  try {
+    const response = await fetch(documentDefinition.path, { cache: "no-cache" });
+    if (!response.ok) throw new Error(`Document request failed (${response.status})`);
+    const markdown = await response.text();
+    if (requestId !== documentRequestId) return;
+    documentContent.innerHTML = renderMarkdown(markdown);
+    documentStatus.hidden = true;
+  } catch (error) {
+    if (requestId !== documentRequestId) return;
+    documentStatus.textContent = `Could not load this document: ${error.message}`;
   }
 }
 
@@ -229,7 +278,7 @@ async function loadDashboard(supabase) {
       fetchOwnedRows(
         supabase,
         "exercise_sets",
-        "id, session_exercise_id, weight, reps, is_warmup",
+        "id, session_exercise_id, is_warmup",
         requestedUserId,
       ),
     ]);
@@ -267,10 +316,9 @@ function renderDashboard(sessions, exercises, sets) {
   const sessionById = new Map(sessions.map((session) => [session.id, session]));
   const exerciseById = new Map(exercises.map((exercise) => [exercise.id, exercise]));
   const monthlySessions = new Map();
-  const monthlyVolume = new Map();
+  const monthlyWorkingSets = new Map();
   const exerciseSetCounts = new Map();
   let workingSetCount = 0;
-  let recordedVolume = 0;
 
   for (const session of sessions) {
     const month = session.performed_on.slice(0, 7);
@@ -284,21 +332,18 @@ function renderDashboard(sessions, exercises, sets) {
     const exercise = exerciseById.get(set.session_exercise_id);
     if (exercise) {
       exerciseSetCounts.set(exercise.exercise, (exerciseSetCounts.get(exercise.exercise) ?? 0) + 1);
+      const session = sessionById.get(exercise.session_id);
+      if (session) {
+        const month = session.performed_on.slice(0, 7);
+        monthlyWorkingSets.set(month, (monthlyWorkingSets.get(month) ?? 0) + 1);
+      }
     }
-
-    if (set.weight === null || set.reps === null || !exercise) continue;
-    const session = sessionById.get(exercise.session_id);
-    if (!session) continue;
-    const setVolume = Number(set.weight) * Number(set.reps);
-    const month = session.performed_on.slice(0, 7);
-    recordedVolume += setVolume;
-    monthlyVolume.set(month, (monthlyVolume.get(month) ?? 0) + setVolume);
   }
 
   renderMetrics([
     { label: "Sessions", value: sessions.length.toLocaleString(), note: "Dated workout records" },
     { label: "Working sets", value: workingSetCount.toLocaleString(), note: "Warm-ups excluded" },
-    { label: "Recorded volume", value: formatCompactNumber(recordedVolume), note: "kg × reps" },
+    { label: "Exercises trained", value: exerciseSetCounts.size.toLocaleString(), note: "With working sets" },
   ]);
 
   const monthKeys = getLatestMonthKeys(sessions, 12);
@@ -308,9 +353,9 @@ function renderDashboard(sessions, exercises, sets) {
     (value) => value.toLocaleString(),
   );
   renderVerticalChart(
-    volumeChart,
-    monthKeys.map((month) => ({ label: formatMonthLabel(month), value: monthlyVolume.get(month) ?? 0 })),
-    formatCompactNumber,
+    workingSetsChart,
+    monthKeys.map((month) => ({ label: formatMonthLabel(month), value: monthlyWorkingSets.get(month) ?? 0 })),
+    (value) => value.toLocaleString(),
   );
 
   const topExercises = [...exerciseSetCounts]
@@ -445,10 +490,6 @@ function formatMonthLabel(monthKey) {
     .replace(" ", " ’");
 }
 
-function formatCompactNumber(value) {
-  return new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }).format(value);
-}
-
 async function loadExerciseCatalogue(supabase) {
   const requestedUserId = activeUserId;
   const batchSize = 1000;
@@ -496,7 +537,7 @@ async function loadSessions(supabase) {
 
   loadingRows = true;
   loadMoreButton.disabled = true;
-  datasetStatus.textContent = loadedRows === 0 ? "Loading your data…" : `${totalRows.toLocaleString()} workout sessions`;
+  datasetStatus.textContent = loadedRows === 0 ? "Loading your sessions…" : `${totalRows.toLocaleString()} workout sessions`;
 
   const { data, error, count } = await supabase
     .from("workout_sessions")
@@ -590,7 +631,7 @@ function createExerciseItem(exercise) {
       set.is_superset ? "Superset" : null,
       set.rpe === null ? null : `RPE ${Number(set.rpe).toLocaleString()}`,
     ].filter(Boolean);
-    setItem.textContent = `Set ${set.set_number}: ${weight} × ${reps}${labels.length ? ` · ${labels.join(" · ")}` : ""}`;
+    setItem.textContent = `Set ${set.set_number}: ${weight} for ${reps}${labels.length ? ` · ${labels.join(" · ")}` : ""}`;
     sets.append(setItem);
   }
 
@@ -615,7 +656,7 @@ function resetLiftList() {
   liftList.replaceChildren();
   loadMoreButton.hidden = true;
   loadMoreButton.disabled = false;
-  datasetStatus.textContent = "Loading your data…";
+  datasetStatus.textContent = "Loading your sessions…";
 }
 
 function resetExerciseCatalogue() {
@@ -629,7 +670,7 @@ function resetDashboard() {
   dashboardStatus.textContent = "Loading your dashboard…";
   metricGrid.replaceChildren();
   sessionsChart.replaceChildren();
-  volumeChart.replaceChildren();
+  workingSetsChart.replaceChildren();
   exerciseChart.replaceChildren();
 }
 

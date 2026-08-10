@@ -216,6 +216,26 @@ h1 {
 .chart-icon i:nth-child(2) { height: 0.85rem; }
 .chart-icon i:nth-child(3) { height: 1.15rem; }
 
+.literature-icon {
+  align-items: center;
+  color: #a78bfa;
+  font-family: Georgia, serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.history-icon {
+  grid-template-rows: repeat(3, 0.18rem);
+  gap: 0.22rem;
+}
+
+.history-icon i {
+  display: block;
+  width: 1.15rem;
+  border-radius: 999px;
+  background: #34d399;
+}
+
 .page-panel {
   padding: clamp(2.4rem, 7vw, 5rem) 0 0;
 }
@@ -246,6 +266,10 @@ h1 {
   color: #94a3b8;
 }
 
+.history-header {
+  padding-bottom: 1.35rem;
+}
+
 .catalogue-panel,
 .session-entry,
 .chart-card,
@@ -263,8 +287,7 @@ h1 {
   text-align: left;
 }
 
-.catalogue-panel h2,
-.history-heading {
+.catalogue-panel h2 {
   margin: 0;
   font-size: 1.15rem;
 }
@@ -288,11 +311,6 @@ h1 {
   color: #e2e8f0;
   font-size: 0.9rem;
   line-height: 1.35;
-}
-
-.history-heading {
-  margin-bottom: 0.85rem;
-  text-align: left;
 }
 
 .lift-list,
@@ -483,7 +501,7 @@ h1 {
   background: linear-gradient(180deg, #60a5fa, #2563eb);
 }
 
-.volume-chart .vertical-bar {
+.working-sets-chart .vertical-bar {
   background: linear-gradient(180deg, #34d399, #059669);
 }
 
@@ -583,6 +601,454 @@ h1 {
   color: #e2e8f0;
 }
 
+.literature-header {
+  max-width: 48rem;
+  padding-bottom: 2rem;
+}
+
+.literature-header h1 {
+  margin-top: 0.6rem;
+}
+
+.literature-header > p:last-child {
+  max-width: 42rem;
+  margin-top: 1rem;
+  color: #94a3b8;
+  font-size: clamp(1rem, 2.2vw, 1.15rem);
+  line-height: 1.6;
+}
+
+.science-intro {
+  display: grid;
+  grid-template-columns: minmax(13rem, 0.8fr) minmax(18rem, 1.4fr);
+  gap: clamp(1.25rem, 5vw, 4rem);
+  align-items: center;
+  margin-bottom: 0.85rem;
+  padding: clamp(1.2rem, 4vw, 2rem);
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  border-radius: 1rem;
+  background:
+    linear-gradient(120deg, rgba(37, 99, 235, 0.13), transparent 55%),
+    rgba(20, 30, 48, 0.82);
+}
+
+.science-intro h2 {
+  margin-top: 0.35rem;
+  font-size: clamp(1.25rem, 3vw, 1.65rem);
+  letter-spacing: -0.025em;
+}
+
+.science-intro > p {
+  color: #cbd5e1;
+  font-size: 0.94rem;
+  line-height: 1.65;
+}
+
+.literature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.literature-card {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  padding: clamp(1.2rem, 4vw, 1.6rem);
+  border: 1px solid #283548;
+  border-radius: 1rem;
+  background: rgba(20, 30, 48, 0.82);
+  box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.1);
+}
+
+.literature-card-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.evidence-badge {
+  display: inline-flex;
+  min-height: 1.7rem;
+  align-items: center;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.protocol-badge {
+  border-color: rgba(96, 165, 250, 0.25);
+  background: rgba(37, 99, 235, 0.12);
+  color: #93c5fd;
+}
+
+.model-badge {
+  border-color: rgba(167, 139, 250, 0.25);
+  background: rgba(124, 58, 237, 0.12);
+  color: #c4b5fd;
+}
+
+.taxonomy-badge {
+  border-color: rgba(244, 114, 182, 0.25);
+  background: rgba(190, 24, 93, 0.12);
+  color: #f9a8d4;
+}
+
+.decision-badge {
+  border-color: rgba(52, 211, 153, 0.25);
+  background: rgba(5, 150, 105, 0.12);
+  color: #6ee7b7;
+}
+
+.estimate-badge {
+  border-color: rgba(251, 191, 36, 0.25);
+  background: rgba(217, 119, 6, 0.12);
+  color: #fcd34d;
+}
+
+.literature-number {
+  color: #334155;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.literature-card h2 {
+  margin-top: 1.25rem;
+  font-size: 1.22rem;
+  letter-spacing: -0.025em;
+}
+
+.literature-card > p {
+  margin-top: 0.75rem;
+  color: #94a3b8;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.science-list {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0 1.25rem;
+  padding: 0;
+  color: #cbd5e1;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  list-style: none;
+}
+
+.science-list li {
+  position: relative;
+  padding-left: 1rem;
+}
+
+.science-list li::before {
+  position: absolute;
+  top: 0.5rem;
+  left: 0;
+  width: 0.3rem;
+  height: 0.3rem;
+  border-radius: 50%;
+  background: #60a5fa;
+  content: "";
+}
+
+.document-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem 1rem;
+  margin-top: auto;
+}
+
+.document-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #93c5fd;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.document-links .document-link {
+  margin-top: 0;
+}
+
+.secondary-link {
+  color: #a78bfa;
+}
+
+.formula-block {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 1rem;
+  padding: 0.85rem;
+  border-radius: 0.75rem;
+  background: #0b1323;
+  color: #cbd5e1;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.76rem;
+}
+
+.formula-block p {
+  display: grid;
+  grid-template-columns: 4.5rem 1fr;
+  gap: 0.6rem;
+}
+
+.formula-block span {
+  color: #fcd34d;
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  font-weight: 750;
+}
+
+.literature-card .limitation-copy {
+  margin-bottom: 0;
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.citation-notice {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-top: 0.85rem;
+  padding: 1.1rem 1.25rem;
+  border: 1px solid rgba(251, 191, 36, 0.22);
+  border-radius: 1rem;
+  background: rgba(120, 53, 15, 0.12);
+}
+
+.notice-mark {
+  display: grid;
+  width: 1.8rem;
+  height: 1.8rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: rgba(217, 119, 6, 0.2);
+  color: #fcd34d;
+  font-weight: 850;
+  place-content: center;
+}
+
+.citation-notice h2 {
+  font-size: 0.95rem;
+}
+
+.citation-notice p {
+  margin-top: 0.35rem;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  line-height: 1.55;
+}
+
+.document-page {
+  max-width: 62rem;
+  margin: 0 auto;
+}
+
+.document-back {
+  display: inline-flex;
+  min-height: 2.6rem;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid #334155;
+  border-radius: 0.7rem;
+  background: #111c30;
+  color: #cbd5e1;
+  cursor: pointer;
+}
+
+.document-header {
+  max-width: 52rem;
+  padding: clamp(2rem, 6vw, 4rem) 0 2rem;
+}
+
+.document-header h1 {
+  margin-top: 0.6rem;
+  font-size: clamp(2rem, 6vw, 3.4rem);
+  line-height: 1.03;
+}
+
+#document-status {
+  margin-top: 0.9rem;
+  color: #94a3b8;
+}
+
+.markdown-reader {
+  padding: clamp(1.2rem, 5vw, 3.5rem);
+  border: 1px solid #283548;
+  border-radius: 1rem;
+  background: rgba(20, 30, 48, 0.82);
+  box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.14);
+  color: #cbd5e1;
+  font-size: clamp(0.9rem, 1.8vw, 1rem);
+  line-height: 1.72;
+}
+
+.markdown-reader > :first-child {
+  margin-top: 0;
+}
+
+.markdown-reader h2,
+.markdown-reader h3,
+.markdown-reader h4,
+.markdown-reader h5,
+.markdown-reader h6 {
+  color: #f8fafc;
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+  scroll-margin-top: 6rem;
+}
+
+.markdown-reader h2 {
+  margin: 0 0 1.3rem;
+  font-size: clamp(1.7rem, 4vw, 2.35rem);
+}
+
+.markdown-reader h3 {
+  margin: 3rem 0 0.85rem;
+  padding-top: 0.25rem;
+  border-top: 1px solid #283548;
+  font-size: clamp(1.3rem, 3vw, 1.65rem);
+}
+
+.markdown-reader h4 {
+  margin: 2rem 0 0.7rem;
+  font-size: 1.12rem;
+}
+
+.markdown-reader h5,
+.markdown-reader h6 {
+  margin: 1.5rem 0 0.6rem;
+  font-size: 0.98rem;
+}
+
+.markdown-reader p {
+  margin: 0.9rem 0;
+}
+
+.markdown-reader ul,
+.markdown-reader ol {
+  display: grid;
+  gap: 0.45rem;
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+}
+
+.markdown-reader li::marker {
+  color: #60a5fa;
+  font-weight: 700;
+}
+
+.markdown-reader strong {
+  color: #e2e8f0;
+}
+
+.markdown-reader code {
+  padding: 0.12rem 0.32rem;
+  border: 1px solid #334155;
+  border-radius: 0.32rem;
+  background: #0b1323;
+  color: #bfdbfe;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.88em;
+}
+
+.markdown-reader pre {
+  overflow-x: auto;
+  margin: 1.2rem 0;
+  padding: 1rem;
+  border: 1px solid #283548;
+  border-radius: 0.75rem;
+  background: #08101f;
+}
+
+.markdown-reader pre code {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.markdown-reader blockquote {
+  margin: 1.25rem 0;
+  padding: 0.2rem 0 0.2rem 1rem;
+  border-left: 3px solid #60a5fa;
+  color: #dbeafe;
+}
+
+.markdown-reader hr {
+  height: 1px;
+  margin: 2.5rem 0;
+  border: 0;
+  background: #283548;
+}
+
+.markdown-table-wrap {
+  overflow-x: auto;
+  margin: 1.25rem 0;
+  border: 1px solid #334155;
+  border-radius: 0.75rem;
+}
+
+.markdown-reader table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.markdown-reader th,
+.markdown-reader td {
+  min-width: 8rem;
+  padding: 0.7rem 0.8rem;
+  border-bottom: 1px solid #283548;
+  text-align: left;
+  vertical-align: top;
+}
+
+.markdown-reader th {
+  background: #111c30;
+  color: #e2e8f0;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.markdown-reader tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.markdown-reader a,
+.inline-document-link {
+  color: #93c5fd;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.inline-document-link {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
 .google-button {
   display: inline-flex;
   min-height: 3rem;
@@ -623,8 +1089,14 @@ button:disabled {
 
 @media (max-width: 760px) {
   .metric-grid,
-  .dashboard-grid {
+  .dashboard-grid,
+  .literature-grid {
     grid-template-columns: 1fr;
+  }
+
+  .science-intro {
+    grid-template-columns: 1fr;
+    gap: 0.9rem;
   }
 
   .chart-card-full {
@@ -674,6 +1146,11 @@ button:disabled {
   .horizontal-bar-item {
     grid-template-columns: minmax(6.5rem, 1fr) minmax(5rem, 1.6fr) auto;
     gap: 0.55rem;
+  }
+
+  .markdown-reader {
+    padding: 1rem;
+    border-radius: 0.85rem;
   }
 }
 

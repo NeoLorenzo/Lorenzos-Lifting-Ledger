@@ -1,0 +1,41 @@
+﻿Movement Pattern,Pectoralis Major — Clavicular,Pectoralis Major — Sternocostal,Pectoralis Minor,Anterior Deltoid,Lateral Deltoid,Posterior Deltoid,Latissimus Dorsi,Teres Major,Upper Trapezius,Middle Trapezius,Lower Trapezius,Rhomboids,Serratus Anterior,Lumbar Erector Spinae,Biceps Brachii,Brachialis,Brachioradialis,Triceps Brachii — Long Head,Triceps Brachii — Lateral Head,Triceps Brachii — Medial Head,Wrist Flexors,Wrist Extensors,Finger Flexors / Grip,Rectus Abdominis,Obliques,Iliopsoas,Gluteus Maximus,Gluteus Medius + Minimus,Adductor Magnus,Other Hip Adductors,Rectus Femoris,Vastus Lateralis,Vastus Medialis,Vastus Intermedius,Biceps Femoris — Long Head,Biceps Femoris — Short Head,Semitendinosus,Semimembranosus,Gastrocnemius,Soleus
+Sagittal Plane Lumbar Intervertebral Flexion (Dynamic),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.0,0.8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Frontal Plane Acetabulofemoral Adduction (Dynamic),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.0,1.0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Acetabulofemoral Flexion (Dynamic),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.0,0,0,0,0.3,0.8,0,0,0,0,0,0,0,0,0
+Sagittal Plane Acetabulofemoral Extension (Dynamic),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.0,0,0.8,0,0,0,0,0,0.8,0,0.8,0.8,0,0
+Sagittal Plane Tibiofemoral Flexion (Dynamic),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.0,1.0,1.0,1.0,0.4,0
+Sagittal Plane Tibiofemoral Extension (Dynamic),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.0,1.0,1.0,1.0,0,0,0,0,0,0
+Sagittal Plane Talocrural Plantarflexion (Dynamic),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.0,1.0
+Transverse Plane Scapulothoracic Retraction (Dynamic),0,0,0,0,0,0,0,0,0.4,1.0,0.6,1.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Transverse Plane Scapulothoracic Protraction (Dynamic),0,0,0.7,0,0,0,0,0,0,0,0,0,1.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Frontal Plane Scapulothoracic Upward Rotation (Dynamic),0,0,0,0,0,0,0,0,0.8,0,0.9,0,1.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Frontal Plane Scapulothoracic Downward Rotation (Dynamic),0,0,0.7,0,0,0,0,0,0,0,0,1.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Frontal Plane Scapulothoracic Depression (Dynamic),0,0,0.8,0,0,0,0,0,0,0,1.0,0,0.3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Scapulothoracic Posterior Tilt (Dynamic),0,0,0,0,0,0,0,0,0.2,0,0.8,0,1.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Transverse Plane Scapulothoracic External Rotation (Dynamic),0,0,0,0,0,0,0,0,0.2,0.5,0.5,0,1.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Frontal Plane Glenohumeral Adduction (Dynamic),0.4,0.8,0,0,0,0,1.0,1.0,0,0,0,0,0,0,0,0,0,0.3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Frontal Plane Glenohumeral Abduction (Dynamic),0,0,0,0.4,1.0,0.3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Glenohumeral Flexion (Dynamic),0.9,0.4,0,1.0,0,0,0,0,0,0,0,0,0,0,0.3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Glenohumeral Extension (Dynamic),0,0.3,0,0,0,0.8,1.0,1.0,0,0,0,0,0,0,0,0,0,0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Transverse Plane Glenohumeral Horizontal Adduction (Dynamic),0.8,1.0,0,0.6,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Transverse Plane Glenohumeral Horizontal Abduction (Dynamic),0,0,0,0,0,1.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Scapular Plane Glenohumeral Elevation (Dynamic),0,0,0,0.7,1.0,0.3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Humeroulnar Flexion — Radioulnar Supinated (Dynamic),0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.0,1.0,0.5,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Humeroulnar Flexion — Radioulnar Neutral (Dynamic),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.7,1.0,1.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Humeroulnar Flexion — Radioulnar Pronated (Dynamic),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.4,1.0,0.9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Humeroulnar Extension — Glenohumeral Neutral (Dynamic),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.8,1.0,0.9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Humeroulnar Extension — Glenohumeral Flexed (Dynamic),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.0,0.9,0.9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Humeroulnar Extension — Glenohumeral Extended (Dynamic),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.5,1.0,0.9,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Radiocarpal Flexion (Dynamic),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.0,0,0.4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Metacarpophalangeal Flexion (Dynamic),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Interphalangeal Flexion (Dynamic),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Lumbar Intervertebral Flexion (Isometric),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.0,0.8,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Lumbar Intervertebral Extension (Isometric),0,0,0,0,0,0,0,0,0,0,0,0,0,1.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Transverse Plane Lumbar Intervertebral Rotation (Isometric),0,0,0,0,0,0,0,0,0,0,0,0,0,0.3,0,0,0,0,0,0,0,0,0,0,1.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Frontal Plane Acetabulofemoral Abduction (Isometric),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0.2,1.0,0,0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Acetabulofemoral Extension (Isometric),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.0,0,0.8,0,0,0,0,0,0.8,0,0.8,0.8,0,0
+Transverse Plane Scapulothoracic Retraction (Isometric),0,0,0,0,0,0,0,0,0.4,1.0,0.6,1.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Frontal Plane Scapulothoracic Depression (Isometric),0,0,0.8,0,0,0,0,0,0,0,1.0,0,0.3,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Radiocarpal Extension (Isometric),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Metacarpophalangeal Flexion (Isometric),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+Sagittal Plane Interphalangeal Flexion (Isometric),0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1.0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0

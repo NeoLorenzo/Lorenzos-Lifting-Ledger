@@ -51,7 +51,7 @@ A Meadows row with a sum of `5.70` is valid, but `5.70` is not itself a meaningf
 
 Coefficients may be compared within an exercise to describe the intended hierarchy of its movement patterns.
 
-For example, `Shoulders - Lateral Raise (Dumbbell) (Standing)` might map to:
+For example, `Lateral Raise (Dumbbell) (Standing)` might map to:
 
 - Glenohumeral abduction: `1.0`
 - Scapular upward rotation: `0.7`
