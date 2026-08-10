@@ -16,7 +16,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=12" />
+    <link rel="stylesheet" href="./styles.css?v=13" />
     <title>Lorenzo's Lifting Ledger | Evidence-aware training data</title>
     <script type="application/ld+json">
       {
@@ -288,57 +288,82 @@
 
         <section id="my-data-page" class="page-panel" data-page-panel="my-data" hidden>
           <header class="dashboard-header">
-            <p class="eyebrow">Your training, at a glance</p>
-            <h1>My data</h1>
-            <p id="dashboard-status">Loading your dashboard…</p>
-          </header>
-
-          <div id="metric-grid" class="metric-grid" aria-label="Training summary"></div>
-
-          <div class="dashboard-grid">
-            <section class="chart-card chart-card-wide" aria-labelledby="sessions-chart-title">
-              <div class="chart-heading">
-                <div>
-                  <p class="chart-kicker">Consistency</p>
-                  <h2 id="sessions-chart-title">Sessions by month</h2>
-                </div>
-                <span class="chart-unit">sessions</span>
-              </div>
-              <div id="sessions-chart" class="vertical-chart" role="img" aria-label="Workout sessions over the latest twelve months in your history"></div>
-            </section>
-
-            <section class="chart-card chart-card-wide" aria-labelledby="working-sets-chart-title">
-              <div class="chart-heading">
-                <div>
-                  <p class="chart-kicker">Training exposure</p>
-                  <h2 id="working-sets-chart-title">Working sets by month</h2>
-                </div>
-                <span class="chart-unit">working sets</span>
-              </div>
-              <div id="working-sets-chart" class="vertical-chart working-sets-chart" role="img" aria-label="Non-warm-up working sets over the latest twelve months in your history"></div>
-            </section>
-
-            <section class="chart-card chart-card-full" aria-labelledby="exercise-chart-title">
-              <div class="chart-heading">
-                <div>
-                  <p class="chart-kicker">Most trained</p>
-                  <h2 id="exercise-chart-title">Top exercises</h2>
-                </div>
-                <span class="chart-unit">working sets</span>
-              </div>
-              <div id="exercise-chart" class="horizontal-chart" role="img" aria-label="Exercises ranked by number of working sets"></div>
-            </section>
-          </div>
-
-          <details class="method-card">
-            <summary>How these numbers are calculated</summary>
-            <div class="method-copy">
-              <p><strong>Sessions</strong> is a direct count of your dated workout-session records.</p>
-              <p><strong>Working sets</strong> counts set records that are not marked as warm-ups.</p>
-              <p><strong>Exercises trained</strong> counts distinct exercises with at least one working set in your history.</p>
-              <p>The monthly charts show the latest 12 calendar months covered by your history, including months with no sessions. Top exercises are ranked by working-set count.</p>
+            <div>
+              <p class="eyebrow">Training analytics</p>
+              <h1>My data</h1>
+              <p class="dashboard-intro">Understand what is changing in your training.</p>
             </div>
-          </details>
+            <fieldset class="range-control" aria-label="Dashboard time range">
+              <legend>Time range</legend>
+              <button type="button" data-dashboard-range="4w" aria-pressed="false">4 weeks</button>
+              <button type="button" data-dashboard-range="8w" aria-pressed="true">8 weeks</button>
+              <button type="button" data-dashboard-range="12w" aria-pressed="false">12 weeks</button>
+              <button type="button" data-dashboard-range="6m" aria-pressed="false">6 months</button>
+              <button type="button" data-dashboard-range="all" aria-pressed="false">All time</button>
+            </fieldset>
+          </header>
+          <p id="dashboard-status" class="dashboard-status" aria-live="polite">Loading your dashboard…</p>
+          <div id="dashboard-empty" class="dashboard-empty" hidden></div>
+
+          <div id="dashboard-content" hidden>
+            <section class="overview-section" aria-labelledby="overview-title">
+              <div class="section-heading compact-heading"><div><p class="section-kicker">Context</p><h2 id="overview-title">Training overview</h2></div></div>
+              <div id="metric-grid" class="metric-grid" aria-label="Training summary"></div>
+            </section>
+
+            <section class="dashboard-section exposure-section" aria-labelledby="muscle-exposure-title">
+              <div class="section-heading">
+                <div><p class="section-kicker">Weighted sets</p><h2 id="muscle-exposure-title">Muscle exposure</h2><p>Modelled from working sets and exercise-specific muscle relevance.</p></div>
+                <a class="method-link" href="?literature=exercise-muscle-relevance" data-document="exercise-muscle-relevance">Methodology <span aria-hidden="true">→</span></a>
+              </div>
+              <p class="model-explanation">Each working set contributes between 0 and 1 weighted set to a muscle or group based on the exercise's authored hypertrophic-relevance mapping. This estimates worthwhile muscular involvement; it is not a direct measurement of growth, force, or “effective sets.” RPE is not currently used to change these coefficients.</p>
+              <p id="exposure-warning" class="data-warning" hidden></p>
+              <div id="muscle-exposure-grid" class="muscle-exposure-grid" aria-label="Select a muscle group to inspect"></div>
+            </section>
+
+            <div class="dashboard-detail-grid">
+              <section class="dashboard-section trend-panel" aria-labelledby="muscle-trend-title">
+                <div class="section-heading compact-heading"><div><p class="section-kicker">Over time</p><h2 id="muscle-trend-title">Exposure over time</h2></div></div>
+                <div id="muscle-trend-chart" class="trend-chart" role="img"></div>
+              </section>
+              <section class="dashboard-section detail-panel" aria-labelledby="detailed-muscle-title">
+                <div class="section-heading compact-heading"><div><p class="section-kicker">Underlying model</p><h2 id="detailed-muscle-title">Detailed muscles</h2></div></div>
+                <p class="section-note">Child values are independent and can add to more than the parent group. They are not percentages.</p>
+                <div id="detailed-muscle-list" class="ranked-list"></div>
+              </section>
+            </div>
+
+            <section class="dashboard-section sources-section" aria-labelledby="exercise-sources-title">
+              <div class="section-heading compact-heading"><div><p class="section-kicker">What trained it</p><h2 id="exercise-sources-title">Exercise sources</h2></div></div>
+              <div id="exercise-sources-list" class="ranked-list source-list"></div>
+            </section>
+
+            <section class="dashboard-section progression-section" aria-labelledby="progression-title">
+              <div class="section-heading progression-heading">
+                <div><p class="section-kicker">Exercise-specific performance</p><h2 id="progression-title">Exercise progression</h2><p>Estimated 1RM is secondary context for the same exercise only—not a measured max or a comparison between machines and free weights.</p></div>
+                <label class="exercise-select-label" for="progression-exercise">Exercise<select id="progression-exercise"></select></label>
+              </div>
+              <p id="progression-status" class="section-note"></p>
+              <div id="progression-chart" class="progression-chart" role="img"></div>
+              <div id="progression-history" class="performance-history"></div>
+            </section>
+
+            <section class="dashboard-section recent-section" aria-labelledby="recent-title">
+              <div class="section-heading compact-heading"><div><p class="section-kicker">Last 4 weeks vs previous 4 weeks</p><h2 id="recent-title">Recent change</h2></div></div>
+              <div id="recent-overview" class="recent-overview"></div>
+              <div id="recent-groups" class="recent-groups"></div>
+              <p class="section-note">Changes are descriptive and are not recommendations about how much a muscle should be trained.</p>
+            </section>
+
+            <details class="method-card">
+              <summary>How these numbers are calculated</summary>
+              <div class="method-copy">
+                <p><strong>Sessions</strong> counts dated workout records in the selected period. <strong>Working sets</strong> excludes warm-ups. <strong>Exercises trained</strong> counts exact catalogue exercise names with a working set.</p>
+                <p><strong>Modelled muscle exposure</strong> adds the authored exercise–muscle relevance coefficient for every working set. A UI group's value uses the highest child-muscle coefficient for each set, preventing groups with more anatomical entities from being inflated.</p>
+                <p><strong>Exercise progression</strong> selects one representative working set per session: highest valid estimated-1RM midpoint, otherwise highest load, with repetitions breaking load ties.</p>
+              </div>
+            </details>
+          </div>
         </section>
 
         <section id="literature-page" class="page-panel" data-page-panel="literature" hidden>
@@ -531,6 +556,6 @@
       </section>
     </main>
 
-    <script type="module" src="./app.js?v=20"></script>
+    <script type="module" src="./app.js?v=21"></script>
   </body>
 </html>

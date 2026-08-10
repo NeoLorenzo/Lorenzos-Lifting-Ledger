@@ -1,6 +1,21 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.0/+esm";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./config.js";
 import { LITERATURE_DOCUMENTS, renderMarkdown } from "./literature.js";
+import {
+  calculateExerciseSources,
+  calculateExposureTrend,
+  calculateMuscleExposure,
+  chooseDefaultExercise,
+  compareRecentPeriods,
+  filterByRange,
+  getDateRange,
+  getEstimatedOneRepMax,
+  getGroupCatalogue,
+  joinDashboardData,
+  selectRepresentativeSets,
+  summarizeTraining,
+  workingSets,
+} from "./analytics.js";
 
 const loadingView = document.querySelector("#loading");
 const signedOutView = document.querySelector("#signed-out");
@@ -31,9 +46,23 @@ const menuItems = [...document.querySelectorAll("[data-page]")];
 const pagePanels = [...document.querySelectorAll("[data-page-panel]")];
 const dashboardStatus = document.querySelector("#dashboard-status");
 const metricGrid = document.querySelector("#metric-grid");
-const sessionsChart = document.querySelector("#sessions-chart");
-const workingSetsChart = document.querySelector("#working-sets-chart");
-const exerciseChart = document.querySelector("#exercise-chart");
+const rangeButtons = [...document.querySelectorAll("[data-dashboard-range]")];
+const dashboardContent = document.querySelector("#dashboard-content");
+const dashboardEmpty = document.querySelector("#dashboard-empty");
+const muscleExposureGrid = document.querySelector("#muscle-exposure-grid");
+const exposureWarning = document.querySelector("#exposure-warning");
+const muscleTrendTitle = document.querySelector("#muscle-trend-title");
+const muscleTrendChart = document.querySelector("#muscle-trend-chart");
+const detailedMuscleTitle = document.querySelector("#detailed-muscle-title");
+const detailedMuscleList = document.querySelector("#detailed-muscle-list");
+const exerciseSourcesTitle = document.querySelector("#exercise-sources-title");
+const exerciseSourcesList = document.querySelector("#exercise-sources-list");
+const progressionSelect = document.querySelector("#progression-exercise");
+const progressionStatus = document.querySelector("#progression-status");
+const progressionChart = document.querySelector("#progression-chart");
+const progressionHistory = document.querySelector("#progression-history");
+const recentOverview = document.querySelector("#recent-overview");
+const recentGroups = document.querySelector("#recent-groups");
 const documentBack = document.querySelector("#document-back");
 const documentLabel = document.querySelector("#document-label");
 const documentTitle = document.querySelector("#document-title");
@@ -51,6 +80,10 @@ let documentRequestId = 0;
 let exerciseMuscleLookup = new Map();
 let exerciseMuscleLookupPromise = null;
 let muscleViewMode = "ui";
+let dashboardData = null;
+let dashboardRange = "8w";
+let selectedDashboardGroup = null;
+let selectedProgressionExercise = null;
 
 menuToggle.addEventListener("click", () => {
   if (menuToggle.getAttribute("aria-expanded") === "true") {
@@ -77,6 +110,25 @@ for (const input of muscleViewInputs) {
     if (input.checked) setMuscleViewMode(input.value);
   });
 }
+
+for (const button of rangeButtons) {
+  button.addEventListener("click", () => {
+    dashboardRange = button.dataset.dashboardRange;
+    renderDashboard();
+  });
+}
+
+muscleExposureGrid.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-muscle-group]");
+  if (!button) return;
+  selectedDashboardGroup = button.dataset.muscleGroup;
+  renderDashboard();
+});
+
+progressionSelect.addEventListener("change", () => {
+  selectedProgressionExercise = progressionSelect.value || null;
+  renderExerciseProgression();
+});
 
 documentBack.addEventListener("click", () => showPage("literature"));
 publicDocumentBack.addEventListener("click", () => showPublicHome());
@@ -368,17 +420,19 @@ async function loadDashboard(supabase) {
   try {
     const [sessions, exercises, sets] = await Promise.all([
       fetchOwnedRows(supabase, "workout_sessions", "id, performed_on", requestedUserId),
-      fetchOwnedRows(supabase, "session_exercises", "id, session_id, exercise", requestedUserId),
+      fetchOwnedRows(supabase, "session_exercises", "id, session_id, exercise_id, exercise", requestedUserId),
       fetchOwnedRows(
         supabase,
         "exercise_sets",
-        "id, session_exercise_id, is_warmup",
+        "id, session_exercise_id, weight, reps, rpe, is_warmup, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_low, estimated_1rm_high",
         requestedUserId,
       ),
+      ensureExerciseMuscleLookup(supabase),
     ]);
 
     if (requestedUserId !== activeUserId) return;
-    renderDashboard(sessions, exercises, sets);
+    dashboardData = { sessions, records: joinDashboardData(sessions, exercises, sets) };
+    renderDashboard();
     dashboardLoadedForUser = requestedUserId;
   } catch (error) {
     if (requestedUserId !== activeUserId) return;
@@ -406,61 +460,68 @@ async function fetchOwnedRows(supabase, table, columns, ownerId) {
   }
 }
 
-function renderDashboard(sessions, exercises, sets) {
-  const sessionById = new Map(sessions.map((session) => [session.id, session]));
-  const exerciseById = new Map(exercises.map((exercise) => [exercise.id, exercise]));
-  const monthlySessions = new Map();
-  const monthlyWorkingSets = new Map();
-  const exerciseSetCounts = new Map();
-  let workingSetCount = 0;
+function renderDashboard() {
+  if (!dashboardData) return;
+  const { sessions, records } = dashboardData;
+  const range = getDateRange(dashboardRange, new Date(), sessions);
+  const periodSessions = filterByRange(sessions, range);
+  const periodRecords = filterByRange(records, range);
+  const periodWorkingSets = workingSets(periodRecords);
+  const groups = getGroupCatalogue(exerciseMuscleLookup);
 
-  for (const session of sessions) {
-    const month = session.performed_on.slice(0, 7);
-    monthlySessions.set(month, (monthlySessions.get(month) ?? 0) + 1);
+  for (const button of rangeButtons) {
+    button.setAttribute("aria-pressed", String(button.dataset.dashboardRange === dashboardRange));
   }
 
-  for (const set of sets) {
-    if (set.is_warmup) continue;
-    workingSetCount += 1;
-
-    const exercise = exerciseById.get(set.session_exercise_id);
-    if (exercise) {
-      exerciseSetCounts.set(exercise.exercise, (exerciseSetCounts.get(exercise.exercise) ?? 0) + 1);
-      const session = sessionById.get(exercise.session_id);
-      if (session) {
-        const month = session.performed_on.slice(0, 7);
-        monthlyWorkingSets.set(month, (monthlyWorkingSets.get(month) ?? 0) + 1);
-      }
-    }
+  if (!sessions.length) {
+    showDashboardEmpty("No training data yet", "My Data will populate after you log your first training session.");
+    dashboardStatus.textContent = "No workout data yet";
+    return;
+  }
+  if (!periodSessions.length) {
+    showDashboardEmpty("No sessions in this period", "Choose a different time range to inspect another part of your training history.");
+    dashboardStatus.textContent = "No sessions in the selected period";
+    return;
   }
 
+  dashboardEmpty.hidden = true;
+  dashboardContent.hidden = false;
+  dashboardStatus.textContent = `${periodSessions.length.toLocaleString()} ${periodSessions.length === 1 ? "session" : "sessions"} in the selected period`;
+  const summary = summarizeTraining(sessions, records, range);
   renderMetrics([
-    { label: "Sessions", value: sessions.length.toLocaleString(), note: "Dated workout records" },
-    { label: "Working sets", value: workingSetCount.toLocaleString(), note: "Warm-ups excluded" },
-    { label: "Exercises trained", value: exerciseSetCounts.size.toLocaleString(), note: "With working sets" },
+    { label: "Sessions", value: summary.sessions.toLocaleString(), note: "Dated workout records" },
+    { label: "Working sets", value: summary.workingSets.toLocaleString(), note: "Warm-ups excluded" },
+    { label: "Average sessions / week", value: formatDecimal(summary.averageSessionsPerWeek), note: dashboardRange === "all" ? "Across first to latest session" : `Across the selected ${range.periodWeeks} weeks` },
+    { label: "Exercises trained", value: summary.exercises.toLocaleString(), note: "Exact names with working sets" },
   ]);
 
-  const monthKeys = getLatestMonthKeys(sessions, 12);
-  renderVerticalChart(
-    sessionsChart,
-    monthKeys.map((month) => ({ label: formatMonthLabel(month), value: monthlySessions.get(month) ?? 0 })),
-    (value) => value.toLocaleString(),
-  );
-  renderVerticalChart(
-    workingSetsChart,
-    monthKeys.map((month) => ({ label: formatMonthLabel(month), value: monthlyWorkingSets.get(month) ?? 0 })),
-    (value) => value.toLocaleString(),
-  );
+  const exposure = calculateMuscleExposure(periodRecords, exerciseMuscleLookup, groups);
+  const highestGroup = [...groups].sort((a, b) => (exposure.groupExposure.get(b.code) ?? 0) - (exposure.groupExposure.get(a.code) ?? 0))[0];
+  if (!groups.some((group) => group.code === selectedDashboardGroup)) {
+    selectedDashboardGroup = (exposure.groupExposure.get(highestGroup?.code) ?? 0) > 0 ? highestGroup.code : (groups.find((group) => group.code === "back")?.code ?? highestGroup?.code);
+  }
+  renderMuscleExposure(groups, exposure);
+  if (!periodWorkingSets.length) {
+    exposureWarning.hidden = false;
+    exposureWarning.textContent = "This period contains sessions but no working sets. Warm-ups are excluded from these analytics.";
+  }
+  renderSelectedMuscle(groups, exposure, periodRecords, range);
 
-  const topExercises = [...exerciseSetCounts]
-    .map(([label, value]) => ({ label, value }))
-    .sort((a, b) => b.value - a.value || a.label.localeCompare(b.label))
-    .slice(0, 6);
-  renderHorizontalChart(exerciseChart, topExercises);
+  const periodExercises = [...new Set(periodWorkingSets.map((record) => record.exercise))].sort();
+  if (!periodExercises.includes(selectedProgressionExercise)) selectedProgressionExercise = chooseDefaultExercise(periodRecords);
+  renderProgressionOptions(periodExercises);
+  renderExerciseProgression();
+  renderRecentChange(groups);
+}
 
-  dashboardStatus.textContent = sessions.length
-    ? `Based on ${sessions.length.toLocaleString()} sessions in your training history`
-    : "No workout data yet";
+function showDashboardEmpty(title, copy) {
+  dashboardContent.hidden = true;
+  dashboardEmpty.hidden = false;
+  const heading = document.createElement("h2");
+  heading.textContent = title;
+  const paragraph = document.createElement("p");
+  paragraph.textContent = copy;
+  dashboardEmpty.replaceChildren(heading, paragraph);
 }
 
 function renderMetrics(metrics) {
@@ -485,103 +546,248 @@ function renderMetrics(metrics) {
   metricGrid.replaceChildren(fragment);
 }
 
-function renderVerticalChart(container, values, formatValue) {
-  if (!values.length) {
-    renderEmptyChart(container, "Your monthly chart will appear after your first session.");
-    return;
-  }
-
-  const maximum = Math.max(...values.map((item) => item.value), 1);
+function renderMuscleExposure(groups, exposure) {
+  const maximum = Math.max(...groups.map((group) => exposure.groupExposure.get(group.code) ?? 0), 1);
   const fragment = document.createDocumentFragment();
-
-  for (const item of values) {
-    const column = document.createElement("div");
-    column.className = "vertical-bar-item";
-    column.setAttribute("aria-label", `${item.label}: ${formatValue(item.value)}`);
-
-    const track = document.createElement("div");
-    track.className = "vertical-bar-track";
-    const height = item.value === 0 ? 0 : Math.max((item.value / maximum) * 100, 3);
-    track.style.setProperty("--bar-height", `${height}%`);
-
-    const value = document.createElement("span");
-    value.className = "bar-value";
-    value.textContent = formatValue(item.value);
-    const bar = document.createElement("span");
-    bar.className = "vertical-bar";
-    bar.style.height = `${height}%`;
+  for (const group of groups) {
+    const value = exposure.groupExposure.get(group.code) ?? 0;
+    const rawSets = exposure.groupRawSets.get(group.code) ?? 0;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `exposure-row muscle-group-${group.code}`;
+    button.dataset.muscleGroup = group.code;
+    button.setAttribute("aria-pressed", String(group.code === selectedDashboardGroup));
+    button.setAttribute("aria-label", `${group.name}: ${formatExposure(value)} weighted sets from ${rawSets} working sets`);
     const label = document.createElement("span");
-    label.className = "bar-label";
-    label.textContent = item.label;
-    track.append(value, bar);
-    column.append(track, label);
-    fragment.append(column);
+    label.className = "exposure-label";
+    label.textContent = group.name;
+    const track = document.createElement("span");
+    track.className = "exposure-track";
+    const bar = document.createElement("span");
+    bar.className = "exposure-bar";
+    bar.style.width = `${value ? Math.max(2, (value / maximum) * 100) : 0}%`;
+    track.append(bar);
+    const amount = document.createElement("span");
+    amount.className = "exposure-value";
+    amount.innerHTML = `<strong>${formatExposure(value)}</strong><small>weighted ${value === 1 ? "set" : "sets"}</small>`;
+    button.append(label, track, amount);
+    fragment.append(button);
   }
-
-  container.replaceChildren(fragment);
+  muscleExposureGrid.replaceChildren(fragment);
+  const unmappedCount = exposure.unmappedExercises.size;
+  exposureWarning.hidden = unmappedCount === 0;
+  exposureWarning.textContent = unmappedCount ? `${unmappedCount} performed ${unmappedCount === 1 ? "exercise has" : "exercises have"} no current relevance mapping and is excluded from modelled exposure.` : "";
 }
 
-function renderHorizontalChart(container, values) {
+function renderSelectedMuscle(groups, exposure, periodRecords, range) {
+  const group = groups.find((item) => item.code === selectedDashboardGroup);
+  if (!group) return;
+  muscleTrendTitle.textContent = `${group.name} — exposure over time`;
+  detailedMuscleTitle.textContent = `${group.name} — detailed muscles`;
+  exerciseSourcesTitle.textContent = `${group.name} — exercise sources`;
+  renderTrendChart(calculateExposureTrend(periodRecords, exerciseMuscleLookup, group.code, range), range);
+
+  const detailed = group.muscles.map((muscle) => ({ label: muscle.name, value: exposure.detailedExposure.get(muscle.name) ?? 0 }));
+  renderRankedList(detailedMuscleList, detailed, "No detailed muscle exposure in this period.");
+  const sources = calculateExerciseSources(periodRecords, exerciseMuscleLookup, group.code).map((item) => ({ label: item.exercise, value: item.value }));
+  renderRankedList(exerciseSourcesList, sources, "No exercises contributed modelled exposure to this group.");
+}
+
+function renderRankedList(container, values, emptyMessage) {
   if (!values.length) {
-    renderEmptyChart(container, "Your most-trained exercises will appear here.");
+    container.replaceChildren(createEmptyMessage(emptyMessage));
     return;
   }
-
   const maximum = Math.max(...values.map((item) => item.value), 1);
   const fragment = document.createDocumentFragment();
-
   for (const item of values) {
     const row = document.createElement("div");
-    row.className = "horizontal-bar-item";
-    row.setAttribute("aria-label", `${item.label}: ${item.value.toLocaleString()} working sets`);
+    row.className = "ranked-row";
+    row.setAttribute("aria-label", `${item.label}: ${formatExposure(item.value)} weighted sets`);
     const label = document.createElement("span");
-    label.className = "horizontal-label";
     label.textContent = item.label;
     const track = document.createElement("span");
-    track.className = "horizontal-track";
+    track.className = "ranked-track";
     const bar = document.createElement("span");
-    bar.className = "horizontal-bar";
-    bar.style.width = `${(item.value / maximum) * 100}%`;
-    const value = document.createElement("span");
-    value.className = "horizontal-value";
-    value.textContent = item.value.toLocaleString();
+    bar.style.width = `${item.value ? Math.max(2, (item.value / maximum) * 100) : 0}%`;
     track.append(bar);
+    const value = document.createElement("strong");
+    value.textContent = formatExposure(item.value);
     row.append(label, track, value);
     fragment.append(row);
   }
-
   container.replaceChildren(fragment);
 }
 
-function renderEmptyChart(container, message) {
+function renderTrendChart(values, range) {
+  if (!values.length) {
+    muscleTrendChart.replaceChildren(createEmptyMessage("No exposure trend is available."));
+    return;
+  }
+  const maximum = Math.max(...values.map((item) => item.value), 1);
+  const fragment = document.createDocumentFragment();
+  for (const [index, item] of values.entries()) {
+    const column = document.createElement("div");
+    column.className = "trend-column";
+    const currentBucket = index === values.length - 1;
+    column.setAttribute("aria-label", `${formatBucketLabel(item.key, range.bucket)}: ${formatExposure(item.value)} weighted sets${currentBucket ? ", partial period" : ""}`);
+    const value = document.createElement("span");
+    value.className = "trend-value";
+    value.textContent = formatExposure(item.value);
+    const track = document.createElement("span");
+    track.className = "trend-track";
+    const bar = document.createElement("span");
+    bar.className = "trend-bar";
+    bar.style.height = `${item.value ? Math.max(3, (item.value / maximum) * 100) : 0}%`;
+    track.append(bar);
+    const label = document.createElement("span");
+    label.className = "trend-label";
+    label.textContent = `${formatBucketLabel(item.key, range.bucket)}${currentBucket ? "*" : ""}`;
+    column.append(value, track, label);
+    fragment.append(column);
+  }
+  muscleTrendChart.replaceChildren(fragment);
+  muscleTrendChart.setAttribute("aria-label", `Modelled weighted-set exposure over time. The latest ${range.bucket} is partial.`);
+}
+
+function renderProgressionOptions(exercises) {
+  const fragment = document.createDocumentFragment();
+  for (const exercise of exercises) {
+    const option = document.createElement("option");
+    option.value = exercise;
+    option.textContent = exercise;
+    option.selected = exercise === selectedProgressionExercise;
+    fragment.append(option);
+  }
+  progressionSelect.replaceChildren(fragment);
+  progressionSelect.disabled = exercises.length === 0;
+}
+
+function renderExerciseProgression() {
+  if (!dashboardData || !selectedProgressionExercise) {
+    progressionStatus.textContent = "No working-set performance records are available in this period.";
+    progressionChart.replaceChildren();
+    progressionHistory.replaceChildren();
+    return;
+  }
+  const range = getDateRange(dashboardRange, new Date(), dashboardData.sessions);
+  const representatives = selectRepresentativeSets(filterByRange(dashboardData.records, range), selectedProgressionExercise);
+  const estimates = representatives.map((record) => ({ record, value: getEstimatedOneRepMax(record) })).filter((item) => item.value !== null);
+  progressionStatus.textContent = representatives.length < 2
+    ? "One representative session is available; log another appearance to establish a trend."
+    : `One representative working set per session · ${representatives.length} sessions`;
+  renderProgressionTrend(estimates, representatives.length);
+  const fragment = document.createDocumentFragment();
+  for (const record of [...representatives].reverse().slice(0, 12)) {
+    const row = document.createElement("div");
+    row.className = "performance-row";
+    const date = document.createElement("time");
+    date.dateTime = record.performed_on;
+    date.textContent = formatShortDate(record.performed_on);
+    const performance = document.createElement("strong");
+    const load = record.weight === null ? "Load not recorded" : `${formatDecimal(Number(record.weight))} kg`;
+    const reps = record.reps === null ? "reps not recorded" : `${record.reps} ${record.reps === 1 ? "rep" : "reps"}`;
+    performance.textContent = `${load} × ${reps}`;
+    const context = document.createElement("span");
+    const estimate = getEstimatedOneRepMax(record);
+    context.textContent = [record.rpe === null ? "RPE not recorded" : `RPE ${formatDecimal(Number(record.rpe))}`, estimate === null ? null : `e1RM ~${Math.round(estimate)} kg`].filter(Boolean).join(" · ");
+    row.append(date, performance, context);
+    fragment.append(row);
+  }
+  progressionHistory.replaceChildren(fragment);
+}
+
+function renderProgressionTrend(estimates, sessionCount) {
+  if (sessionCount < 2 || estimates.length < 2) {
+    progressionChart.replaceChildren();
+    progressionChart.removeAttribute("aria-label");
+    return;
+  }
+  const minimum = Math.min(...estimates.map((item) => item.value));
+  const maximum = Math.max(...estimates.map((item) => item.value));
+  const spread = Math.max(maximum - minimum, maximum * 0.08, 1);
+  const fragment = document.createDocumentFragment();
+  for (const item of estimates) {
+    const point = document.createElement("div");
+    point.className = "progression-point";
+    point.setAttribute("aria-label", `${formatShortDate(item.record.performed_on)}: estimated 1RM approximately ${Math.round(item.value)} kilograms`);
+    const value = document.createElement("span");
+    value.textContent = `~${Math.round(item.value)}`;
+    const mark = document.createElement("span");
+    mark.style.bottom = `${12 + ((item.value - minimum) / spread) * 68}%`;
+    const label = document.createElement("time");
+    label.dateTime = item.record.performed_on;
+    label.textContent = formatShortDate(item.record.performed_on);
+    point.append(value, mark, label);
+    fragment.append(point);
+  }
+  progressionChart.replaceChildren(fragment);
+  progressionChart.setAttribute("aria-label", `Estimated one-rep-max trend for ${selectedProgressionExercise}, in kilograms.`);
+}
+
+function renderRecentChange(groups) {
+  const comparison = compareRecentPeriods(dashboardData.sessions, dashboardData.records, exerciseMuscleLookup, new Date(), groups);
+  if (!comparison.available) {
+    recentOverview.replaceChildren(createEmptyMessage("Eight weeks of history are needed for this comparison."));
+    recentGroups.replaceChildren();
+    return;
+  }
+  const overview = [
+    { label: "Sessions", ...comparison.sessions },
+    { label: "Working sets", ...comparison.workingSets },
+  ];
+  const overviewFragment = document.createDocumentFragment();
+  for (const item of overview) {
+    const card = document.createElement("div");
+    card.className = "recent-metric";
+    card.innerHTML = `<span>${item.label}</span><strong>${formatSigned(item.delta)}</strong><small>${item.current} now · ${item.previous} before</small>`;
+    overviewFragment.append(card);
+  }
+  recentOverview.replaceChildren(overviewFragment);
+  const changed = comparison.groups.filter((group) => group.delta !== 0).sort((a, b) => Math.abs(b.delta) - Math.abs(a.delta));
+  const fragment = document.createDocumentFragment();
+  for (const group of changed) {
+    const row = document.createElement("div");
+    row.className = "recent-group-row";
+    const label = document.createElement("span");
+    label.textContent = group.name;
+    const delta = document.createElement("strong");
+    delta.textContent = `${formatSigned(group.delta)} weighted ${Math.abs(group.delta) === 1 ? "set" : "sets"}`;
+    const context = document.createElement("small");
+    context.textContent = `${formatExposure(group.current)} vs ${formatExposure(group.previous)}`;
+    row.append(label, delta, context);
+    fragment.append(row);
+  }
+  recentGroups.replaceChildren(fragment.childNodes.length ? fragment : createEmptyMessage("Muscle-group exposure was unchanged between the two periods."));
+}
+
+function createEmptyMessage(message) {
   const empty = document.createElement("p");
   empty.className = "empty-chart";
   empty.textContent = message;
-  container.replaceChildren(empty);
+  return empty;
 }
 
-function getLatestMonthKeys(sessions, count) {
-  if (!sessions.length) return [];
-  const latest = sessions.reduce(
-    (current, session) => session.performed_on > current ? session.performed_on : current,
-    sessions[0].performed_on,
-  );
-  const [year, month] = latest.slice(0, 7).split("-").map(Number);
-  const keys = [];
-
-  for (let offset = count - 1; offset >= 0; offset -= 1) {
-    const date = new Date(Date.UTC(year, month - 1 - offset, 1));
-    keys.push(`${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`);
-  }
-
-  return keys;
+function formatExposure(value) {
+  return Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
 }
 
-function formatMonthLabel(monthKey) {
-  const [year, month] = monthKey.split("-").map(Number);
-  return new Intl.DateTimeFormat(undefined, { month: "short", year: "2-digit", timeZone: "UTC" })
-    .format(new Date(Date.UTC(year, month - 1, 1)))
-    .replace(" ", " ’");
+function formatDecimal(value) {
+  return Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 });
+}
+
+function formatSigned(value) {
+  const formatted = formatExposure(Math.abs(value));
+  return value > 0 ? `+${formatted}` : value < 0 ? `−${formatted}` : "0";
+}
+
+function formatShortDate(value) {
+  return new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
+}
+
+function formatBucketLabel(key, bucket) {
+  const value = bucket === "week" ? key : `${key}-01`;
+  return new Intl.DateTimeFormat(undefined, bucket === "week" ? { day: "numeric", month: "short", timeZone: "UTC" } : { month: "short", year: "2-digit", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 
 async function loadExerciseCatalogue(supabase) {
@@ -816,7 +1022,7 @@ async function ensureExerciseMuscleLookup(supabase) {
     while (true) {
       const { data, error } = await supabase
         .from("exercise_muscle_relevance_coefficients")
-        .select("exercise_id, muscle_id")
+        .select("exercise_id, muscle_id, relevance")
         .eq("mapping_version_id", version.id)
         .gt("relevance", 0)
         .order("exercise_id", { ascending: true })
@@ -836,6 +1042,7 @@ async function ensureExerciseMuscleLookup(supabase) {
       mappedMuscles.push({
         name: muscle.name,
         sourceOrder: muscle.source_order,
+        relevance: Number(coefficient.relevance),
         uiGroup: {
           code: muscle.ui_muscle_groups.code,
           name: muscle.ui_muscle_groups.name,
@@ -922,11 +1129,13 @@ function resetExerciseCatalogue() {
 function resetDashboard() {
   dashboardLoadedForUser = null;
   dashboardLoadingForUser = null;
+  dashboardData = null;
+  selectedDashboardGroup = null;
+  selectedProgressionExercise = null;
   dashboardStatus.textContent = "Loading your dashboard…";
   metricGrid.replaceChildren();
-  sessionsChart.replaceChildren();
-  workingSetsChart.replaceChildren();
-  exerciseChart.replaceChildren();
+  dashboardContent.hidden = true;
+  dashboardEmpty.hidden = true;
 }
 
 function formatDate(isoDate) {

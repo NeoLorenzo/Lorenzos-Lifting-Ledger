@@ -343,10 +343,11 @@ test("renders collapsed sessions with toggleable exercise-level muscle pills", a
   assert.match(taxonomy, /`ui_muscle_groups` stores the 13 display groups/);
 });
 
-test("provides meaningful My data statistics without tonnage", async () => {
-  const [html, app, styles, policy] = await Promise.all([
+test("provides a modelled muscle-exposure dashboard without tonnage", async () => {
+  const [html, app, analytics, styles, policy] = await Promise.all([
     read("index.html"),
     read("app.js"),
+    read("analytics.js"),
     read("styles.css"),
     read("docs/WHY_THE_APP_DOES_NOT_TRACK_TONNAGE.md"),
   ]);
@@ -355,18 +356,24 @@ test("provides meaningful My data statistics without tonnage", async () => {
   assert.match(html, /data-page="home"[^>]*aria-current="page"/);
   assert.match(html, /data-page="my-data"/);
   assert.match(html, /How these numbers are calculated/);
-  assert.match(html, /Working sets by month/);
+  assert.match(html, /Muscle exposure/);
+  assert.match(html, /Weighted sets/);
+  assert.match(html, /Exercise progression/);
+  assert.match(html, /Recent change/);
+  assert.match(html, /data-dashboard-range="8w" aria-pressed="true"/);
   assert.match(html, /Exercises trained/);
   assert.doesNotMatch(html, /Recorded volume|kg × reps|volume load/i);
   assert.match(app, /fetchOwnedRows\(supabase, "workout_sessions"/);
   assert.match(app, /fetchOwnedRows\(supabase, "session_exercises"/);
   assert.match(app, /"exercise_sets"/);
   assert.match(app, /\.eq\("owner_id", ownerId\)/);
-  assert.match(app, /if \(set\.is_warmup\) continue/);
-  assert.doesNotMatch(app, /setVolume|monthlyVolume|recordedVolume|weight\s*\*\s*reps/i);
+  assert.match(app, /\.select\("exercise_id, muscle_id, relevance"\)/);
+  assert.match(analytics, /record\.is_warmup !== true/);
+  assert.match(analytics, /Math\.max\(perSetGroups\.get/);
+  assert.doesNotMatch(`${app}\n${analytics}`, /setVolume|monthlyVolume|recordedVolume|weight\s*\*\s*reps/i);
   assert.doesNotMatch(app, /\$\{weight\}\s*×\s*\$\{reps\}/);
-  assert.match(styles, /\.vertical-chart/);
-  assert.match(styles, /\.horizontal-chart/);
+  assert.match(styles, /\.muscle-exposure-grid/);
+  assert.match(styles, /\.trend-chart/);
   assert.match(policy, /Never use or display weight × reps/);
   assert.match(policy, /prefer fewer meaningful metrics/i);
 });
