@@ -1,10 +1,10 @@
 # Lorenzo's Lifting Ledger
 
-A deliberately tiny, installable PWA that proves the authentication foundation for a future lifting tracker.
+An installable, evidence-aware lifting tracker with a public scientific overview and an authenticated personal training ledger.
 
 The current app has two states:
 
-- signed out: **Continue with Google**
+- signed out: a crawlable public front page explaining the product, its training model, scientific foundations, limitations, and design decisions, with **Sign in** in the top-right
 - signed in: Home, owner-scoped training statistics, a Literature hub for the app's scientific foundations, and a sign-out control
 
 It is a static site for GitHub Pages and uses Supabase Auth plus owner-scoped workout data and global reference data in Postgres.

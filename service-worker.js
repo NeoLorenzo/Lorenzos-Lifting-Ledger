@@ -1,12 +1,14 @@
-const CACHE_NAME = "lifting-ledger-v20";
+const CACHE_NAME = "lifting-ledger-v21";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=11",
-  "./app.js?v=19",
+  "./styles.css?v=12",
+  "./app.js?v=20",
   "./literature.js",
   "./config.js",
   "./manifest.webmanifest",
+  "./robots.txt",
+  "./sitemap.xml",
   "./icons/icon.svg",
   "./docs/CURRENT_LIMITATIONS_OF_MUSCLE_GROUP_MAPPING.md",
   "./docs/DESIGN_RULES.md",

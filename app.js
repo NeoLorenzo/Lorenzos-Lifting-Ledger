@@ -6,8 +6,17 @@ const loadingView = document.querySelector("#loading");
 const signedOutView = document.querySelector("#signed-out");
 const signedInView = document.querySelector("#signed-in");
 const signInButton = document.querySelector("#google-sign-in");
+const publicDocumentSignInButton = document.querySelector("#public-document-sign-in");
+const signInButtons = [signInButton, publicDocumentSignInButton];
 const signOutButton = document.querySelector("#sign-out");
 const errorMessage = document.querySelector("#auth-error");
+const publicHome = document.querySelector("#public-home");
+const publicDocumentPage = document.querySelector("#public-document-page");
+const publicDocumentBack = document.querySelector("#public-document-back");
+const publicDocumentLabel = document.querySelector("#public-document-label");
+const publicDocumentTitle = document.querySelector("#public-document-title");
+const publicDocumentStatus = document.querySelector("#public-document-status");
+const publicDocumentContent = document.querySelector("#public-document-content");
 const datasetStatus = document.querySelector("#dataset-status");
 const exerciseStatus = document.querySelector("#exercise-status");
 const exerciseCatalogue = document.querySelector("#exercise-catalogue");
@@ -70,11 +79,26 @@ for (const input of muscleViewInputs) {
 }
 
 documentBack.addEventListener("click", () => showPage("literature"));
+publicDocumentBack.addEventListener("click", () => showPublicHome());
 document.addEventListener("click", (event) => {
   const documentLink = event.target.closest("[data-document]");
   if (!documentLink) return;
   event.preventDefault();
-  void openLiteratureDocument(documentLink.dataset.document);
+  if (signedInView.hidden) {
+    void openPublicLiteratureDocument(documentLink.dataset.document);
+  } else {
+    void openLiteratureDocument(documentLink.dataset.document);
+  }
+});
+
+window.addEventListener("popstate", () => {
+  if (!signedInView.hidden) return;
+  const documentId = new URLSearchParams(window.location.search).get("literature");
+  if (documentId && LITERATURE_DOCUMENTS[documentId]) {
+    void openPublicLiteratureDocument(documentId, false);
+  } else {
+    showPublicHome(false);
+  }
 });
 
 const configured =
@@ -86,7 +110,7 @@ const configured =
 if (!configured) {
   showSignedOut();
   showError("Supabase has not been configured yet.");
-  signInButton.disabled = true;
+  setSignInDisabled(true);
 } else {
   const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
     auth: {
@@ -97,9 +121,9 @@ if (!configured) {
   });
   supabaseClient = supabase;
 
-  signInButton.addEventListener("click", async () => {
+  for (const button of signInButtons) button.addEventListener("click", async () => {
     clearError();
-    signInButton.disabled = true;
+    setSignInDisabled(true);
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -110,7 +134,7 @@ if (!configured) {
 
     if (error) {
       showError(error.message);
-      signInButton.disabled = false;
+      setSignInDisabled(false);
     }
   });
 
@@ -178,16 +202,30 @@ function showSignedOut() {
   loadingView.hidden = true;
   signedInView.hidden = true;
   signedOutView.hidden = false;
-  signInButton.disabled = false;
+  setSignInDisabled(false);
   closeMenu();
   resetExerciseCatalogue();
   resetLiftList();
   resetDashboard();
+  const documentId = new URLSearchParams(window.location.search).get("literature");
+  if (documentId && LITERATURE_DOCUMENTS[documentId]) {
+    void openPublicLiteratureDocument(documentId, false);
+  } else {
+    showPublicHome(false);
+  }
+}
+
+function setSignInDisabled(disabled) {
+  for (const button of signInButtons) button.disabled = disabled;
 }
 
 function showError(message) {
   errorMessage.textContent = message;
   errorMessage.hidden = false;
+  if (!publicDocumentPage.hidden) {
+    publicDocumentStatus.textContent = message;
+    publicDocumentStatus.hidden = false;
+  }
 }
 
 function clearError() {
@@ -268,6 +306,52 @@ async function openLiteratureDocument(documentId) {
     if (requestId !== documentRequestId) return;
     documentStatus.textContent = `Could not load this document: ${error.message}`;
   }
+}
+
+async function openPublicLiteratureDocument(documentId, updateHistory = true) {
+  const documentDefinition = LITERATURE_DOCUMENTS[documentId];
+  if (!documentDefinition) return;
+
+  const requestId = ++documentRequestId;
+  publicHome.hidden = true;
+  publicDocumentPage.hidden = false;
+  publicDocumentLabel.textContent = documentDefinition.label;
+  publicDocumentTitle.textContent = documentDefinition.title;
+  publicDocumentStatus.textContent = "Loading document…";
+  publicDocumentStatus.hidden = false;
+  publicDocumentContent.replaceChildren();
+  document.title = `${documentDefinition.title} | Lorenzo's Lifting Ledger`;
+  if (updateHistory) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("literature", documentId);
+    window.history.pushState({ literature: documentId }, "", url);
+  }
+  window.scrollTo({ top: 0, behavior: "smooth" });
+
+  try {
+    const response = await fetch(documentDefinition.path, { cache: "no-cache" });
+    if (!response.ok) throw new Error(`Document request failed (${response.status})`);
+    const markdown = await response.text();
+    if (requestId !== documentRequestId) return;
+    publicDocumentContent.innerHTML = renderMarkdown(markdown);
+    publicDocumentStatus.hidden = true;
+  } catch (error) {
+    if (requestId !== documentRequestId) return;
+    publicDocumentStatus.textContent = `Could not load this document: ${error.message}`;
+  }
+}
+
+function showPublicHome(updateHistory = true) {
+  documentRequestId += 1;
+  publicDocumentPage.hidden = true;
+  publicHome.hidden = false;
+  document.title = "Lorenzo's Lifting Ledger | Evidence-aware training data";
+  if (updateHistory) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("literature");
+    window.history.pushState({}, "", url);
+  }
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 async function loadDashboard(supabase) {

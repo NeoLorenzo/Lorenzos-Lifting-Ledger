@@ -1,12 +1,12 @@
 {
   "name": "Lorenzo's Lifting Ledger",
   "short_name": "Lifting Ledger",
-  "description": "Plan and track your lifts.",
+  "description": "Track exercise-specific performance and understand training exposure through a transparent, evidence-aware model.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#111827",
-  "theme_color": "#111827",
+  "background_color": "#0b1120",
+  "theme_color": "#0b1120",
   "icons": [
     {
       "src": "./icons/icon.svg",

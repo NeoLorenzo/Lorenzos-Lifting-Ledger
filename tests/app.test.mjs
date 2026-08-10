@@ -13,7 +13,8 @@ test("ships an installable app shell", async () => {
   ]);
 
   assert.match(html, /rel="manifest"/);
-  assert.match(html, /Continue with Google/);
+  assert.match(html, /id="google-sign-in"/);
+  assert.match(html, />\s*Sign in\s*<\/button>/);
   assert.match(html, /Your lifts/);
   assert.match(html, /Exercise catalogue/);
   assert.match(html, /id="exercise-catalogue"/);
@@ -27,6 +28,41 @@ test("ships an installable app shell", async () => {
   assert.doesNotMatch(html, /Hello world/i);
   assert.equal(JSON.parse(manifest).display, "standalone");
   assert.match(serviceWorker, /addEventListener\("fetch"/);
+});
+
+test("ships a crawlable public science and product overview", async () => {
+  const [html, app, styles, robots, sitemap] = await Promise.all([
+    read("index.html"),
+    read("app.js"),
+    read("styles.css"),
+    read("robots.txt"),
+    read("sitemap.xml"),
+  ]);
+
+  assert.match(html, /id="signed-out" class="public-site"/);
+  assert.match(html, /id="google-sign-in"[\s\S]*Sign in/);
+  assert.ok(html.indexOf("public-brand") < html.indexOf('id="google-sign-in"'));
+  assert.match(html, /Know what your training data actually means/);
+  assert.match(html, /id="how-it-works"/);
+  assert.match(html, /id="principles"/);
+  assert.match(html, /id="literature"/);
+  assert.match(html, /138[\s\S]*catalogued exercises/);
+  assert.match(html, /40[\s\S]*detailed muscle entities/);
+  assert.match(html, /13[\s\S]*clear UI muscle groups/);
+  assert.match(html, /application\/ld\+json/);
+  assert.match(html, /rel="canonical"/);
+  assert.match(html, /name="description"/);
+  assert.match(html, /name="robots"/);
+  assert.match(html, /href="\?literature=study-selection"/);
+  assert.match(html, /href="\?literature=no-tonnage"/);
+  assert.match(app, /openPublicLiteratureDocument/);
+  assert.match(app, /window\.history\.pushState/);
+  assert.match(styles, /\.public-nav/);
+  assert.match(styles, /\.public-hero/);
+  assert.match(styles, /\.public-library-grid/);
+  assert.match(robots, /Allow: \//);
+  assert.match(robots, /sitemap\.xml/i);
+  assert.match(sitemap, /Lorenzos-Lifting-Ledger\//);
 });
 
 test("provides a dependency-free local development command", async () => {

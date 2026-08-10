@@ -3,26 +3,211 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#111827" />
-    <meta name="description" content="Lorenzo's Lifting Ledger" />
+    <meta name="theme-color" content="#0b1120" />
+    <meta name="description" content="An evidence-aware lifting tracker that maps exercises to muscles, tracks hard sets and exercise-specific performance, and documents every scientific assumption." />
+    <meta name="robots" content="index, follow, max-image-preview:large" />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Lorenzo's Lifting Ledger" />
+    <meta property="og:title" content="Lorenzo's Lifting Ledger | Evidence-aware training data" />
+    <meta property="og:description" content="Understand what your training data can—and cannot—say about progression and hypertrophic exposure." />
+    <meta property="og:url" content="https://neolorenzo.github.io/Lorenzos-Lifting-Ledger/" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="canonical" href="https://neolorenzo.github.io/Lorenzos-Lifting-Ledger/" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=11" />
-    <title>Lorenzo's Lifting Ledger</title>
+    <link rel="stylesheet" href="./styles.css?v=12" />
+    <title>Lorenzo's Lifting Ledger | Evidence-aware training data</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "@id": "https://neolorenzo.github.io/Lorenzos-Lifting-Ledger/#website",
+            "url": "https://neolorenzo.github.io/Lorenzos-Lifting-Ledger/",
+            "name": "Lorenzo's Lifting Ledger",
+            "description": "An evidence-aware lifting tracker with transparent hypertrophy modelling."
+          },
+          {
+            "@type": "WebApplication",
+            "@id": "https://neolorenzo.github.io/Lorenzos-Lifting-Ledger/#application",
+            "name": "Lorenzo's Lifting Ledger",
+            "url": "https://neolorenzo.github.io/Lorenzos-Lifting-Ledger/",
+            "applicationCategory": "HealthApplication",
+            "operatingSystem": "Any",
+            "description": "A lifting log that tracks exercise-specific performance, hard sets, proximity to failure, and modelled muscle exposure without treating tonnage as hypertrophic volume."
+          }
+        ]
+      }
+    </script>
   </head>
   <body>
     <main class="shell" aria-live="polite">
-      <section id="loading" class="card auth-card">
+      <section id="loading" class="card auth-card" hidden>
         <p>Loading…</p>
       </section>
 
-      <section id="signed-out" class="card auth-card" hidden>
-        <button id="google-sign-in" class="google-button" type="button">
-          <span class="google-mark" aria-hidden="true">G</span>
-          Continue with Google
-        </button>
-        <p id="auth-error" class="error" role="alert" hidden></p>
+      <section id="signed-out" class="public-site">
+        <div id="public-home">
+          <header class="public-nav">
+            <a class="public-brand" href="#top" aria-label="Lorenzo's Lifting Ledger home">
+              <span class="brand-mark" aria-hidden="true">L</span>
+              <span><strong>Lifting Ledger</strong><small>Evidence-aware training data</small></span>
+            </a>
+            <nav aria-label="Public navigation">
+              <a href="#how-it-works">How it works</a>
+              <a href="#principles">Principles</a>
+              <a href="#literature">Literature</a>
+            </nav>
+            <button id="google-sign-in" class="google-button public-sign-in" type="button">
+              <span class="google-mark" aria-hidden="true">G</span>
+              Sign in
+            </button>
+          </header>
+
+          <p id="auth-error" class="error public-auth-error" role="alert" hidden></p>
+
+          <div id="top" class="public-main">
+            <section class="public-hero" aria-labelledby="public-title">
+              <div class="hero-copy">
+                <p class="eyebrow">A lifting log built around useful questions</p>
+                <h1 id="public-title">Know what your training data actually means.</h1>
+                <p class="hero-intro">Lorenzo's Lifting Ledger connects exercise performance to a transparent model of muscular involvement. It records the work you did, shows the assumptions behind every interpretation, and avoids impressive-looking statistics that cannot guide a training decision.</p>
+                <div class="hero-actions">
+                  <a class="primary-action" href="#how-it-works">See how the model works <span aria-hidden="true">↓</span></a>
+                  <a class="text-action" href="#literature">Explore the scientific foundations</a>
+                </div>
+                <ul class="model-facts" aria-label="Current model scope">
+                  <li><strong>138</strong><span>catalogued exercises</span></li>
+                  <li><strong>40</strong><span>detailed muscle entities</span></li>
+                  <li><strong>13</strong><span>clear UI muscle groups</span></li>
+                </ul>
+              </div>
+
+              <aside class="model-preview" aria-label="Example of how a training set is interpreted">
+                <div class="preview-heading">
+                  <span>From logbook to interpretation</span>
+                  <span class="preview-status">Transparent by design</span>
+                </div>
+                <div class="preview-exercise">
+                  <div>
+                    <small>Exercise</small>
+                    <strong>Overhead Press</strong>
+                  </div>
+                  <span class="preview-set">8 reps · 2 RIR</span>
+                </div>
+                <div class="preview-flow" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div class="preview-layer">
+                  <span class="layer-number">01</span>
+                  <div><strong>Exercise identity</strong><small>A stable catalogue name keeps history and modelling aligned.</small></div>
+                </div>
+                <div class="preview-layer">
+                  <span class="layer-number">02</span>
+                  <div><strong>Movement and muscle mappings</strong><small>Versioned coefficients expose how the exercise is interpreted.</small></div>
+                </div>
+                <div class="preview-layer">
+                  <span class="layer-number">03</span>
+                  <div><strong>Useful personal context</strong><small>Hard sets, load, repetitions and RIR remain separate signals.</small></div>
+                </div>
+                <p class="preview-note">No tonnage score. No unexplained “optimal” number.</p>
+              </aside>
+            </section>
+
+            <section id="how-it-works" class="public-section process-section" aria-labelledby="process-title">
+              <header class="section-heading">
+                <p class="eyebrow">How it works</p>
+                <h2 id="process-title">A record, a model, and a clear boundary between them.</h2>
+                <p>The app does not turn every input into a single score. It preserves the underlying performance data, then applies documented models only where they add a defensible interpretation.</p>
+              </header>
+              <ol class="process-grid">
+                <li><span>01</span><h3>Log the set</h3><p>Record the exercise, load, repetitions, set type and proximity to failure. Warm-ups remain distinct from working sets.</p></li>
+                <li><span>02</span><h3>Resolve the exercise</h3><p>Workout history and the global catalogue use the same exercise identity, avoiding silent duplication and broken trends.</p></li>
+                <li><span>03</span><h3>Map relevant muscles</h3><p>An authored exercise-to-muscle layer identifies worthwhile hypertrophic relevance for a sufficiently hard set performed as intended.</p></li>
+                <li><span>04</span><h3>Read the trend</h3><p>Session history and personal statistics emphasize consistency, hard sets and exercise-specific progression rather than decorative totals.</p></li>
+              </ol>
+            </section>
+
+            <section id="principles" class="public-section principle-section" aria-labelledby="principles-title">
+              <div class="principle-copy">
+                <p class="eyebrow">What makes the approach different</p>
+                <h2 id="principles-title">More data is not automatically more insight.</h2>
+                <p>Many lifting dashboards can total whatever is easy to multiply. This project starts with the decision the metric is meant to support, then asks whether the calculation survives differences in effort, exercise mechanics, technique and equipment.</p>
+                <blockquote>Every metric should help a person evaluate training, monitor progression, understand relevant exposure, manage fatigue, or make a better programming decision.</blockquote>
+              </div>
+              <div class="principle-grid">
+                <article><span class="principle-icon">↗</span><h3>Performance stays exercise-specific</h3><p>Load and repetitions are interpreted within the same movement instead of being compared across mechanically different exercises.</p></article>
+                <article><span class="principle-icon">≠</span><h3>Tonnage is not called volume</h3><p>Weight × repetitions measures external mass moved repeatedly. It is not treated as hypertrophic stimulus, workload quality or progression.</p></article>
+                <article><span class="principle-icon">◎</span><h3>Muscle detail has two levels</h3><p>Forty anatomical entities support modelling while thirteen larger groups keep session history readable. Users can switch between both views.</p></article>
+                <article><span class="principle-icon">§</span><h3>Uncertainty remains visible</h3><p>Published evidence, calculated estimates, authored models and product decisions are labelled as different kinds of knowledge.</p></article>
+              </div>
+            </section>
+
+            <section class="public-section measure-section" aria-labelledby="measure-title">
+              <header class="section-heading compact-heading">
+                <p class="eyebrow">What the app pays attention to</p>
+                <h2 id="measure-title">Fewer metrics, each with a job.</h2>
+              </header>
+              <div class="measure-table" role="table" aria-label="Training information and its purpose">
+                <div class="measure-row measure-head" role="row"><span role="columnheader">Signal</span><span role="columnheader">Purpose</span><span role="columnheader">Boundary</span></div>
+                <div class="measure-row" role="row"><strong role="cell">Working sets</strong><span role="cell">A practical starting point for relevant training exposure.</span><span role="cell">A set still depends on effort, execution and exercise context.</span></div>
+                <div class="measure-row" role="row"><strong role="cell">Load + repetitions</strong><span role="cell">Tracks performance within an exercise over time.</span><span role="cell">Not combined into cross-exercise tonnage.</span></div>
+                <div class="measure-row" role="row"><strong role="cell">RIR</strong><span role="cell">Preserves proximity-to-failure context.</span><span role="cell">Self-reported and interpreted with appropriate caution.</span></div>
+                <div class="measure-row" role="row"><strong role="cell">Muscle relevance</strong><span role="cell">Connects a hard set to muscles worth considering.</span><span role="cell">An authored relevance model, not measured force or growth.</span></div>
+                <div class="measure-row" role="row"><strong role="cell">Estimated 1RM range</strong><span role="cell">Offers exercise-specific performance context.</span><span role="cell">An equation-based estimate, never a measured maximum.</span></div>
+              </div>
+            </section>
+
+            <section id="literature" class="public-section public-literature" aria-labelledby="public-literature-title">
+              <header class="section-heading literature-heading">
+                <div>
+                  <p class="eyebrow">Scientific foundations</p>
+                  <h2 id="public-literature-title">The reasoning is part of the product.</h2>
+                </div>
+                <p>These documents expose the evidence standard, data model, authored assumptions, limitations and product decisions behind the interface.</p>
+              </header>
+
+              <div class="public-library-grid">
+                <article><span class="evidence-badge protocol-badge">Evaluation protocol</span><h3>How studies are judged</h3><p>Evidence is assessed claim by claim, with attention to directness, trained populations, comparators, adherence and uncertainty.</p><a class="document-link" href="?literature=study-selection" data-document="study-selection">Study-selection protocol <span aria-hidden="true">→</span></a></article>
+                <article><span class="evidence-badge taxonomy-badge">Authored taxonomy</span><h3>Muscle-group taxonomy</h3><p>Forty muscle entities balance anatomical resolution with what can be modelled and defended for hypertrophy applications.</p><a class="document-link" href="?literature=muscle-taxonomy" data-document="muscle-taxonomy">Muscle taxonomy <span aria-hidden="true">→</span></a></article>
+                <article><span class="evidence-badge model-badge">Authored model</span><h3>Movement-pattern coefficients</h3><p>Independent contribution ratings organize exercises biomechanically without pretending to be measured joint torque or stimulus.</p><div class="document-links"><a class="document-link" href="?literature=movement-coefficients" data-document="movement-coefficients">Coefficient guide <span aria-hidden="true">→</span></a><a class="document-link secondary-link" href="?literature=movement-data-model" data-document="movement-data-model">Data model <span aria-hidden="true">→</span></a></div></article>
+                <article><span class="evidence-badge model-badge">Functional anatomy</span><h3>Movement to muscle function</h3><p>A 40 × 40 matrix records anatomical capability as a functional prior, while leaving exercise context to downstream layers.</p><a class="document-link" href="?literature=movement-muscle-function" data-document="movement-muscle-function">Functional-anatomy model <span aria-hidden="true">→</span></a></article>
+                <article><span class="evidence-badge model-badge">Derived model</span><h3>Exercise to muscle composition</h3><p>Ordinary matrix composition provides a traceable bridge from exercises through patterns to muscles without becoming a growth score.</p><a class="document-link" href="?literature=exercise-muscle-composition" data-document="exercise-muscle-composition">Composition method <span aria-hidden="true">→</span></a></article>
+                <article><span class="evidence-badge model-badge">Exercise-specific model</span><h3>Hypertrophic relevance</h3><p>An authored 138 × 40 layer filters anatomical possibility through exercise context for one sufficiently hard, competently performed set.</p><a class="document-link" href="?literature=exercise-muscle-relevance" data-document="exercise-muscle-relevance">Relevance method <span aria-hidden="true">→</span></a></article>
+                <article><span class="evidence-badge decision-badge">Model limitations</span><h3>Current mapping limitations</h3><p>The project documents missing context—including force-sharing, muscle length and resistance profiles—rather than hiding it.</p><a class="document-link" href="?literature=mapping-limitations" data-document="mapping-limitations">Current limitations <span aria-hidden="true">→</span></a></article>
+                <article><span class="evidence-badge decision-badge">Product decision</span><h3>Why tonnage is excluded</h3><p>External mass × repetitions is rejected as a hypertrophy, progression, workload or personal-statistics metric.</p><a class="document-link" href="?literature=no-tonnage" data-document="no-tonnage">Tonnage decision <span aria-hidden="true">→</span></a></article>
+                <article><span class="evidence-badge protocol-badge">Product standard</span><h3>Design rules</h3><p>Transparent calculations, defensible metrics, owner-scoped data and visible limitations govern what reaches the interface.</p><a class="document-link" href="?literature=design-rules" data-document="design-rules">Design rules <span aria-hidden="true">→</span></a></article>
+                <article><span class="evidence-badge estimate-badge">Calculated estimate</span><h3>Estimated one-rep max</h3><p>Brzycki and Epley estimates form an exercise-specific range, with invalid domains and practical limitations made explicit.</p><div class="mini-formula"><span>Brzycki</span><code>weight × 36 ÷ (37 − reps)</code><span>Epley</span><code>weight × (1 + reps ÷ 30)</code></div></article>
+              </div>
+
+              <aside class="citation-notice" aria-labelledby="public-citation-title">
+                <span class="notice-mark" aria-hidden="true">!</span>
+                <div><h3 id="public-citation-title">Evidence library status</h3><p>The study-selection protocol remains a working specification with unresolved citation placeholders. Those passages are not treated as fully sourced claims; reviewed study records and bibliographic references will be added as the library develops.</p></div>
+              </aside>
+            </section>
+          </div>
+
+          <footer class="public-footer">
+            <a class="public-brand footer-brand" href="#top"><span class="brand-mark" aria-hidden="true">L</span><strong>Lifting Ledger</strong></a>
+            <p>Built to keep training records, scientific models and product claims distinguishable.</p>
+            <a href="#literature">Scientific foundations ↑</a>
+          </footer>
+        </div>
+
+        <section id="public-document-page" class="public-document-page" hidden>
+          <header class="public-nav document-nav">
+            <button id="public-document-back" class="document-back" type="button"><span aria-hidden="true">←</span> Back to overview</button>
+            <button id="public-document-sign-in" class="google-button public-sign-in" type="button"><span class="google-mark" aria-hidden="true">G</span> Sign in</button>
+          </header>
+          <div class="public-document-shell">
+            <header class="document-header">
+              <p id="public-document-label" class="eyebrow">Literature</p>
+              <h1 id="public-document-title">Document</h1>
+              <p id="public-document-status">Loading document…</p>
+            </header>
+            <article id="public-document-content" class="markdown-reader"></article>
+          </div>
+        </section>
       </section>
 
       <section id="signed-in" class="app-view" hidden>
@@ -346,6 +531,6 @@
       </section>
     </main>
 
-    <script type="module" src="./app.js?v=19"></script>
+    <script type="module" src="./app.js?v=20"></script>
   </body>
 </html>
