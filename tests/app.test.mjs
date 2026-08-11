@@ -362,6 +362,9 @@ test("provides a modelled muscle-exposure dashboard without tonnage", async () =
   assert.match(html, /Recent change/);
   assert.match(html, /data-dashboard-range="8w" aria-pressed="true"/);
   assert.match(html, /Exercises trained/);
+  assert.doesNotMatch(html, /Training analytics|>Context<|Underlying model|Exercise-specific performance/);
+  assert.doesNotMatch(html, /weight-convention-note|dashboard-detail-grid/);
+  assert.doesNotMatch(html, />Exposure over time<|>Exercise sources</);
   assert.doesNotMatch(html, /Recorded volume|kg × reps|volume load/i);
   assert.match(app, /fetchOwnedRows\(supabase, "workout_sessions"/);
   assert.match(app, /fetchOwnedRows\(supabase, "session_exercises"/);
@@ -372,7 +375,13 @@ test("provides a modelled muscle-exposure dashboard without tonnage", async () =
   assert.match(analytics, /Math\.max\(perSetGroups\.get/);
   assert.doesNotMatch(`${app}\n${analytics}`, /setVolume|monthlyVolume|recordedVolume|weight\s*\*\s*reps/i);
   assert.doesNotMatch(app, /\$\{weight\}\s*×\s*\$\{reps\}/);
-  assert.match(styles, /\.muscle-exposure-grid/);
+  assert.match(styles, /[.]muscle-exposure-grid/);
+  assert.match(styles, /grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(styles, /[.]exposure-item[.]is-expanded/);
+  assert.match(app, /className = "exposure-breakdown ranked-list"/);
+  assert.match(app, /button\.setAttribute\("aria-expanded", String\(expanded\)\)/);
+  assert.doesNotMatch(app, /metric-note|detailedMuscleTitle|detailedMuscleList/);
+  assert.match(app, /headingBottom <= topBarBottom \? "My data" : ""/);
   assert.match(styles, /\.trend-chart/);
   assert.match(app, /createElementNS\("http:\/\/www\.w3\.org\/2000\/svg", "polyline"\)/);
   assert.match(app, /className = "progression-y-axis"/);
@@ -395,6 +404,9 @@ test("provides a modelled muscle-exposure dashboard without tonnage", async () =
   assert.doesNotMatch(app, /delta\.textContent = `\$\{formatSigned/);
   assert.match(policy, /Never use or display weight × reps/);
   assert.match(policy, /prefer fewer meaningful metrics/i);
+  assert.match(styles, /\.progression-tooltip[\s\S]*display: none/);
+  assert.match(styles, /\.progression-marker:hover \.progression-tooltip[\s\S]*display: grid/);
+  assert.match(app, /point\.x <= 50 \? "is-start" : "is-end"/);
 });
 
 test("defines and applies one per-dumbbell weight convention", async () => {
@@ -405,8 +417,7 @@ test("defines and applies one per-dumbbell weight convention", async () => {
     read("README.md"),
   ]);
 
-  assert.match(html, /Every dumbbell measurement is the weight of one dumbbell/);
-  assert.match(html, /unilateral and bilateral/);
+  assert.doesNotMatch(html, /dumbbell/i);
   assert.match(app, /\? "kg per dumbbell" : "kg"/);
   assert.match(app, /formatOneRepMaxRange\(set\.estimated_1rm_low, set\.estimated_1rm_high, exercise\.exercise\)/);
   assert.match(designRules, /Dumbbell weight is always per dumbbell/);

@@ -16,7 +16,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=15" />
+    <link rel="stylesheet" href="./styles.css?v=19" />
     <title>Lorenzo's Lifting Ledger | Evidence-aware training data</title>
     <script type="application/ld+json">
       {
@@ -121,7 +121,7 @@
                 <p>The app does not turn every input into a single score. It preserves the underlying performance data, then applies documented models only where they add a defensible interpretation.</p>
               </header>
               <ol class="process-grid">
-                <li><span>01</span><h3>Log the set</h3><p>Record the exercise, load, repetitions, set type and proximity to failure. Dumbbell load always means the weight of one dumbbell, including bilateral exercises. Warm-ups remain distinct from working sets.</p></li>
+                <li><span>01</span><h3>Log the set</h3><p>Record the exercise, load, repetitions, set type and proximity to failure. Warm-ups remain distinct from working sets.</p></li>
                 <li><span>02</span><h3>Resolve the exercise</h3><p>Workout history and the global catalogue use the same exercise identity, avoiding silent duplication and broken trends.</p></li>
                 <li><span>03</span><h3>Map relevant muscles</h3><p>An authored exercise-to-muscle layer identifies worthwhile hypertrophic relevance for a sufficiently hard set performed as intended.</p></li>
                 <li><span>04</span><h3>Read the trend</h3><p>Session history and personal statistics emphasize consistency, hard sets and exercise-specific progression rather than decorative totals.</p></li>
@@ -151,7 +151,7 @@
               <div class="measure-table" role="table" aria-label="Training information and its purpose">
                 <div class="measure-row measure-head" role="row"><span role="columnheader">Signal</span><span role="columnheader">Purpose</span><span role="columnheader">Boundary</span></div>
                 <div class="measure-row" role="row"><strong role="cell">Working sets</strong><span role="cell">A practical starting point for relevant training exposure.</span><span role="cell">A set still depends on effort, execution and exercise context.</span></div>
-                <div class="measure-row" role="row"><strong role="cell">Load + repetitions</strong><span role="cell">Tracks performance within an exercise over time.</span><span role="cell">Dumbbell load is per dumbbell—never the combined pair—and is not combined into cross-exercise tonnage.</span></div>
+                <div class="measure-row" role="row"><strong role="cell">Load + repetitions</strong><span role="cell">Tracks performance within an exercise over time.</span><span role="cell">Load and repetitions are not combined into cross-exercise tonnage.</span></div>
                 <div class="measure-row" role="row"><strong role="cell">RIR</strong><span role="cell">Preserves proximity-to-failure context.</span><span role="cell">Self-reported and interpreted with appropriate caution.</span></div>
                 <div class="measure-row" role="row"><strong role="cell">Muscle relevance</strong><span role="cell">Connects a hard set to muscles worth considering.</span><span role="cell">An authored relevance model, not measured force or growth.</span></div>
                 <div class="measure-row" role="row"><strong role="cell">Estimated 1RM range</strong><span role="cell">Offers exercise-specific performance context.</span><span role="cell">An equation-based estimate, never a measured maximum.</span></div>
@@ -253,7 +253,6 @@
               <p>Browse the global exercise catalogue used throughout your training data.</p>
             </div>
           </header>
-          <aside class="weight-convention-note" aria-label="Dumbbell weight convention"><strong>Dumbbell weight rule</strong><span>Every dumbbell measurement is the weight of one dumbbell. This is unchanged for unilateral and bilateral exercises; never use the combined weight of the pair.</span></aside>
           <section class="catalogue-panel" aria-labelledby="exercise-catalogue-heading">
             <h2 id="exercise-catalogue-heading">Exercise catalogue</h2>
             <p id="exercise-status">Loading your exercises…</p>
@@ -269,7 +268,6 @@
               <p id="dataset-status">Loading your sessions…</p>
             </div>
           </header>
-          <aside class="weight-convention-note" aria-label="Dumbbell weight convention"><strong>Dumbbell weight rule</strong><span>Every dumbbell measurement below is the weight of one dumbbell, whether the exercise is unilateral or bilateral.</span></aside>
           <div class="session-search">
             <label for="session-search">Search by exercise</label>
             <div class="session-search-field">
@@ -300,8 +298,7 @@
         <section id="my-data-page" class="page-panel" data-page-panel="my-data" hidden>
           <header class="dashboard-header">
             <div>
-              <p class="eyebrow">Training analytics</p>
-              <h1>My data</h1>
+              <h1 id="my-data-heading">My data</h1>
               <p class="dashboard-intro">Understand what is changing in your training.</p>
             </div>
             <fieldset class="range-control" aria-label="Dashboard time range">
@@ -318,7 +315,7 @@
 
           <div id="dashboard-content" hidden>
             <section class="overview-section" aria-labelledby="overview-title">
-              <div class="section-heading compact-heading"><div><p class="section-kicker">Context</p><h2 id="overview-title">Training overview</h2></div></div>
+              <div class="section-heading compact-heading"><div><h2 id="overview-title">Training overview</h2></div></div>
               <div id="metric-grid" class="metric-grid" aria-label="Training summary"></div>
             </section>
 
@@ -331,30 +328,21 @@
               <p id="exposure-warning" class="data-warning" hidden></p>
               <div id="muscle-exposure-grid" class="muscle-exposure-grid" aria-label="Select a muscle group to inspect"></div>
             </section>
-
-            <div class="dashboard-detail-grid">
-              <section class="dashboard-section trend-panel" aria-labelledby="muscle-trend-title">
-                <div class="section-heading compact-heading"><div><p class="section-kicker">Over time</p><h2 id="muscle-trend-title">Exposure over time</h2></div></div>
+            <section class="dashboard-section trend-panel" aria-labelledby="muscle-trend-title">
+                <div class="section-heading compact-heading"><div><p class="section-kicker">Over time</p><h2 id="muscle-trend-title"></h2></div></div>
                 <div id="muscle-trend-chart" class="trend-chart" role="img"></div>
               </section>
-              <section class="dashboard-section detail-panel" aria-labelledby="detailed-muscle-title">
-                <div class="section-heading compact-heading"><div><p class="section-kicker">Underlying model</p><h2 id="detailed-muscle-title">Detailed muscles</h2></div></div>
-                <p class="section-note">Child values are independent and can add to more than the parent group. They are not percentages.</p>
-                <div id="detailed-muscle-list" class="ranked-list"></div>
-              </section>
-            </div>
 
             <section class="dashboard-section sources-section" aria-labelledby="exercise-sources-title">
-              <div class="section-heading compact-heading"><div><p class="section-kicker">What trained it</p><h2 id="exercise-sources-title">Exercise sources</h2></div></div>
+              <div class="section-heading compact-heading"><div><p class="section-kicker">What trained it</p><h2 id="exercise-sources-title"></h2></div></div>
               <div id="exercise-sources-list" class="ranked-list source-list"></div>
             </section>
 
             <section class="dashboard-section progression-section" aria-labelledby="progression-title">
               <div class="section-heading progression-heading">
-                <div><p class="section-kicker">Exercise-specific performance</p><h2 id="progression-title">Exercise progression</h2><p>Estimated 1RM is secondary context for the same exercise only—not a measured max. Different machines or equipment are shown as separate, color-keyed lines.</p></div>
+                <div><h2 id="progression-title">Exercise progression</h2><p>Estimated 1RM is secondary context for the same exercise only—not a measured max. Different machines or equipment are shown as separate, color-keyed lines.</p></div>
                 <label class="exercise-select-label" for="progression-exercise">Exercise<select id="progression-exercise"></select></label>
               </div>
-              <p class="weight-convention-note compact-weight-note"><strong>Dumbbell weight rule</strong><span>For every dumbbell exercise, logged load and estimated 1RM are shown per dumbbell, for unilateral and bilateral movements.</span></p>
               <p id="progression-status" class="section-note"></p>
               <div id="progression-chart" class="progression-chart" role="img"></div>
               <div id="progression-history" class="performance-history"></div>
@@ -539,7 +527,6 @@
               </div>
               <h2>Estimated one-rep max</h2>
               <p>The app reports a range from the Brzycki and Epley equations using the logged load and repetitions. This is an estimate of exercise-specific performance, not a direct measurement of maximal strength.</p>
-              <p class="weight-convention-note compact-weight-note"><strong>Dumbbell weight rule</strong><span>For dumbbell exercises, both the formula input and reported estimate use the weight of one dumbbell, never the combined pair.</span></p>
               <div class="formula-block" aria-label="One repetition maximum formulas">
                 <p><span>Brzycki</span> weight × 36 ÷ (37 − reps)</p>
                 <p><span>Epley</span> weight × (1 + reps ÷ 30)</p>
@@ -569,6 +556,6 @@
       </section>
     </main>
 
-    <script type="module" src="./app.js?v=23"></script>
+    <script type="module" src="./app.js?v=26"></script>
   </body>
 </html>

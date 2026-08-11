@@ -49,6 +49,8 @@ const menuToggle = document.querySelector("#menu-toggle");
 const appMenu = document.querySelector("#app-menu");
 const menuBackdrop = document.querySelector("#menu-backdrop");
 const currentPageTitle = document.querySelector("#current-page-title");
+const topBar = document.querySelector(".top-bar");
+const myDataHeading = document.querySelector("#my-data-heading");
 const menuItems = [...document.querySelectorAll("[data-page]")];
 const pagePanels = [...document.querySelectorAll("[data-page-panel]")];
 const dashboardStatus = document.querySelector("#dashboard-status");
@@ -60,8 +62,6 @@ const muscleExposureGrid = document.querySelector("#muscle-exposure-grid");
 const exposureWarning = document.querySelector("#exposure-warning");
 const muscleTrendTitle = document.querySelector("#muscle-trend-title");
 const muscleTrendChart = document.querySelector("#muscle-trend-chart");
-const detailedMuscleTitle = document.querySelector("#detailed-muscle-title");
-const detailedMuscleList = document.querySelector("#detailed-muscle-list");
 const exerciseSourcesTitle = document.querySelector("#exercise-sources-title");
 const exerciseSourcesList = document.querySelector("#exercise-sources-list");
 const progressionSelect = document.querySelector("#progression-exercise");
@@ -94,6 +94,7 @@ let dashboardData = null;
 let dashboardRange = "8w";
 let selectedDashboardGroup = null;
 let selectedProgressionExercise = null;
+let activePageName = "home";
 const EXERCISE_SERIES_COLORS = Object.freeze([
   "#60a5fa", "#c084fc", "#f59e0b", "#22d3ee", "#f472b6",
   "#818cf8", "#fb923c", "#2dd4bf", "#eab308", "#a78bfa",
@@ -143,6 +144,8 @@ progressionSelect.addEventListener("change", () => {
   selectedProgressionExercise = progressionSelect.value || null;
   renderExerciseProgression();
 });
+window.addEventListener("scroll", updateMyDataNavTitle, { passive: true });
+window.addEventListener("resize", updateMyDataNavTitle);
 
 sessionSearch.addEventListener("input", () => {
   clearSessionSearchButton.hidden = sessionSearch.value.length === 0;
@@ -360,12 +363,21 @@ function showPage(pageName) {
     else item.removeAttribute("aria-current");
   }
 
-  currentPageTitle.textContent = pageTitle;
+  activePageName = pageName;
+  currentPageTitle.textContent = pageName === "my-data" ? "" : pageTitle;
   closeMenu();
   window.scrollTo({ top: 0, behavior: "smooth" });
+  if (pageName === "my-data") window.requestAnimationFrame(updateMyDataNavTitle);
   if (pageName === "my-data" && activeUserId && supabaseClient) {
     void loadDashboard(supabaseClient);
   }
+}
+
+function updateMyDataNavTitle() {
+  if (activePageName !== "my-data" || !myDataHeading || !topBar) return;
+  const headingBottom = myDataHeading.getBoundingClientRect().bottom;
+  const topBarBottom = topBar.getBoundingClientRect().bottom;
+  currentPageTitle.textContent = headingBottom <= topBarBottom ? "My data" : "";
 }
 
 async function openLiteratureDocument(documentId) {
@@ -520,13 +532,13 @@ function renderDashboard() {
 
   dashboardEmpty.hidden = true;
   dashboardContent.hidden = false;
-  dashboardStatus.textContent = `${periodSessions.length.toLocaleString()} ${periodSessions.length === 1 ? "session" : "sessions"} in the selected period`;
+  dashboardStatus.textContent = "";
   const summary = summarizeTraining(sessions, records, range);
   renderMetrics([
-    { label: "Sessions", value: summary.sessions.toLocaleString(), note: "Dated workout records" },
-    { label: "Working sets", value: summary.workingSets.toLocaleString(), note: "Warm-ups excluded" },
-    { label: "Average sessions / week", value: formatDecimal(summary.averageSessionsPerWeek), note: dashboardRange === "all" ? "Across first to latest session" : `Across the selected ${range.periodWeeks} weeks` },
-    { label: "Exercises trained", value: summary.exercises.toLocaleString(), note: "Exact names with working sets" },
+    { label: "Sessions", value: summary.sessions.toLocaleString() },
+    { label: "Working sets", value: summary.workingSets.toLocaleString() },
+    { label: "Average sessions / week", value: formatDecimal(summary.averageSessionsPerWeek) },
+    { label: "Exercises trained", value: summary.exercises.toLocaleString() },
   ]);
 
   const exposure = calculateMuscleExposure(periodRecords, exerciseMuscleLookup, groups);
@@ -570,10 +582,7 @@ function renderMetrics(metrics) {
     const value = document.createElement("p");
     value.className = "metric-value";
     value.textContent = metric.value;
-    const note = document.createElement("p");
-    note.className = "metric-note";
-    note.textContent = metric.note;
-    card.append(label, value, note);
+    card.append(label, value);
     fragment.append(card);
   }
 
@@ -586,12 +595,18 @@ function renderMuscleExposure(groups, exposure) {
   for (const group of groups) {
     const value = exposure.groupExposure.get(group.code) ?? 0;
     const rawSets = exposure.groupRawSets.get(group.code) ?? 0;
+    const expanded = group.code === selectedDashboardGroup;
+    const item = document.createElement("div");
+    item.className = `exposure-item muscle-group-${group.code}${expanded ? " is-expanded" : ""}`;
+
     const button = document.createElement("button");
     button.type = "button";
     button.className = `exposure-row muscle-group-${group.code}`;
     button.dataset.muscleGroup = group.code;
     button.setAttribute("aria-pressed", String(group.code === selectedDashboardGroup));
     button.setAttribute("aria-label", `${group.name}: ${formatExposure(value)} weighted sets from ${rawSets} working sets`);
+    button.setAttribute("aria-expanded", String(expanded));
+    button.setAttribute("aria-controls", `exposure-breakdown-${group.code}`);
     const label = document.createElement("span");
     label.className = "exposure-label";
     label.textContent = group.name;
@@ -603,9 +618,19 @@ function renderMuscleExposure(groups, exposure) {
     track.append(bar);
     const amount = document.createElement("span");
     amount.className = "exposure-value";
-    amount.innerHTML = `<strong>${formatExposure(value)}</strong><small>weighted ${value === 1 ? "set" : "sets"}</small>`;
+    amount.textContent = formatExposure(value);
     button.append(label, track, amount);
-    fragment.append(button);
+    item.append(button);
+    if (expanded) {
+      const breakdown = document.createElement("div");
+      breakdown.id = `exposure-breakdown-${group.code}`;
+      breakdown.className = "exposure-breakdown ranked-list";
+      breakdown.setAttribute("aria-label", `${group.name} muscle breakdown`);
+      const detailed = group.muscles.map((muscle) => ({ label: muscle.name, value: exposure.detailedExposure.get(muscle.name) ?? 0 }));
+      renderRankedList(breakdown, detailed, "No detailed muscle exposure in this period.");
+      item.append(breakdown);
+    }
+    fragment.append(item);
   }
   muscleExposureGrid.replaceChildren(fragment);
   const unmappedCount = exposure.unmappedExercises.size;
@@ -616,13 +641,10 @@ function renderMuscleExposure(groups, exposure) {
 function renderSelectedMuscle(groups, exposure, periodRecords, range) {
   const group = groups.find((item) => item.code === selectedDashboardGroup);
   if (!group) return;
-  muscleTrendTitle.textContent = `${group.name} — exposure over time`;
-  detailedMuscleTitle.textContent = `${group.name} — detailed muscles`;
-  exerciseSourcesTitle.textContent = `${group.name} — exercise sources`;
+  muscleTrendTitle.textContent = group.name;
+  exerciseSourcesTitle.textContent = group.name;
   renderTrendChart(calculateExposureTrend(periodRecords, exerciseMuscleLookup, group.code, range), range);
 
-  const detailed = group.muscles.map((muscle) => ({ label: muscle.name, value: exposure.detailedExposure.get(muscle.name) ?? 0 }));
-  renderRankedList(detailedMuscleList, detailed, "No detailed muscle exposure in this period.");
   const sources = calculateExerciseSources(periodRecords, exerciseMuscleLookup, group.code).map((item) => ({ label: item.exercise, value: item.value }));
   renderRankedList(exerciseSourcesList, sources, "No exercises contributed modelled exposure to this group.");
 }
@@ -817,8 +839,7 @@ function renderProgressionTrend(estimates, sessionCount, seriesColors) {
   for (const [index, point] of points.entries()) {
     const marker = document.createElement("span");
     marker.className = "progression-marker";
-    if (point.x < 10) marker.classList.add("is-start");
-    if (point.x > 90) marker.classList.add("is-end");
+    marker.classList.add(point.x <= 50 ? "is-start" : "is-end");
     marker.style.left = `${point.x}%`;
     marker.style.bottom = `${point.y}%`;
     marker.style.setProperty("--series-color", seriesColors.get(point.seriesKey));
