@@ -16,7 +16,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=22" />
+    <link rel="stylesheet" href="./styles.css?v=23" />
     <title>Lorenzo's Lifting Ledger | Evidence-aware training data</title>
     <script type="application/ld+json">
       {
@@ -257,8 +257,23 @@
           <dialog id="session-modal" class="session-modal" aria-labelledby="session-modal-title">
             <div class="session-modal-card">
               <button id="close-session-modal" class="text-button session-modal-close" type="button" aria-label="Close session">Close</button>
-              <h2 id="session-modal-title">Session in progress</h2>
-              <button id="conclude-session" class="primary-button" type="button">Conclude Session</button>
+              <section id="session-start-choices" class="session-modal-view">
+                <h2 id="session-modal-title">Start a session</h2>
+                <div class="session-start-actions">
+                  <button id="session-from-preset" class="primary-button" type="button">Create session from preset</button>
+                  <button id="session-from-scratch" type="button">Create session from scratch</button>
+                </div>
+              </section>
+              <section id="session-preset-picker" class="session-modal-view" hidden>
+                <h2 id="session-preset-title">Choose a preset</h2>
+                <p id="session-preset-status">Loading your presets…</p>
+                <ul id="session-preset-list" class="session-preset-list"></ul>
+                <button id="back-to-session-choices" class="text-button" type="button">Back</button>
+              </section>
+              <section id="session-in-progress" class="session-modal-view" hidden>
+                <h2 id="session-progress-title">Session in progress</h2>
+                <button id="conclude-session" class="primary-button" type="button">Conclude Session</button>
+              </section>
               <p id="session-modal-status" class="start-session-status" role="status" aria-live="polite" hidden></p>
             </div>
           </dialog>
@@ -658,6 +673,6 @@
       </section>
     </main>
 
-    <script type="module" src="./app.js?v=30"></script>
+    <script type="module" src="./app.js?v=31"></script>
   </body>
 </html>

@@ -40,7 +40,7 @@ All future user-owned tables must enable Row Level Security before the app write
 - `session_exercises` stores the ordered exercise occurrences, their catalogue reference, the original historical label, and any equipment ID used in that session.
 - `exercise_sets` stores each numbered weight/reps pair, optional RPE, warm-up/drop-set/superset flags, and generated Brzycki/Epley estimated 1RM values with a low/high range.
 - `workout_presets` stores each owner-scoped, uniquely named reusable exercise pool.
-- `workout_preset_exercises` stores unordered, deduplicated references from presets to the global exercise catalogue; it never copies session set or equipment data.
+- `workout_preset_exercises` stores unordered, deduplicated exercise references plus a reusable set count. Starting from a preset randomizes exercise order and creates blank set slots without copying load, reps, equipment, RPE, or warm-up state.
 
 All dumbbell exercise weights use one product-wide convention: the stored value is always the weight of **one dumbbell**, for both unilateral and bilateral exercises. A set performed with two 30 kg dumbbells is therefore stored as `30 kg`, not `60 kg`; dumbbell e1RM values use and retain that same per-dumbbell unit.
 

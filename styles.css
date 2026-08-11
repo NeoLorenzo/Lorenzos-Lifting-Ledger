@@ -892,9 +892,11 @@ body.session-modal-open {
 .session-modal-card {
   position: relative;
   display: grid;
+  max-height: calc(100dvh - 2rem);
   justify-items: center;
   gap: 1.5rem;
   padding: 4rem 2rem 2rem;
+  overflow-y: auto;
   text-align: center;
 }
 
@@ -906,6 +908,74 @@ body.session-modal-open {
   position: absolute;
   top: 0.8rem;
   right: 0.8rem;
+}
+
+.session-modal-view {
+  display: grid;
+  width: 100%;
+  gap: 1rem;
+  justify-items: stretch;
+}
+
+.session-modal-view[hidden] {
+  display: none;
+}
+
+.session-modal-view h2,
+.session-modal-view p {
+  margin: 0;
+}
+
+.session-start-actions {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.session-start-actions button,
+.session-preset-list button {
+  min-height: 3rem;
+  padding: 0.7rem 0.9rem;
+  border: 1px solid #475569;
+  border-radius: 0.7rem;
+  background: #1e293b;
+  color: #f8fafc;
+  cursor: pointer;
+  font: inherit;
+}
+
+.session-preset-list {
+  display: grid;
+  width: 100%;
+  max-height: min(24rem, 55dvh);
+  gap: 0.55rem;
+  margin: 0;
+  padding: 0.1rem;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.session-preset-list button {
+  display: grid;
+  width: 100%;
+  gap: 0.3rem;
+  text-align: left;
+}
+
+.session-preset-list button:hover {
+  border-color: #60a5fa;
+  background: #17243a;
+}
+
+.session-preset-list span,
+#session-preset-status {
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
+.session-preset-list small {
+  color: #cbd5e1;
+  font-size: 0.7rem;
+  line-height: 1.4;
 }
 
 .eyebrow,
@@ -3307,6 +3377,35 @@ button:disabled {
   flex: 0 0 auto;
   padding: 0.3rem 0.6rem;
   font-size: 0.72rem;
+}
+
+.preset-set-controls,
+.preset-set-controls label {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.preset-set-controls {
+  flex: 0 0 auto;
+}
+
+.preset-set-controls label {
+  color: #94a3b8;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.preset-set-controls input {
+  width: 3.6rem;
+  min-height: 2rem;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid #475569;
+  border-radius: 0.5rem;
+  background: #0b1323;
+  color: #f8fafc;
+  font: inherit;
+  text-align: center;
 }
 
 .preset-exercise-results {

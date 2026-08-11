@@ -96,7 +96,10 @@ export function joinDashboardData(sessions, exercises, sets) {
 }
 
 export function workingSets(records) {
-  return records.filter((record) => record.is_warmup !== true);
+  return records.filter((record) => (
+    record.is_warmup !== true
+    && !(record.weight === null && record.reps === null)
+  ));
 }
 
 export function getGroupCatalogue(exerciseMuscleLookup) {

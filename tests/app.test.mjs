@@ -541,12 +541,13 @@ test("searches session history by exercise and edits owned exercise sets", async
   assert.match(styles, /\.exercise-edit-set/);
 });
 test("manages owner-scoped unordered workout presets", async () => {
-  const [html, app, styles, migration, indexMigration, readme, serviceWorker] = await Promise.all([
+  const [html, app, styles, migration, indexMigration, setCountMigration, readme, serviceWorker] = await Promise.all([
     read("index.html"),
     read("app.js"),
     read("styles.css"),
     read("supabase/migrations/20260811021711_create_workout_presets.sql"),
     read("supabase/migrations/20260811021907_index_workout_preset_owner_foreign_key.sql"),
+    read("supabase/migrations/20260811115349_add_preset_set_counts_and_session_population.sql"),
     read("README.md"),
     read("service-worker.js"),
   ]);
@@ -562,6 +563,8 @@ test("manages owner-scoped unordered workout presets", async () => {
   assert.match(app, /\.from\("workout_presets"\)/);
   assert.match(app, /\.eq\("owner_id", requestedUserId\)/);
   assert.match(app, /\.rpc\("save_workout_preset"/);
+  assert.match(app, /p_set_counts: setCounts/);
+  assert.match(app, /data-preset-set-count/);
   assert.match(app, /data\.map\(\(preset\)/);
   assert.match(app, /\[\["edit", "Edit"\], \["delete", "Delete"\]\]/);
   assert.doesNotMatch(app, /\["open", "Open"\]|\["rename", "Rename"\]/);
@@ -570,8 +573,8 @@ test("manages owner-scoped unordered workout presets", async () => {
   assert.match(styles, /\.preset-card:hover \.preset-card-actions[\s\S]*opacity: 1/);
   assert.match(styles, /\.preset-modal[\s\S]*height: 100dvh/);
   const sourceSessionLoader = app.slice(app.indexOf("async function loadPresetSourceSessions"), app.indexOf("function applySelectedPresetSession"));
-  assert.match(sourceSessionLoader, /session_exercises\(exercise_id, exercise\)/);
-  assert.doesNotMatch(sourceSessionLoader, /exercise_sets|equipment_id|weight|reps|rpe|is_warmup/i);
+  assert.match(sourceSessionLoader, /session_exercises\(exercise_id, exercise, exercise_sets\(id\)\)/);
+  assert.doesNotMatch(sourceSessionLoader, /equipment_id|weight|reps|rpe|is_warmup/i);
   assert.match(sourceSessionLoader, /\.eq\("status", "completed"\)/);
   assert.match(migration, /create table public\.workout_presets/);
   assert.match(migration, /create table public\.workout_preset_exercises/);
@@ -588,6 +591,10 @@ test("manages owner-scoped unordered workout presets", async () => {
   assert.match(migration, /revoke all on public\.workout_presets, public\.workout_preset_exercises from anon/);
   assert.match(migration, /grant select, insert, update, delete[\s\S]*on public\.workout_presets[\s\S]*to authenticated/);
   assert.match(indexMigration, /on public\.workout_preset_exercises \(preset_id, owner_id\)/);
+  assert.match(setCountMigration, /add column set_count smallint not null default 1/);
+  assert.match(setCountMigration, /check \(set_count between 1 and 20\)/);
+  assert.match(setCountMigration, /p_set_counts smallint\[\]/);
+  assert.match(setCountMigration, /unnest\(p_exercise_ids, p_set_counts\)/);
   assert.match(styles, /\.preset-list[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(styles, /@media \(max-width: 760px\)[\s\S]*\.preset-list/);
   assert.match(readme, /`workout_presets`/);
@@ -595,22 +602,26 @@ test("manages owner-scoped unordered workout presets", async () => {
 });
 
 test("creates, resumes, and concludes one persisted active workout session", async () => {
-  const [html, app, styles, migration, serviceWorker] = await Promise.all([
+  const [html, app, styles, migration, setCountMigration, serviceWorker] = await Promise.all([
     read("index.html"),
     read("app.js"),
     read("styles.css"),
     read("supabase/migrations/20260811112258_add_workout_session_lifecycle.sql"),
+    read("supabase/migrations/20260811115349_add_preset_set_counts_and_session_population.sql"),
     read("service-worker.js"),
   ]);
 
   assert.match(html, /id="start-session"[^>]*>Loading session/);
   assert.match(html, /id="session-modal"/);
-  assert.match(html, /id="session-modal-title">Session in progress/);
+  assert.match(html, /id="session-modal-title">Start a session/);
+  assert.match(html, /id="session-from-preset"[^>]*>Create session from preset/);
+  assert.match(html, /id="session-from-scratch"[^>]*>Create session from scratch/);
+  assert.match(html, /id="session-progress-title">Session in progress/);
   assert.match(html, /id="conclude-session"[^>]*>Conclude Session/);
   const home = html.slice(html.indexOf('id="home-page"'), html.indexOf('id="session-history-page"'));
   assert.doesNotMatch(home, /id="exercise-catalogue"|Exercise catalogue|Exercise library|Browse the global exercise catalogue/);
   assert.match(app, /\.eq\("status", "in_progress"\)[\s\S]*\.maybeSingle\(\)/);
-  assert.match(app, /\.rpc\("start_or_resume_workout_session"\)\.single\(\)/);
+  assert.match(app, /rpc\("start_or_resume_workout_session", \{ p_preset_id: Number\(presetId\) \}\)/);
   assert.match(app, /\.update\(\{ status: "completed" \}\)/);
   assert.match(app, /activeWorkoutSession \? "Resume Session" : "Create Session"/);
   assert.match(app, /querySelector\("h1, \[data-page-heading-anchor\]"\)/);
@@ -625,5 +636,9 @@ test("creates, resumes, and concludes one persisted active workout session", asy
   assert.match(migration, /security invoker/);
   assert.match(migration, /set search_path = ''/);
   assert.match(migration, /revoke all on function public\.start_or_resume_workout_session\(\) from public, anon/);
-  assert.match(serviceWorker, /lifting-ledger-v33/);
+  assert.match(serviceWorker, /lifting-ledger-v34/);
+  assert.match(app, /function renderSessionPresetList\(\)/);
+  assert.match(setCountMigration, /row_number\(\) over \(order by random\(\)\)/);
+  assert.match(setCountMigration, /generate_series\(1, membership\.set_count\)/);
+  assert.match(setCountMigration, /drop constraint exercise_sets_check/);
 });

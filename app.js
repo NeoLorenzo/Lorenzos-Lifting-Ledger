@@ -42,6 +42,14 @@ const startSessionButton = document.querySelector("#start-session");
 const startSessionStatus = document.querySelector("#start-session-status");
 const sessionModal = document.querySelector("#session-modal");
 const closeSessionModalButton = document.querySelector("#close-session-modal");
+const sessionStartChoices = document.querySelector("#session-start-choices");
+const sessionFromPresetButton = document.querySelector("#session-from-preset");
+const sessionFromScratchButton = document.querySelector("#session-from-scratch");
+const sessionPresetPicker = document.querySelector("#session-preset-picker");
+const sessionPresetStatus = document.querySelector("#session-preset-status");
+const sessionPresetList = document.querySelector("#session-preset-list");
+const backToSessionChoicesButton = document.querySelector("#back-to-session-choices");
+const sessionInProgress = document.querySelector("#session-in-progress");
 const concludeSessionButton = document.querySelector("#conclude-session");
 const sessionModalStatus = document.querySelector("#session-modal-status");
 const liftList = document.querySelector("#lift-list");
@@ -134,6 +142,7 @@ let presetSourceSessionsForUser = null;
 let editingPresetId = null;
 let presetEditorSource = null;
 let selectedPresetExerciseIds = new Set();
+let presetSetCounts = new Map();
 let activeWorkoutSession = null;
 let activeSessionLoadedForUser = null;
 let activeSessionLoadingForUser = null;
@@ -211,6 +220,13 @@ clearSessionSearchButton.addEventListener("click", () => {
 createPresetButton.addEventListener("click", showPresetCreationChoices);
 startSessionButton.addEventListener("click", startOrResumeSession);
 closeSessionModalButton.addEventListener("click", closeSessionModal);
+sessionFromScratchButton.addEventListener("click", () => createWorkoutSession());
+sessionFromPresetButton.addEventListener("click", showSessionPresetPicker);
+backToSessionChoicesButton.addEventListener("click", showSessionStartChoices);
+sessionPresetList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-start-preset]");
+  if (button) void createWorkoutSession(button.dataset.startPreset);
+});
 concludeSessionButton.addEventListener("click", concludeActiveSession);
 sessionModal.addEventListener("cancel", (event) => {
   event.preventDefault();
@@ -250,13 +266,22 @@ presetExerciseResults.addEventListener("click", (event) => {
   const button = event.target.closest("[data-add-exercise]");
   if (!button) return;
   selectedPresetExerciseIds.add(button.dataset.addExercise);
+  if (!presetSetCounts.has(button.dataset.addExercise)) presetSetCounts.set(button.dataset.addExercise, 1);
   renderPresetExercisePicker();
 });
 presetSelectedList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-remove-exercise]");
   if (!button) return;
   selectedPresetExerciseIds.delete(button.dataset.removeExercise);
+  presetSetCounts.delete(button.dataset.removeExercise);
   renderPresetExercisePicker();
+});
+presetSelectedList.addEventListener("input", (event) => {
+  const input = event.target.closest("[data-preset-set-count]");
+  if (!input) return;
+  const setCount = Math.min(20, Math.max(1, Number.parseInt(input.value, 10) || 1));
+  input.value = String(setCount);
+  presetSetCounts.set(input.dataset.presetSetCount, setCount);
 });
 presetSessionSelect.addEventListener("change", applySelectedPresetSession);
 presetEditor.addEventListener("submit", (event) => {
@@ -580,7 +605,7 @@ async function loadDashboard(supabase) {
 
   try {
     const [sessions, exercises, sets] = await Promise.all([
-      fetchOwnedRows(supabase, "workout_sessions", "id, performed_on", requestedUserId),
+      fetchOwnedRows(supabase, "workout_sessions", "id, performed_on, status", requestedUserId),
       fetchOwnedRows(supabase, "session_exercises", "id, session_id, exercise_id, exercise, equipment_id", requestedUserId),
       fetchOwnedRows(
         supabase,
@@ -592,7 +617,8 @@ async function loadDashboard(supabase) {
     ]);
 
     if (requestedUserId !== activeUserId) return;
-    dashboardData = { sessions, records: joinDashboardData(sessions, exercises, sets) };
+    const completedSessions = sessions.filter((session) => session.status === "completed");
+    dashboardData = { sessions: completedSessions, records: joinDashboardData(completedSessions, exercises, sets) };
     renderDashboard();
     dashboardLoadedForUser = requestedUserId;
   } catch (error) {
@@ -1179,21 +1205,94 @@ async function loadActiveSession(supabase) {
   updateSessionButton();
 }
 
-async function startOrResumeSession() {
-  if (activeWorkoutSession) {
-    openSessionModal();
+function startOrResumeSession() {
+  openSessionModal();
+  if (activeWorkoutSession) showSessionInProgress();
+  else showSessionStartChoices();
+}
+
+function showSessionStartChoices() {
+  sessionStartChoices.hidden = false;
+  sessionPresetPicker.hidden = true;
+  sessionInProgress.hidden = true;
+  sessionModal.setAttribute("aria-labelledby", "session-modal-title");
+  clearSessionWorkflowStatus();
+  sessionFromPresetButton.focus();
+}
+
+async function showSessionPresetPicker() {
+  sessionStartChoices.hidden = true;
+  sessionPresetPicker.hidden = false;
+  sessionInProgress.hidden = true;
+  sessionModal.setAttribute("aria-labelledby", "session-preset-title");
+  clearSessionWorkflowStatus();
+  sessionPresetStatus.textContent = "Loading your presets…";
+  sessionPresetList.replaceChildren();
+
+  await loadPresets(supabaseClient, true);
+  if (presetsLoadedForUser !== activeUserId) {
+    sessionPresetStatus.textContent = presetStatus.textContent || "Could not load your presets.";
     return;
   }
+  renderSessionPresetList();
+}
+
+function renderSessionPresetList() {
+  const fragment = document.createDocumentFragment();
+  for (const preset of presets) {
+    const item = document.createElement("li");
+    const button = document.createElement("button");
+    button.type = "button";
+    button.dataset.startPreset = preset.id;
+
+    const name = document.createElement("strong");
+    name.textContent = preset.name;
+    const setTotal = preset.exercises.reduce((total, exercise) => total + exercise.setCount, 0);
+    const summary = document.createElement("span");
+    summary.textContent = `${preset.exercises.length} ${preset.exercises.length === 1 ? "exercise" : "exercises"} · ${setTotal} ${setTotal === 1 ? "set" : "sets"}`;
+    const exercises = document.createElement("small");
+    exercises.textContent = preset.exercises.map((exercise) => `${exercise.name} (${exercise.setCount})`).join(" · ");
+    button.append(name, summary, exercises);
+    item.append(button);
+    fragment.append(item);
+  }
+
+  sessionPresetList.replaceChildren(fragment);
+  sessionPresetStatus.textContent = presets.length
+    ? "Choose the preset to populate this session."
+    : "You do not have any presets yet.";
+  sessionPresetList.querySelector("button")?.focus();
+}
+
+function showSessionInProgress() {
+  sessionStartChoices.hidden = true;
+  sessionPresetPicker.hidden = true;
+  sessionInProgress.hidden = false;
+  sessionModal.setAttribute("aria-labelledby", "session-progress-title");
+  clearSessionWorkflowStatus();
+  concludeSessionButton.focus();
+}
+
+async function createWorkoutSession(presetId = null) {
   if (!activeUserId || !supabaseClient) return;
 
-  setSessionButtonLoading(true, "Creating session…");
+  const selectedPreset = presets.find((preset) => String(preset.id) === String(presetId));
+  setSessionCreationBusy(true);
+  setSessionButtonLoading(true, selectedPreset ? `Creating ${selectedPreset.name}…` : "Creating session…");
   clearSessionWorkflowStatus();
   const requestedUserId = activeUserId;
-  const { data, error } = await supabaseClient.rpc("start_or_resume_workout_session").single();
+  const request = presetId === null
+    ? supabaseClient.rpc("start_or_resume_workout_session")
+    : supabaseClient.rpc("start_or_resume_workout_session", { p_preset_id: Number(presetId) });
+  const { data, error } = await request.single();
 
   if (requestedUserId !== activeUserId) return;
+  setSessionCreationBusy(false);
   if (error) {
-    showSessionWorkflowError(`Could not create your session: ${error.message}`);
+    const message = `Could not create your session: ${error.message}`;
+    showSessionWorkflowError(message);
+    sessionModalStatus.textContent = message;
+    sessionModalStatus.hidden = false;
     updateSessionButton();
     return;
   }
@@ -1202,7 +1301,14 @@ async function startOrResumeSession() {
   activeSessionLoadedForUser = requestedUserId;
   resetSessionResults();
   updateSessionButton();
-  openSessionModal();
+  showSessionInProgress();
+}
+
+function setSessionCreationBusy(busy) {
+  sessionFromPresetButton.disabled = busy;
+  sessionFromScratchButton.disabled = busy;
+  backToSessionChoicesButton.disabled = busy;
+  for (const button of sessionPresetList.querySelectorAll("button")) button.disabled = busy;
 }
 
 async function concludeActiveSession() {
@@ -1284,7 +1390,7 @@ async function loadPresets(supabase, force = false) {
     const [presetResult] = await Promise.all([
       supabase
         .from("workout_presets")
-        .select("id, name, created_at, updated_at, workout_preset_exercises(exercise_id, exercises(id, name))")
+        .select("id, name, created_at, updated_at, workout_preset_exercises(exercise_id, set_count, exercises(id, name))")
         .eq("owner_id", requestedUserId)
         .order("name", { ascending: true })
         .order("id", { ascending: true }),
@@ -1297,6 +1403,7 @@ async function loadPresets(supabase, force = false) {
       ...preset,
       exercises: (preset.workout_preset_exercises ?? []).map((membership) => ({
         id: membership.exercise_id,
+        setCount: membership.set_count ?? 1,
         name: membership.exercises?.name
           ?? globalExerciseCatalogue.find((exercise) => String(exercise.id) === String(membership.exercise_id))?.name
           ?? "Unknown exercise",
@@ -1306,6 +1413,8 @@ async function loadPresets(supabase, force = false) {
     renderPresetList();
   } catch (error) {
     if (requestedUserId !== activeUserId) return;
+    presets = [];
+    presetsLoadedForUser = null;
     presetList.replaceChildren();
     presetEmpty.hidden = true;
     presetStatus.textContent = `Could not load your presets: ${formatPresetError(error)}`;
@@ -1335,7 +1444,7 @@ function renderPresetList() {
     exerciseList.className = "preset-card-exercises";
     for (const exercise of preset.exercises) {
       const exerciseItem = document.createElement("li");
-      exerciseItem.textContent = exercise.name;
+      exerciseItem.textContent = `${exercise.name} · ${exercise.setCount} ${exercise.setCount === 1 ? "set" : "sets"}`;
       exerciseList.append(exerciseItem);
     }
 
@@ -1389,6 +1498,7 @@ function closePresetWorkspace() {
   editingPresetId = null;
   presetEditorSource = null;
   selectedPresetExerciseIds = new Set();
+  presetSetCounts = new Map();
 }
 async function openNewPresetEditor(source) {
   if (source !== "scratch" && source !== "session") return;
@@ -1402,6 +1512,7 @@ async function openNewPresetEditor(source) {
   editingPresetId = null;
   presetEditorSource = source;
   selectedPresetExerciseIds = new Set();
+  presetSetCounts = new Map();
   presetEditorStatus.textContent = "";
   presetNameInput.setCustomValidity("");
   presetSessionSource.hidden = source !== "session";
@@ -1433,6 +1544,7 @@ function openExistingPresetEditor(preset) {
   editingPresetId = preset.id;
   presetEditorSource = "existing";
   selectedPresetExerciseIds = new Set(preset.exercises.map((exercise) => String(exercise.id)));
+  presetSetCounts = new Map(preset.exercises.map((exercise) => [String(exercise.id), exercise.setCount]));
   presetNameInput.value = preset.name;
   presetSessionSource.hidden = true;
   presetSessionSelect.required = false;
@@ -1456,7 +1568,7 @@ async function loadPresetSourceSessions() {
     while (true) {
       const { data, error } = await supabaseClient
         .from("workout_sessions")
-        .select("id, performed_on, gyms(name), session_exercises(exercise_id, exercise)")
+        .select("id, performed_on, gyms(name), session_exercises(exercise_id, exercise, exercise_sets(id))")
         .eq("owner_id", requestedUserId)
         .eq("status", "completed")
         .order("performed_on", { ascending: false })
@@ -1494,12 +1606,14 @@ function applySelectedPresetSession() {
   if (!session) {
     presetSessionPreview.hidden = true;
     selectedPresetExerciseIds = new Set();
+    presetSetCounts = new Map();
     renderPresetExercisePicker();
     return;
   }
 
   const exercises = uniqueSessionExercises(session);
   selectedPresetExerciseIds = new Set(exercises.map((exercise) => String(exercise.id)));
+  presetSetCounts = new Map(exercises.map((exercise) => [String(exercise.id), exercise.setCount]));
   const heading = document.createElement("strong");
   heading.textContent = `${formatDate(session.performed_on)} · ${session.gyms?.name ?? "Gym"}`;
   const copy = document.createElement("p");
@@ -1521,15 +1635,33 @@ function renderSelectedPresetExercises() {
   const fragment = document.createDocumentFragment();
 
   for (const exercise of selected) {
+    const exerciseId = String(exercise.id);
     const item = document.createElement("li");
     const name = document.createElement("span");
     name.textContent = exercise.name;
+
+    const controls = document.createElement("div");
+    controls.className = "preset-set-controls";
+    const setLabel = document.createElement("label");
+    setLabel.textContent = "Sets";
+    const setInput = document.createElement("input");
+    setInput.type = "number";
+    setInput.min = "1";
+    setInput.max = "20";
+    setInput.step = "1";
+    setInput.inputMode = "numeric";
+    setInput.value = String(presetSetCounts.get(exerciseId) ?? 1);
+    setInput.dataset.presetSetCount = exerciseId;
+    setInput.setAttribute("aria-label", `Sets for ${exercise.name}`);
+    setLabel.append(setInput);
+
     const remove = document.createElement("button");
     remove.type = "button";
     remove.dataset.removeExercise = exercise.id;
     remove.setAttribute("aria-label", `Remove ${exercise.name}`);
     remove.textContent = "Remove";
-    item.append(name, remove);
+    controls.append(setLabel, remove);
+    item.append(name, controls);
     fragment.append(item);
   }
 
@@ -1568,14 +1700,16 @@ async function savePreset() {
   }
 
   const name = normalizePresetName(presetNameInput.value);
-  const exerciseIds = globalExerciseCatalogue
-    .filter((exercise) => selectedPresetExerciseIds.has(String(exercise.id)))
-    .map((exercise) => exercise.id);
+  const selectedExercises = globalExerciseCatalogue
+    .filter((exercise) => selectedPresetExerciseIds.has(String(exercise.id)));
+  const exerciseIds = selectedExercises.map((exercise) => exercise.id);
+  const setCounts = selectedExercises.map((exercise) => presetSetCounts.get(String(exercise.id)) ?? 1);
   const validationMessage = validatePresetDraft({
     presets,
     presetId: editingPresetId,
     name,
     exerciseIds,
+    setCounts,
   });
   presetNameInput.setCustomValidity(validationMessage.includes("name") ? validationMessage : "");
   if (validationMessage) {
@@ -1594,6 +1728,7 @@ async function savePreset() {
       p_preset_id: editingPresetId,
       p_name: name,
       p_exercise_ids: exerciseIds,
+      p_set_counts: setCounts,
     });
     if (error) throw error;
     if (requestedUserId !== activeUserId) throw new Error("Your session changed while saving.");
@@ -1728,14 +1863,22 @@ function appendSessionRows(rows) {
     const exercises = [...session.session_exercises].sort(
       (a, b) => a.exercise_order - b.exercise_order,
     );
+    const setSlotCount = exercises.reduce(
+      (count, exercise) => count + exercise.exercise_sets.length,
+      0,
+    );
     const workingSetCount = exercises.reduce(
-      (count, exercise) => count + exercise.exercise_sets.filter((set) => !set.is_warmup).length,
+      (count, exercise) => count + exercise.exercise_sets.filter((set) => (
+        !set.is_warmup && !(set.weight === null && set.reps === null)
+      )).length,
       0,
     );
 
     const context = document.createElement("p");
     context.className = "session-context";
-    context.textContent = `${formatDate(session.performed_on)} · ${exercises.length} exercises · ${workingSetCount} working sets`;
+    context.textContent = session.status === "in_progress"
+      ? `${formatDate(session.performed_on)} · ${exercises.length} exercises · ${setSlotCount} set slots`
+      : `${formatDate(session.performed_on)} · ${exercises.length} exercises · ${workingSetCount} working sets`;
 
     const sessionMuscleViews = createSessionMuscleViews(exercises);
 
@@ -2040,9 +2183,6 @@ function showExerciseEditor(item, exercise) {
       repsInput.setCustomValidity("");
       const weight = weightInput.value === "" ? null : Number(weightInput.value);
       const reps = repsInput.value === "" ? null : Number(repsInput.value);
-      if (weight === null && reps === null) {
-        weightInput.setCustomValidity("Enter a weight or repetition count for this set.");
-      }
       return { id: set.id, weight, reps };
     });
 
@@ -2139,6 +2279,7 @@ function resetActiveSession() {
   activeWorkoutSession = null;
   activeSessionLoadedForUser = null;
   activeSessionLoadingForUser = null;
+  setSessionCreationBusy(false);
   closeSessionModal();
   clearSessionWorkflowStatus();
   setSessionButtonLoading(true);
@@ -2167,6 +2308,7 @@ function resetPresets() {
   editingPresetId = null;
   presetEditorSource = null;
   selectedPresetExerciseIds = new Set();
+  presetSetCounts = new Map();
   presetList.replaceChildren();
   presetStatus.textContent = "Loading your presets…";
   presetEmpty.hidden = true;

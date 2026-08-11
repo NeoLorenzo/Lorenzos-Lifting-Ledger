@@ -52,9 +52,9 @@ test("joins dashboard records and excludes warm-ups from working sets", () => {
   const records = joinDashboardData(
     [{ id: 10, performed_on: "2026-08-10" }],
     [{ id: 20, session_id: 10, exercise_id: 1, exercise: "Press" }],
-    [{ id: 1, session_exercise_id: 20, is_warmup: true }, { id: 2, session_exercise_id: 20, is_warmup: false }],
+    [{ id: 1, session_exercise_id: 20, is_warmup: true }, { id: 2, session_exercise_id: 20, is_warmup: false }, { id: 3, session_exercise_id: 20, is_warmup: false, weight: null, reps: null }],
   );
-  assert.equal(records.length, 2);
+  assert.equal(records.length, 3);
   assert.deepEqual(workingSets(records).map((record) => record.id), [2]);
 });
 
