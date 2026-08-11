@@ -16,7 +16,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=21" />
+    <link rel="stylesheet" href="./styles.css?v=22" />
     <title>Lorenzo's Lifting Ledger | Evidence-aware training data</title>
     <script type="application/ld+json">
       {
@@ -250,18 +250,18 @@
         </aside>
 
         <section id="home-page" class="page-panel" data-page-panel="home">
-          <header class="data-header">
-            <div>
-              <p class="eyebrow">Exercise library</p>
-              <h1>Your lifts</h1>
-              <p>Browse the global exercise catalogue used throughout your training data.</p>
+          <div class="start-session-home">
+            <button id="start-session" class="primary-button start-session-button" type="button" data-page-heading-anchor disabled>Loading session…</button>
+            <p id="start-session-status" class="start-session-status" role="status" aria-live="polite" hidden></p>
+          </div>
+          <dialog id="session-modal" class="session-modal" aria-labelledby="session-modal-title">
+            <div class="session-modal-card">
+              <button id="close-session-modal" class="text-button session-modal-close" type="button" aria-label="Close session">Close</button>
+              <h2 id="session-modal-title">Session in progress</h2>
+              <button id="conclude-session" class="primary-button" type="button">Conclude Session</button>
+              <p id="session-modal-status" class="start-session-status" role="status" aria-live="polite" hidden></p>
             </div>
-          </header>
-          <section class="catalogue-panel" aria-labelledby="exercise-catalogue-heading">
-            <h2 id="exercise-catalogue-heading">Exercise catalogue</h2>
-            <p id="exercise-status">Loading your exercises…</p>
-            <ol id="exercise-catalogue" class="catalogue-list"></ol>
-          </section>
+          </dialog>
         </section>
 
         <section id="session-history-page" class="page-panel" data-page-panel="session-history" hidden>
@@ -658,6 +658,6 @@
       </section>
     </main>
 
-    <script type="module" src="./app.js?v=29"></script>
+    <script type="module" src="./app.js?v=30"></script>
   </body>
 </html>

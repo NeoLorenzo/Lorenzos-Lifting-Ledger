@@ -16,9 +16,8 @@ test("ships an installable app shell", async () => {
   assert.match(html, /rel="manifest"/);
   assert.match(html, /id="google-sign-in"/);
   assert.match(html, />\s*Sign in\s*<\/button>/);
-  assert.match(html, /Your lifts/);
-  assert.match(html, /Exercise catalogue/);
-  assert.match(html, /id="exercise-catalogue"/);
+  assert.match(html, /id="start-session"/);
+  assert.match(html, />Loading session…<\/button>/);
   assert.match(html, /data-page="session-history"/);
   assert.match(html, /data-page-panel="session-history"/);
   assert.match(html, /data-page="my-stuff"/);
@@ -318,7 +317,7 @@ test("renders collapsed sessions with toggleable exercise-level muscle pills", a
   assert.match(app, /exercise\.exercise_sets\.some\(\(set\) => !set\.is_warmup\)/);
   assert.match(app, /className = `muscle-pill muscle-group-\$\{muscle\.uiGroup\.code\}`/);
   assert.match(app, /if \(muscleViews\) item\.append\(muscleViews\)/);
-  assert.match(app, /summaryCopy\.append\(heading, context\)/);
+  assert.match(app, /summaryCopy\.append\(heading\)[\s\S]*summaryCopy\.append\(context\)/);
   assert.match(app, /if \(sessionMuscleViews\) summaryCopy\.append\(sessionMuscleViews\)/);
   assert.match(app, /createMuscleViews\(muscles, "session-muscles", "Session"\)/);
   assert.match(app, /createMuscleViews\([\s\S]*"exercise-muscles",[\s\S]*"Exercise"/);
@@ -385,7 +384,7 @@ test("provides a modelled muscle-exposure dashboard without tonnage", async () =
   assert.match(app, /className = "exposure-breakdown ranked-list"/);
   assert.match(app, /button\.setAttribute\("aria-expanded", String\(expanded\)\)/);
   assert.doesNotMatch(app, /metric-note|detailedMuscleTitle|detailedMuscleList/);
-  assert.match(app, /const activePanel = pagePanels\.find[\s\S]*activePanel\?\.querySelector\("h1"\)/);
+  assert.match(app, /const activePanel = pagePanels\.find[\s\S]*activePanel\?\.querySelector\("h1, \[data-page-heading-anchor\]"\)/);
   assert.match(app, /headingBottom <= topBarBottom \? pageTitle : ""/);
   assert.match(app, /"my-stuff": "My Stuff"/);
   assert.match(styles, /\.trend-chart/);
@@ -573,6 +572,7 @@ test("manages owner-scoped unordered workout presets", async () => {
   const sourceSessionLoader = app.slice(app.indexOf("async function loadPresetSourceSessions"), app.indexOf("function applySelectedPresetSession"));
   assert.match(sourceSessionLoader, /session_exercises\(exercise_id, exercise\)/);
   assert.doesNotMatch(sourceSessionLoader, /exercise_sets|equipment_id|weight|reps|rpe|is_warmup/i);
+  assert.match(sourceSessionLoader, /\.eq\("status", "completed"\)/);
   assert.match(migration, /create table public\.workout_presets/);
   assert.match(migration, /create table public\.workout_preset_exercises/);
   assert.match(migration, /unique index workout_presets_owner_name_unique_idx[\s\S]*owner_id, lower\(name\)/);
@@ -592,4 +592,38 @@ test("manages owner-scoped unordered workout presets", async () => {
   assert.match(styles, /@media \(max-width: 760px\)[\s\S]*\.preset-list/);
   assert.match(readme, /`workout_presets`/);
   assert.match(serviceWorker, /\.\/presets\.js/);
+});
+
+test("creates, resumes, and concludes one persisted active workout session", async () => {
+  const [html, app, styles, migration, serviceWorker] = await Promise.all([
+    read("index.html"),
+    read("app.js"),
+    read("styles.css"),
+    read("supabase/migrations/20260811112258_add_workout_session_lifecycle.sql"),
+    read("service-worker.js"),
+  ]);
+
+  assert.match(html, /id="start-session"[^>]*>Loading session/);
+  assert.match(html, /id="session-modal"/);
+  assert.match(html, /id="session-modal-title">Session in progress/);
+  assert.match(html, /id="conclude-session"[^>]*>Conclude Session/);
+  const home = html.slice(html.indexOf('id="home-page"'), html.indexOf('id="session-history-page"'));
+  assert.doesNotMatch(home, /id="exercise-catalogue"|Exercise catalogue|Exercise library|Browse the global exercise catalogue/);
+  assert.match(app, /\.eq\("status", "in_progress"\)[\s\S]*\.maybeSingle\(\)/);
+  assert.match(app, /\.rpc\("start_or_resume_workout_session"\)\.single\(\)/);
+  assert.match(app, /\.update\(\{ status: "completed" \}\)/);
+  assert.match(app, /activeWorkoutSession \? "Resume Session" : "Create Session"/);
+  assert.match(app, /querySelector\("h1, \[data-page-heading-anchor\]"\)/);
+  assert.match(app, /status\.textContent = "In progress"/);
+  assert.match(styles, /\.start-session-home[\s\S]*place-content: center/);
+  assert.match(styles, /\.session-modal::backdrop/);
+  assert.match(styles, /\.session-status-badge/);
+  assert.match(migration, /alter column gym_id drop not null/);
+  assert.match(migration, /add column status text not null default 'completed'/);
+  assert.match(migration, /where status = 'in_progress'/);
+  assert.match(migration, /create or replace function public\.start_or_resume_workout_session/);
+  assert.match(migration, /security invoker/);
+  assert.match(migration, /set search_path = ''/);
+  assert.match(migration, /revoke all on function public\.start_or_resume_workout_session\(\) from public, anon/);
+  assert.match(serviceWorker, /lifting-ledger-v33/);
 });

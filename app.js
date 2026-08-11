@@ -38,8 +38,12 @@ const publicDocumentTitle = document.querySelector("#public-document-title");
 const publicDocumentStatus = document.querySelector("#public-document-status");
 const publicDocumentContent = document.querySelector("#public-document-content");
 const datasetStatus = document.querySelector("#dataset-status");
-const exerciseStatus = document.querySelector("#exercise-status");
-const exerciseCatalogue = document.querySelector("#exercise-catalogue");
+const startSessionButton = document.querySelector("#start-session");
+const startSessionStatus = document.querySelector("#start-session-status");
+const sessionModal = document.querySelector("#session-modal");
+const closeSessionModalButton = document.querySelector("#close-session-modal");
+const concludeSessionButton = document.querySelector("#conclude-session");
+const sessionModalStatus = document.querySelector("#session-modal-status");
 const liftList = document.querySelector("#lift-list");
 const loadMoreButton = document.querySelector("#load-more");
 const sessionSearch = document.querySelector("#session-search");
@@ -130,6 +134,9 @@ let presetSourceSessionsForUser = null;
 let editingPresetId = null;
 let presetEditorSource = null;
 let selectedPresetExerciseIds = new Set();
+let activeWorkoutSession = null;
+let activeSessionLoadedForUser = null;
+let activeSessionLoadingForUser = null;
 const EXERCISE_SERIES_COLORS = Object.freeze([
   "#60a5fa", "#c084fc", "#f59e0b", "#22d3ee", "#f472b6",
   "#818cf8", "#fb923c", "#2dd4bf", "#eab308", "#a78bfa",
@@ -202,6 +209,13 @@ clearSessionSearchButton.addEventListener("click", () => {
   sessionSearch.focus();
 });
 createPresetButton.addEventListener("click", showPresetCreationChoices);
+startSessionButton.addEventListener("click", startOrResumeSession);
+closeSessionModalButton.addEventListener("click", closeSessionModal);
+concludeSessionButton.addEventListener("click", concludeActiveSession);
+sessionModal.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closeSessionModal();
+});
 cancelPresetCreationButton.addEventListener("click", closePresetWorkspace);
 closePresetEditorButton.addEventListener("click", closePresetWorkspace);
 cancelPresetEditorButton.addEventListener("click", closePresetWorkspace);
@@ -356,12 +370,13 @@ function renderSession(session) {
     signOutButton.disabled = false;
     clearError();
     showPage("home");
-    resetExerciseCatalogue();
+    resetActiveSession();
     resetLiftList();
     resetDashboard();
     resetPresets();
     window.setTimeout(() => {
-      void loadExerciseCatalogue(supabaseClient);
+      void loadActiveSession(supabaseClient);
+      void ensureGlobalExerciseCatalogue(supabaseClient).then(populateSessionExerciseOptions).catch(() => {});
       void loadSessions(supabaseClient);
     }, 0);
     return;
@@ -377,7 +392,7 @@ function showSignedOut() {
   signedOutView.hidden = false;
   setSignInDisabled(false);
   closeMenu();
-  resetExerciseCatalogue();
+  resetActiveSession();
   resetLiftList();
   resetDashboard();
   resetPresets();
@@ -454,6 +469,9 @@ function showPage(pageName) {
   closeMenu();
   window.scrollTo({ top: 0, behavior: "smooth" });
   window.requestAnimationFrame(updateContextualNavTitle);
+  if (pageName === "session-history" && activeUserId && supabaseClient) {
+    void loadSessions(supabaseClient);
+  }
   if (pageName === "my-data" && activeUserId && supabaseClient) {
     void loadDashboard(supabaseClient);
   }
@@ -465,7 +483,7 @@ function showPage(pageName) {
 function updateContextualNavTitle() {
   if (!topBar) return;
   const activePanel = pagePanels.find((panel) => panel.dataset.pagePanel === activePageName);
-  const heading = activePanel?.querySelector("h1");
+  const heading = activePanel?.querySelector("h1, [data-page-heading-anchor]");
   const pageTitle = activePageName === "document"
     ? documentTitle.textContent || PAGE_TITLES.document
     : PAGE_TITLES[activePageName] ?? "Home";
@@ -1120,34 +1138,137 @@ async function ensureGlobalExerciseCatalogue(supabase) {
   return globalExerciseCataloguePromise;
 }
 
-async function loadExerciseCatalogue(supabase) {
-  const requestedUserId = activeUserId;
-  exerciseStatus.textContent = "Loading exercises…";
-  exerciseCatalogue.replaceChildren();
-
-  try {
-    const exercises = await ensureGlobalExerciseCatalogue(supabase);
-    if (requestedUserId !== activeUserId) return;
-
-    const fragment = document.createDocumentFragment();
-    const options = document.createDocumentFragment();
-    for (const exercise of exercises) {
-      const item = document.createElement("li");
-      item.textContent = exercise.name;
-      fragment.append(item);
-
-      const option = document.createElement("option");
-      option.value = exercise.name;
-      options.append(option);
-    }
-
-    exerciseCatalogue.append(fragment);
-    exerciseStatus.textContent = `${exercises.length.toLocaleString()} global exercises · alphabetical`;
-    sessionExerciseOptions.replaceChildren(options);
-  } catch (error) {
-    if (requestedUserId !== activeUserId) return;
-    exerciseStatus.textContent = `Could not load your exercises: ${error.message}`;
+function populateSessionExerciseOptions(exercises) {
+  const options = document.createDocumentFragment();
+  for (const exercise of exercises) {
+    const option = document.createElement("option");
+    option.value = exercise.name;
+    options.append(option);
   }
+  sessionExerciseOptions.replaceChildren(options);
+}
+
+async function loadActiveSession(supabase) {
+  const requestedUserId = activeUserId;
+  if (!requestedUserId) return;
+  if (activeSessionLoadedForUser === requestedUserId || activeSessionLoadingForUser === requestedUserId) return;
+
+  activeSessionLoadingForUser = requestedUserId;
+  setSessionButtonLoading(true);
+  clearSessionWorkflowStatus();
+
+  const { data, error } = await supabase
+    .from("workout_sessions")
+    .select("id, owner_id, performed_on, status")
+    .eq("owner_id", requestedUserId)
+    .eq("status", "in_progress")
+    .limit(1)
+    .maybeSingle();
+
+  if (requestedUserId !== activeUserId) return;
+  activeSessionLoadingForUser = null;
+  if (error) {
+    showSessionWorkflowError(`Could not load your active session: ${error.message}`);
+    startSessionButton.textContent = "Create Session";
+    startSessionButton.disabled = false;
+    return;
+  }
+
+  activeWorkoutSession = data;
+  activeSessionLoadedForUser = requestedUserId;
+  updateSessionButton();
+}
+
+async function startOrResumeSession() {
+  if (activeWorkoutSession) {
+    openSessionModal();
+    return;
+  }
+  if (!activeUserId || !supabaseClient) return;
+
+  setSessionButtonLoading(true, "Creating session…");
+  clearSessionWorkflowStatus();
+  const requestedUserId = activeUserId;
+  const { data, error } = await supabaseClient.rpc("start_or_resume_workout_session").single();
+
+  if (requestedUserId !== activeUserId) return;
+  if (error) {
+    showSessionWorkflowError(`Could not create your session: ${error.message}`);
+    updateSessionButton();
+    return;
+  }
+
+  activeWorkoutSession = data;
+  activeSessionLoadedForUser = requestedUserId;
+  resetSessionResults();
+  updateSessionButton();
+  openSessionModal();
+}
+
+async function concludeActiveSession() {
+  if (!activeWorkoutSession || !activeUserId || !supabaseClient) return;
+  const concludingSessionId = activeWorkoutSession.id;
+  concludeSessionButton.disabled = true;
+  concludeSessionButton.textContent = "Concluding…";
+  sessionModalStatus.hidden = true;
+
+  const { error } = await supabaseClient
+    .from("workout_sessions")
+    .update({ status: "completed" })
+    .eq("id", concludingSessionId)
+    .eq("owner_id", activeUserId)
+    .eq("status", "in_progress")
+    .select("id")
+    .single();
+
+  concludeSessionButton.disabled = false;
+  concludeSessionButton.textContent = "Conclude Session";
+  if (error) {
+    sessionModalStatus.textContent = `Could not conclude your session: ${error.message}`;
+    sessionModalStatus.hidden = false;
+    return;
+  }
+
+  activeWorkoutSession = null;
+  closeSessionModal();
+  updateSessionButton();
+  resetSessionResults();
+  resetDashboard();
+}
+
+function openSessionModal() {
+  clearSessionWorkflowStatus();
+  if (!sessionModal.open) sessionModal.showModal();
+  document.body.classList.add("session-modal-open");
+}
+
+function closeSessionModal() {
+  if (sessionModal.open) sessionModal.close();
+  document.body.classList.remove("session-modal-open");
+  sessionModalStatus.hidden = true;
+}
+
+function updateSessionButton() {
+  startSessionButton.textContent = activeWorkoutSession ? "Resume Session" : "Create Session";
+  startSessionButton.disabled = false;
+  window.requestAnimationFrame(updateContextualNavTitle);
+}
+
+function setSessionButtonLoading(loading, label = "Loading session…") {
+  startSessionButton.disabled = loading;
+  if (loading) startSessionButton.textContent = label;
+}
+
+function showSessionWorkflowError(message) {
+  startSessionStatus.textContent = message;
+  startSessionStatus.hidden = false;
+}
+
+function clearSessionWorkflowStatus() {
+  startSessionStatus.textContent = "";
+  startSessionStatus.hidden = true;
+  sessionModalStatus.textContent = "";
+  sessionModalStatus.hidden = true;
 }
 
 async function loadPresets(supabase, force = false) {
@@ -1337,6 +1458,7 @@ async function loadPresetSourceSessions() {
         .from("workout_sessions")
         .select("id, performed_on, gyms(name), session_exercises(exercise_id, exercise)")
         .eq("owner_id", requestedUserId)
+        .eq("status", "completed")
         .order("performed_on", { ascending: false })
         .order("id", { ascending: false })
         .range(sessions.length, sessions.length + batchSize - 1);
@@ -1535,7 +1657,7 @@ async function loadSessions(supabase) {
   let sessionRequest = supabase
     .from("workout_sessions")
     .select(
-      `id, performed_on, gyms(name), session_exercises${requestedSearch ? "!inner" : ""}(id, exercise_id, exercise_order, exercise, equipment_id, exercise_sets(id, set_number, weight, reps, rpe, is_warmup, is_drop_set, is_superset, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_low, estimated_1rm_high))`,
+      `id, performed_on, status, gyms(name), session_exercises${requestedSearch ? "!inner" : ""}(id, exercise_id, exercise_order, exercise, equipment_id, exercise_sets(id, set_number, weight, reps, rpe, is_warmup, is_drop_set, is_superset, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_low, estimated_1rm_high))`,
       { count: "exact" },
     )
     .eq("owner_id", requestedUserId);
@@ -1601,7 +1723,7 @@ function appendSessionRows(rows) {
     summaryCopy.className = "session-summary-copy";
 
     const heading = document.createElement("h2");
-    heading.textContent = session.gyms?.name ?? "Gym";
+    heading.textContent = session.status === "in_progress" ? "Workout session" : session.gyms?.name ?? "Gym";
 
     const exercises = [...session.session_exercises].sort(
       (a, b) => a.exercise_order - b.exercise_order,
@@ -1624,7 +1746,14 @@ function appendSessionRows(rows) {
       exerciseList.append(createExerciseItem(exercise));
     }
 
-    summaryCopy.append(heading, context);
+    summaryCopy.append(heading);
+    if (session.status === "in_progress") {
+      const status = document.createElement("span");
+      status.className = "session-status-badge";
+      status.textContent = "In progress";
+      summaryCopy.append(status);
+    }
+    summaryCopy.append(context);
     if (sessionMuscleViews) summaryCopy.append(sessionMuscleViews);
     summary.append(summaryCopy);
     disclosure.append(summary, exerciseList);
@@ -2006,9 +2135,13 @@ function resetLiftList() {
   datasetStatus.textContent = "Loading your sessions…";
 }
 
-function resetExerciseCatalogue() {
-  exerciseCatalogue.replaceChildren();
-  exerciseStatus.textContent = "Loading exercises…";
+function resetActiveSession() {
+  activeWorkoutSession = null;
+  activeSessionLoadedForUser = null;
+  activeSessionLoadingForUser = null;
+  closeSessionModal();
+  clearSessionWorkflowStatus();
+  setSessionButtonLoading(true);
 }
 
 function resetDashboard() {

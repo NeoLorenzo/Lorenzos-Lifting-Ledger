@@ -848,6 +848,66 @@ h1 {
   padding: clamp(2.4rem, 7vw, 5rem) 0 0;
 }
 
+.start-session-home {
+  display: grid;
+  min-height: calc(100dvh - 10rem);
+  place-content: center;
+  justify-items: center;
+  gap: 1rem;
+}
+
+.start-session-button {
+  min-width: min(18rem, calc(100vw - 3rem));
+  min-height: 3.5rem;
+  padding-inline: 2rem;
+  font-size: 1rem;
+}
+
+.start-session-status {
+  max-width: 32rem;
+  margin: 0;
+  color: #fca5a5;
+  text-align: center;
+}
+
+body.session-modal-open {
+  overflow: hidden;
+}
+
+.session-modal {
+  width: min(30rem, calc(100% - 2rem));
+  padding: 0;
+  border: 1px solid #334155;
+  border-radius: 1rem;
+  background: #0f1a2d;
+  color: #f8fafc;
+  box-shadow: 0 2rem 5rem rgba(0, 0, 0, 0.45);
+}
+
+.session-modal::backdrop {
+  background: rgba(2, 6, 23, 0.78);
+  backdrop-filter: blur(0.3rem);
+}
+
+.session-modal-card {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 1.5rem;
+  padding: 4rem 2rem 2rem;
+  text-align: center;
+}
+
+.session-modal-card h2 {
+  margin: 0;
+}
+
+.session-modal-close {
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+}
+
 .eyebrow,
 .chart-kicker {
   color: #60a5fa;
@@ -972,38 +1032,7 @@ h1 {
   box-shadow: 0 1rem 2.5rem rgba(0, 0, 0, 0.1);
 }
 
-.catalogue-panel {
-  margin-bottom: 2rem;
-  padding: clamp(1rem, 4vw, 1.5rem);
-  border-radius: 1rem;
-  text-align: left;
-}
 
-.catalogue-panel h2 {
-  margin: 0;
-  font-size: 1.15rem;
-}
-
-#exercise-status {
-  margin-top: 0.35rem;
-  color: #94a3b8;
-  font-size: 0.9rem;
-}
-
-.catalogue-list {
-  margin: 1rem 0 0;
-  padding-left: 1.75rem;
-  columns: 2;
-  column-gap: 2.5rem;
-}
-
-.catalogue-list li {
-  break-inside: avoid;
-  padding: 0.25rem 0;
-  color: #e2e8f0;
-  font-size: 0.9rem;
-  line-height: 1.35;
-}
 
 .lift-list,
 .exercise-list,
@@ -1022,6 +1051,21 @@ h1 {
 .session-entry {
   overflow: hidden;
   border-radius: 1rem;
+}
+
+.session-status-badge {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 0.45rem;
+  padding: 0.25rem 0.55rem;
+  border: 1px solid rgba(96, 165, 250, 0.45);
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.16);
+  color: #93c5fd;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .session-summary {
@@ -2738,10 +2782,6 @@ button:disabled {
 
   .brand-lockup span {
     display: none;
-  }
-
-  .catalogue-list {
-    columns: 1;
   }
 
   .metric-grid {
