@@ -3316,3 +3316,236 @@ button:disabled {
     grid-column: 1 / -1;
   }
 }
+/* Preset card polish: keep card hierarchy and actions aligned across uneven pools. */
+.preset-section-heading {
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.preset-status {
+  min-height: 1.25rem;
+  margin: 0 0 0.7rem;
+}
+
+.preset-editor-status {
+  margin: 0;
+}
+
+.preset-list {
+  gap: 1rem;
+}
+
+.preset-card {
+  grid-template-rows: auto 1fr auto;
+  gap: 1rem;
+  padding: 1.15rem;
+  border-color: #34445b;
+  border-radius: 1rem;
+  background:
+    linear-gradient(145deg, rgba(30, 41, 59, 0.42), transparent 52%),
+    rgba(9, 17, 31, 0.78);
+  box-shadow: 0 0.9rem 2rem rgba(2, 6, 23, 0.14);
+}
+
+.preset-card-heading {
+  align-items: baseline;
+  padding-bottom: 0.85rem;
+  border-bottom: 1px solid rgba(71, 85, 105, 0.55);
+}
+
+.preset-card-heading h3 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 1.05rem;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+.preset-card-heading span {
+  flex: 0 0 auto;
+  padding: 0.2rem 0.45rem;
+  border: 1px solid rgba(71, 85, 105, 0.55);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.preset-card-exercises {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  align-content: start;
+}
+
+.preset-card-exercises li {
+  display: flex;
+  min-width: 0;
+  max-width: 100%;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 0.48rem 0.55rem;
+  border: 1px solid rgba(51, 65, 85, 0.7);
+  border-radius: 0.55rem;
+  background: rgba(22, 34, 56, 0.72);
+  color: #dbe4f0;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.preset-card-exercises li::before {
+  width: 0.35rem;
+  height: 0.35rem;
+  flex: 0 0 auto;
+  margin-top: 0.3rem;
+  border-radius: 50%;
+  background: #60a5fa;
+  content: "";
+}
+
+.preset-card-actions {
+  justify-content: flex-start;
+  padding-top: 0.9rem;
+  border-top: 1px solid rgba(71, 85, 105, 0.55);
+}
+
+.preset-card-actions button {
+  min-width: 4.6rem;
+  padding-inline: 0.75rem;
+}
+
+.preset-card-actions button:first-child {
+  border-color: rgba(96, 165, 250, 0.65);
+  background: rgba(37, 99, 235, 0.2);
+  color: #dbeafe;
+}
+
+.preset-card-actions .danger-button {
+  margin-left: auto;
+}
+
+@media (max-width: 760px) {
+  .preset-card-heading {
+    flex-direction: row;
+    align-items: baseline;
+  }
+
+  .preset-card-exercises {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 34rem) {
+  .preset-card-actions {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .preset-card-actions .danger-button {
+    grid-column: auto;
+    margin-left: 0;
+  }
+}
+
+/* Preset modal and intent-revealed card controls. */
+body.preset-modal-open {
+  overflow: hidden;
+}
+
+.preset-modal {
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: #0b1323;
+  color: #f8fafc;
+  overflow-y: auto;
+}
+
+.preset-modal::backdrop {
+  background: rgba(2, 6, 23, 0.82);
+  backdrop-filter: blur(0.35rem);
+}
+
+.preset-modal .preset-workspace {
+  width: min(100%, 90rem);
+  min-height: 100dvh;
+  margin: 0 auto;
+  padding: clamp(1.25rem, 4vw, 3rem);
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(circle at 85% 0, rgba(37, 99, 235, 0.14), transparent 32rem),
+    #0b1323;
+}
+
+.preset-modal .preset-creation-choices {
+  place-content: center;
+}
+
+.preset-modal .preset-editor {
+  align-content: start;
+}
+
+.preset-modal .preset-editor-heading {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  padding: 0.8rem 0;
+  background: rgba(11, 19, 35, 0.94);
+  backdrop-filter: blur(0.65rem);
+}
+
+.preset-card {
+  outline: 0;
+}
+
+.preset-card:focus-visible {
+  border-color: #60a5fa;
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+}
+
+.preset-card-actions {
+  min-height: 3.1rem;
+  justify-content: flex-end;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(0.3rem);
+  pointer-events: none;
+  transition: opacity 150ms ease, transform 150ms ease, visibility 150ms ease;
+}
+
+.preset-card:hover .preset-card-actions,
+.preset-card:focus-within .preset-card-actions {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.preset-card-actions .danger-button {
+  margin-left: 0;
+}
+
+@media (hover: none) {
+  .preset-card-actions {
+    opacity: 1;
+    visibility: visible;
+    transform: none;
+    pointer-events: auto;
+  }
+}
+
+@media (max-width: 34rem) {
+  .preset-card-actions {
+    display: flex;
+  }
+
+  .preset-modal .preset-workspace {
+    padding: 1rem;
+  }
+}

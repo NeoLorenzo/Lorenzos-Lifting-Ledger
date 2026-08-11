@@ -51,7 +51,6 @@ const appMenu = document.querySelector("#app-menu");
 const menuBackdrop = document.querySelector("#menu-backdrop");
 const currentPageTitle = document.querySelector("#current-page-title");
 const topBar = document.querySelector(".top-bar");
-const myDataHeading = document.querySelector("#my-data-heading");
 const menuItems = [...document.querySelectorAll("[data-page]")];
 const pagePanels = [...document.querySelectorAll("[data-page-panel]")];
 const dashboardStatus = document.querySelector("#dashboard-status");
@@ -80,6 +79,7 @@ const createPresetButton = document.querySelector("#create-preset");
 const presetStatus = document.querySelector("#preset-status");
 const presetEmpty = document.querySelector("#preset-empty");
 const presetList = document.querySelector("#preset-list");
+const presetModal = document.querySelector("#preset-modal");
 const presetCreationChoices = document.querySelector("#preset-creation-choices");
 const cancelPresetCreationButton = document.querySelector("#cancel-preset-creation");
 const presetEditor = document.querySelector("#preset-editor");
@@ -179,8 +179,8 @@ progressionSelect.addEventListener("change", () => {
   selectedProgressionExercise = progressionSelect.value || null;
   renderExerciseProgression();
 });
-window.addEventListener("scroll", updateMyDataNavTitle, { passive: true });
-window.addEventListener("resize", updateMyDataNavTitle);
+window.addEventListener("scroll", updateContextualNavTitle, { passive: true });
+window.addEventListener("resize", updateContextualNavTitle);
 
 sessionSearch.addEventListener("input", () => {
   clearSessionSearchButton.hidden = sessionSearch.value.length === 0;
@@ -205,6 +205,13 @@ createPresetButton.addEventListener("click", showPresetCreationChoices);
 cancelPresetCreationButton.addEventListener("click", closePresetWorkspace);
 closePresetEditorButton.addEventListener("click", closePresetWorkspace);
 cancelPresetEditorButton.addEventListener("click", closePresetWorkspace);
+presetModal.addEventListener("cancel", (event) => {
+  event.preventDefault();
+  closePresetWorkspace();
+});
+presetModal.addEventListener("click", (event) => {
+  if (event.target === presetModal) closePresetWorkspace();
+});
 
 presetCreationChoices.addEventListener("click", (event) => {
   const button = event.target.closest("[data-preset-source]");
@@ -221,7 +228,7 @@ presetList.addEventListener("click", (event) => {
     void deletePreset(preset);
     return;
   }
-  openExistingPresetEditor(preset, button.dataset.presetAction === "rename");
+  if (button.dataset.presetAction === "edit") openExistingPresetEditor(preset);
 });
 
 presetExerciseSearch.addEventListener("input", renderPresetExerciseCatalogue);
@@ -419,16 +426,16 @@ function closeMenu() {
   appMenu.setAttribute("aria-hidden", "true");
 }
 
+const PAGE_TITLES = Object.freeze({
+  home: "Home",
+  "session-history": "Session history",
+  "my-data": "My data",
+  "my-stuff": "My Stuff",
+  literature: "Literature",
+  document: "Literature",
+});
+
 function showPage(pageName) {
-  const pageTitles = {
-    home: "Home",
-    "session-history": "Session history",
-    "my-data": "My data",
-    "my-stuff": "My Stuff",
-    literature: "Literature",
-    document: "Literature",
-  };
-  const pageTitle = pageTitles[pageName] ?? "Home";
   const activeMenuPage = pageName === "document" ? "literature" : pageName;
 
   for (const panel of pagePanels) {
@@ -443,10 +450,10 @@ function showPage(pageName) {
   }
 
   activePageName = pageName;
-  currentPageTitle.textContent = pageName === "my-data" ? "" : pageTitle;
+  currentPageTitle.textContent = "";
   closeMenu();
   window.scrollTo({ top: 0, behavior: "smooth" });
-  if (pageName === "my-data") window.requestAnimationFrame(updateMyDataNavTitle);
+  window.requestAnimationFrame(updateContextualNavTitle);
   if (pageName === "my-data" && activeUserId && supabaseClient) {
     void loadDashboard(supabaseClient);
   }
@@ -455,13 +462,21 @@ function showPage(pageName) {
   }
 }
 
-function updateMyDataNavTitle() {
-  if (activePageName !== "my-data" || !myDataHeading || !topBar) return;
-  const headingBottom = myDataHeading.getBoundingClientRect().bottom;
+function updateContextualNavTitle() {
+  if (!topBar) return;
+  const activePanel = pagePanels.find((panel) => panel.dataset.pagePanel === activePageName);
+  const heading = activePanel?.querySelector("h1");
+  const pageTitle = activePageName === "document"
+    ? documentTitle.textContent || PAGE_TITLES.document
+    : PAGE_TITLES[activePageName] ?? "Home";
+  if (!heading) {
+    currentPageTitle.textContent = pageTitle;
+    return;
+  }
+  const headingBottom = heading.getBoundingClientRect().bottom;
   const topBarBottom = topBar.getBoundingClientRect().bottom;
-  currentPageTitle.textContent = headingBottom <= topBarBottom ? "My data" : "";
+  currentPageTitle.textContent = headingBottom <= topBarBottom ? pageTitle : "";
 }
-
 async function openLiteratureDocument(documentId) {
   const documentDefinition = LITERATURE_DOCUMENTS[documentId];
   if (!documentDefinition) return;
@@ -470,7 +485,7 @@ async function openLiteratureDocument(documentId) {
   showPage("document");
   documentLabel.textContent = documentDefinition.label;
   documentTitle.textContent = documentDefinition.title;
-  currentPageTitle.textContent = documentDefinition.title;
+  window.requestAnimationFrame(updateContextualNavTitle);
   documentStatus.textContent = "Loading document…";
   documentStatus.hidden = false;
   documentContent.replaceChildren();
@@ -1184,6 +1199,8 @@ function renderPresetList() {
   for (const preset of presets) {
     const item = document.createElement("li");
     item.className = "preset-card";
+    item.tabIndex = 0;
+    item.setAttribute("aria-label", `${preset.name} preset`);
 
     const headingRow = document.createElement("div");
     headingRow.className = "preset-card-heading";
@@ -1203,7 +1220,7 @@ function renderPresetList() {
 
     const actions = document.createElement("div");
     actions.className = "preset-card-actions";
-    for (const [action, label] of [["open", "Open"], ["rename", "Rename"], ["delete", "Delete"]]) {
+    for (const [action, label] of [["edit", "Edit"], ["delete", "Delete"]]) {
       const button = document.createElement("button");
       button.type = "button";
       button.dataset.presetAction = action;
@@ -1224,15 +1241,23 @@ function renderPresetList() {
     : "";
 }
 
+function openPresetModal(labelledBy) {
+  presetModal.setAttribute("aria-labelledby", labelledBy);
+  if (!presetModal.open) presetModal.showModal();
+  document.body.classList.add("preset-modal-open");
+}
+
 function showPresetCreationChoices() {
   presetEditor.hidden = true;
   presetCreationChoices.hidden = false;
   presetEditorStatus.textContent = "";
-  presetCreationChoices.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  openPresetModal("preset-create-title");
   presetCreationChoices.querySelector("[data-preset-source]")?.focus();
 }
 
 function closePresetWorkspace() {
+  if (presetModal.open) presetModal.close();
+  document.body.classList.remove("preset-modal-open");
   presetCreationChoices.hidden = true;
   presetEditor.hidden = true;
   presetEditor.reset();
@@ -1244,12 +1269,12 @@ function closePresetWorkspace() {
   presetEditorSource = null;
   selectedPresetExerciseIds = new Set();
 }
-
 async function openNewPresetEditor(source) {
   if (source !== "scratch" && source !== "session") return;
   presetCreationChoices.hidden = true;
   presetEditor.hidden = false;
   presetEditor.reset();
+  openPresetModal("preset-editor-title");
   presetEditorKicker.textContent = "New preset";
   presetEditorTitle.textContent = source === "session" ? "Create from previous session" : "Create from scratch";
   savePresetButton.textContent = "Create preset";
@@ -1276,10 +1301,11 @@ async function openNewPresetEditor(source) {
   }
 }
 
-function openExistingPresetEditor(preset, focusName = false) {
+function openExistingPresetEditor(preset) {
   presetCreationChoices.hidden = true;
   presetEditor.hidden = false;
   presetEditor.reset();
+  openPresetModal("preset-editor-title");
   presetEditorKicker.textContent = "Existing preset";
   presetEditorTitle.textContent = preset.name;
   savePresetButton.textContent = "Save changes";
@@ -1294,13 +1320,9 @@ function openExistingPresetEditor(preset, focusName = false) {
   presetEditorStatus.textContent = "";
   presetNameInput.setCustomValidity("");
   renderPresetExercisePicker();
-  presetEditor.scrollIntoView({ block: "start", behavior: "smooth" });
-  if (focusName) {
-    presetNameInput.focus();
-    presetNameInput.select();
-  }
+  presetNameInput.focus();
+  presetNameInput.select();
 }
-
 async function loadPresetSourceSessions() {
   const requestedUserId = activeUserId;
   presetSessionStatus.textContent = "Loading completed sessions…";
@@ -2002,6 +2024,8 @@ function resetDashboard() {
 }
 
 function resetPresets() {
+  if (presetModal.open) presetModal.close();
+  document.body.classList.remove("preset-modal-open");
   presets = [];
   presetsLoadedForUser = null;
   presetsLoadingForUser = null;

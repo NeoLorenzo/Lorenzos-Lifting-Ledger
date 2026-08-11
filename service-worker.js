@@ -1,9 +1,9 @@
-const CACHE_NAME = "lifting-ledger-v30";
+const CACHE_NAME = "lifting-ledger-v32";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=20",
-  "./app.js?v=28",
+  "./styles.css?v=21",
+  "./app.js?v=29",
   "./analytics.js",
   "./presets.js",
   "./literature.js",

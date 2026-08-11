@@ -385,7 +385,9 @@ test("provides a modelled muscle-exposure dashboard without tonnage", async () =
   assert.match(app, /className = "exposure-breakdown ranked-list"/);
   assert.match(app, /button\.setAttribute\("aria-expanded", String\(expanded\)\)/);
   assert.doesNotMatch(app, /metric-note|detailedMuscleTitle|detailedMuscleList/);
-  assert.match(app, /headingBottom <= topBarBottom \? "My data" : ""/);
+  assert.match(app, /const activePanel = pagePanels\.find[\s\S]*activePanel\?\.querySelector\("h1"\)/);
+  assert.match(app, /headingBottom <= topBarBottom \? pageTitle : ""/);
+  assert.match(app, /"my-stuff": "My Stuff"/);
   assert.match(styles, /\.trend-chart/);
   assert.match(app, /createElementNS\("http:\/\/www\.w3\.org\/2000\/svg", "polyline"\)/);
   assert.match(app, /className = "progression-y-axis"/);
@@ -562,7 +564,12 @@ test("manages owner-scoped unordered workout presets", async () => {
   assert.match(app, /\.eq\("owner_id", requestedUserId\)/);
   assert.match(app, /\.rpc\("save_workout_preset"/);
   assert.match(app, /data\.map\(\(preset\)/);
-  assert.match(app, /\[\["open", "Open"\], \["rename", "Rename"\], \["delete", "Delete"\]\]/);
+  assert.match(app, /\[\["edit", "Edit"\], \["delete", "Delete"\]\]/);
+  assert.doesNotMatch(app, /\["open", "Open"\]|\["rename", "Rename"\]/);
+  assert.match(html, /<dialog id="preset-modal" class="preset-modal"/);
+  assert.match(app, /presetModal\.showModal\(\)/);
+  assert.match(styles, /\.preset-card:hover \.preset-card-actions[\s\S]*opacity: 1/);
+  assert.match(styles, /\.preset-modal[\s\S]*height: 100dvh/);
   const sourceSessionLoader = app.slice(app.indexOf("async function loadPresetSourceSessions"), app.indexOf("function applySelectedPresetSession"));
   assert.match(sourceSessionLoader, /session_exercises\(exercise_id, exercise\)/);
   assert.doesNotMatch(sourceSessionLoader, /exercise_sets|equipment_id|weight|reps|rpe|is_warmup/i);
