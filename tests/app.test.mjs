@@ -540,11 +540,12 @@ test("searches session history by exercise and edits owned exercise sets", async
   assert.match(styles, /\.exercise-edit-set/);
 });
 test("manages owner-scoped unordered workout presets", async () => {
-  const [html, app, styles, migration, readme, serviceWorker] = await Promise.all([
+  const [html, app, styles, migration, indexMigration, readme, serviceWorker] = await Promise.all([
     read("index.html"),
     read("app.js"),
     read("styles.css"),
-    read("supabase/migrations/20260811012218_create_workout_presets.sql"),
+    read("supabase/migrations/20260811021711_create_workout_presets.sql"),
+    read("supabase/migrations/20260811021907_index_workout_preset_owner_foreign_key.sql"),
     read("README.md"),
     read("service-worker.js"),
   ]);
@@ -579,6 +580,7 @@ test("manages owner-scoped unordered workout presets", async () => {
   assert.match(migration, /for update to authenticated[\s\S]*using[\s\S]*with check/);
   assert.match(migration, /revoke all on public\.workout_presets, public\.workout_preset_exercises from anon/);
   assert.match(migration, /grant select, insert, update, delete[\s\S]*on public\.workout_presets[\s\S]*to authenticated/);
+  assert.match(indexMigration, /on public\.workout_preset_exercises \(preset_id, owner_id\)/);
   assert.match(styles, /\.preset-list[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(styles, /@media \(max-width: 760px\)[\s\S]*\.preset-list/);
   assert.match(readme, /`workout_presets`/);
