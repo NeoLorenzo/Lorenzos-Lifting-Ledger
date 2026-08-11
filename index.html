@@ -16,7 +16,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=19" />
+    <link rel="stylesheet" href="./styles.css?v=20" />
     <title>Lorenzo's Lifting Ledger | Evidence-aware training data</title>
     <script type="application/ld+json">
       {
@@ -238,6 +238,10 @@
               <span class="menu-icon chart-icon" aria-hidden="true"><i></i><i></i><i></i></span>
               My data
             </button>
+            <button class="menu-item" type="button" data-page="my-stuff">
+              <span class="menu-icon" aria-hidden="true">◇</span>
+              My Stuff
+            </button>
             <button class="menu-item" type="button" data-page="literature">
               <span class="menu-icon literature-icon" aria-hidden="true">§</span>
               Literature
@@ -364,6 +368,102 @@
               </div>
             </details>
           </div>
+        </section>
+
+        <section id="my-stuff-page" class="page-panel" data-page-panel="my-stuff" hidden>
+          <header class="data-header my-stuff-header">
+            <div>
+              <h1>My Stuff</h1>
+            </div>
+          </header>
+
+          <section class="dashboard-section presets-section" aria-labelledby="my-presets-title">
+            <div class="section-heading preset-section-heading">
+              <div>
+                <h2 id="my-presets-title">My Presets</h2>
+                <p>Reusable exercise pools for starting future workouts. Exercises are kept alphabetically, not in a prescribed order.</p>
+              </div>
+              <button id="create-preset" class="primary-button" type="button">Create preset</button>
+            </div>
+
+            <p id="preset-status" class="preset-status" role="status" aria-live="polite">Loading your presets…</p>
+            <div id="preset-empty" class="preset-empty" hidden>
+              <h3>No presets yet</h3>
+              <p>Create a reusable pool from the exercise catalogue or one of your previous sessions.</p>
+            </div>
+            <ul id="preset-list" class="preset-list" aria-label="Your workout presets"></ul>
+
+            <section id="preset-creation-choices" class="preset-workspace preset-creation-choices" aria-labelledby="preset-create-title" hidden>
+              <div>
+                <p class="section-kicker">New preset</p>
+                <h3 id="preset-create-title">How would you like to start?</h3>
+              </div>
+              <div class="preset-choice-grid">
+                <button type="button" data-preset-source="scratch">
+                  <strong>Create from scratch</strong>
+                  <span>Choose exercises from the global catalogue.</span>
+                </button>
+                <button type="button" data-preset-source="session">
+                  <strong>Create from previous session</strong>
+                  <span>Start with the unique exercises from a completed workout.</span>
+                </button>
+              </div>
+              <button id="cancel-preset-creation" class="text-button" type="button">Cancel</button>
+            </section>
+
+            <form id="preset-editor" class="preset-workspace preset-editor" hidden>
+              <div class="preset-editor-heading">
+                <div>
+                  <p id="preset-editor-kicker" class="section-kicker">New preset</p>
+                  <h3 id="preset-editor-title">Create preset</h3>
+                </div>
+                <button id="close-preset-editor" class="text-button" type="button">Cancel</button>
+              </div>
+
+              <label class="preset-name-field" for="preset-name">Preset name
+                <input id="preset-name" name="preset-name" type="text" maxlength="100" autocomplete="off" required />
+              </label>
+
+              <fieldset id="preset-session-source" class="preset-session-source" hidden>
+                <legend>Previous session</legend>
+                <label for="preset-session-select">Choose a completed workout</label>
+                <select id="preset-session-select" required></select>
+                <p id="preset-session-status" class="preset-helper"></p>
+                <div id="preset-session-preview" class="preset-session-preview" hidden></div>
+              </fieldset>
+
+              <section class="preset-selected-section" aria-labelledby="preset-selected-title">
+                <div class="preset-subheading">
+                  <div>
+                    <h4 id="preset-selected-title">Selected exercises</h4>
+                    <p id="preset-selected-count">0 exercises</p>
+                  </div>
+                </div>
+                <ul id="preset-selected-list" class="preset-selected-list"></ul>
+                <p id="preset-selected-empty" class="preset-helper">Add at least one exercise from the catalogue.</p>
+              </section>
+
+              <section class="preset-catalogue-section" aria-labelledby="preset-catalogue-title">
+                <div class="preset-subheading">
+                  <div>
+                    <h4 id="preset-catalogue-title">Exercise catalogue</h4>
+                    <p>Search or browse the same global catalogue used throughout the app.</p>
+                  </div>
+                </div>
+                <label class="preset-search-field" for="preset-exercise-search">Search exercises
+                  <input id="preset-exercise-search" type="search" placeholder="e.g. Bench Press" autocomplete="off" />
+                </label>
+                <ul id="preset-exercise-results" class="preset-exercise-results"></ul>
+                <p id="preset-exercise-empty" class="preset-helper" hidden>No exercises match this search.</p>
+              </section>
+
+              <p id="preset-editor-status" class="preset-editor-status" role="status" aria-live="polite"></p>
+              <div class="preset-editor-actions">
+                <button id="cancel-preset-editor" class="text-button" type="button">Cancel</button>
+                <button id="save-preset" class="primary-button" type="submit">Save preset</button>
+              </div>
+            </form>
+          </section>
         </section>
 
         <section id="literature-page" class="page-panel" data-page-panel="literature" hidden>
@@ -556,6 +656,6 @@
       </section>
     </main>
 
-    <script type="module" src="./app.js?v=26"></script>
+    <script type="module" src="./app.js?v=28"></script>
   </body>
 </html>

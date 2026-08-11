@@ -1,6 +1,7 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.112.0/+esm";
 import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./config.js";
 import { LITERATURE_DOCUMENTS, renderMarkdown } from "./literature.js";
+import { normalizePresetName, uniqueSessionExercises, validatePresetDraft } from "./presets.js";
 import {
   calculateExerciseSources,
   calculateExposureTrend,
@@ -75,6 +76,30 @@ const documentLabel = document.querySelector("#document-label");
 const documentTitle = document.querySelector("#document-title");
 const documentStatus = document.querySelector("#document-status");
 const documentContent = document.querySelector("#document-content");
+const createPresetButton = document.querySelector("#create-preset");
+const presetStatus = document.querySelector("#preset-status");
+const presetEmpty = document.querySelector("#preset-empty");
+const presetList = document.querySelector("#preset-list");
+const presetCreationChoices = document.querySelector("#preset-creation-choices");
+const cancelPresetCreationButton = document.querySelector("#cancel-preset-creation");
+const presetEditor = document.querySelector("#preset-editor");
+const presetEditorKicker = document.querySelector("#preset-editor-kicker");
+const presetEditorTitle = document.querySelector("#preset-editor-title");
+const closePresetEditorButton = document.querySelector("#close-preset-editor");
+const cancelPresetEditorButton = document.querySelector("#cancel-preset-editor");
+const presetNameInput = document.querySelector("#preset-name");
+const presetSessionSource = document.querySelector("#preset-session-source");
+const presetSessionSelect = document.querySelector("#preset-session-select");
+const presetSessionStatus = document.querySelector("#preset-session-status");
+const presetSessionPreview = document.querySelector("#preset-session-preview");
+const presetSelectedList = document.querySelector("#preset-selected-list");
+const presetSelectedCount = document.querySelector("#preset-selected-count");
+const presetSelectedEmpty = document.querySelector("#preset-selected-empty");
+const presetExerciseSearch = document.querySelector("#preset-exercise-search");
+const presetExerciseResults = document.querySelector("#preset-exercise-results");
+const presetExerciseEmpty = document.querySelector("#preset-exercise-empty");
+const presetEditorStatus = document.querySelector("#preset-editor-status");
+const savePresetButton = document.querySelector("#save-preset");
 const pageSize = 20;
 let loadedRows = 0;
 let totalRows = 0;
@@ -95,6 +120,16 @@ let dashboardRange = "8w";
 let selectedDashboardGroup = null;
 let selectedProgressionExercise = null;
 let activePageName = "home";
+let globalExerciseCatalogue = [];
+let globalExerciseCataloguePromise = null;
+let presets = [];
+let presetsLoadedForUser = null;
+let presetsLoadingForUser = null;
+let presetSourceSessions = [];
+let presetSourceSessionsForUser = null;
+let editingPresetId = null;
+let presetEditorSource = null;
+let selectedPresetExerciseIds = new Set();
 const EXERCISE_SERIES_COLORS = Object.freeze([
   "#60a5fa", "#c084fc", "#f59e0b", "#22d3ee", "#f472b6",
   "#818cf8", "#fb923c", "#2dd4bf", "#eab308", "#a78bfa",
@@ -165,6 +200,47 @@ clearSessionSearchButton.addEventListener("click", () => {
   resetSessionResults();
   if (activeUserId && supabaseClient) void loadSessions(supabaseClient);
   sessionSearch.focus();
+});
+createPresetButton.addEventListener("click", showPresetCreationChoices);
+cancelPresetCreationButton.addEventListener("click", closePresetWorkspace);
+closePresetEditorButton.addEventListener("click", closePresetWorkspace);
+cancelPresetEditorButton.addEventListener("click", closePresetWorkspace);
+
+presetCreationChoices.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-preset-source]");
+  if (!button) return;
+  void openNewPresetEditor(button.dataset.presetSource);
+});
+
+presetList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-preset-action]");
+  if (!button) return;
+  const preset = presets.find((item) => String(item.id) === button.dataset.presetId);
+  if (!preset) return;
+  if (button.dataset.presetAction === "delete") {
+    void deletePreset(preset);
+    return;
+  }
+  openExistingPresetEditor(preset, button.dataset.presetAction === "rename");
+});
+
+presetExerciseSearch.addEventListener("input", renderPresetExerciseCatalogue);
+presetExerciseResults.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-add-exercise]");
+  if (!button) return;
+  selectedPresetExerciseIds.add(button.dataset.addExercise);
+  renderPresetExercisePicker();
+});
+presetSelectedList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-remove-exercise]");
+  if (!button) return;
+  selectedPresetExerciseIds.delete(button.dataset.removeExercise);
+  renderPresetExercisePicker();
+});
+presetSessionSelect.addEventListener("change", applySelectedPresetSession);
+presetEditor.addEventListener("submit", (event) => {
+  event.preventDefault();
+  void savePreset();
 });
 
 documentBack.addEventListener("click", () => showPage("literature"));
@@ -276,6 +352,7 @@ function renderSession(session) {
     resetExerciseCatalogue();
     resetLiftList();
     resetDashboard();
+    resetPresets();
     window.setTimeout(() => {
       void loadExerciseCatalogue(supabaseClient);
       void loadSessions(supabaseClient);
@@ -296,6 +373,7 @@ function showSignedOut() {
   resetExerciseCatalogue();
   resetLiftList();
   resetDashboard();
+  resetPresets();
   const documentId = new URLSearchParams(window.location.search).get("literature");
   if (documentId && LITERATURE_DOCUMENTS[documentId]) {
     void openPublicLiteratureDocument(documentId, false);
@@ -346,6 +424,7 @@ function showPage(pageName) {
     home: "Home",
     "session-history": "Session history",
     "my-data": "My data",
+    "my-stuff": "My Stuff",
     literature: "Literature",
     document: "Literature",
   };
@@ -370,6 +449,9 @@ function showPage(pageName) {
   if (pageName === "my-data") window.requestAnimationFrame(updateMyDataNavTitle);
   if (pageName === "my-data" && activeUserId && supabaseClient) {
     void loadDashboard(supabaseClient);
+  }
+  if (pageName === "my-stuff" && activeUserId && supabaseClient) {
+    void loadPresets(supabaseClient);
   }
 }
 
@@ -988,54 +1070,436 @@ function formatBucketLabel(key, bucket) {
   return new Intl.DateTimeFormat(undefined, bucket === "week" ? { day: "numeric", month: "short", timeZone: "UTC" } : { month: "short", year: "2-digit", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
 }
 
+async function ensureGlobalExerciseCatalogue(supabase) {
+  if (globalExerciseCatalogue.length) return globalExerciseCatalogue;
+  if (globalExerciseCataloguePromise) return globalExerciseCataloguePromise;
+
+  globalExerciseCataloguePromise = (async () => {
+    const exercises = [];
+    const batchSize = 1000;
+    let expectedCount = null;
+
+    while (expectedCount === null || exercises.length < expectedCount) {
+      const start = exercises.length;
+      const { data, error, count } = await supabase
+        .from("exercises")
+        .select("id, code, name", { count: start === 0 ? "exact" : undefined })
+        .eq("is_active", true)
+        .order("name", { ascending: true })
+        .order("id", { ascending: true })
+        .range(start, start + batchSize - 1);
+
+      if (error) throw error;
+      if (expectedCount === null) expectedCount = count ?? data.length;
+      exercises.push(...data);
+      if (data.length < batchSize) break;
+    }
+
+    globalExerciseCatalogue = exercises;
+    return exercises;
+  })().catch((error) => {
+    globalExerciseCataloguePromise = null;
+    throw error;
+  });
+
+  return globalExerciseCataloguePromise;
+}
+
 async function loadExerciseCatalogue(supabase) {
   const requestedUserId = activeUserId;
-  const batchSize = 1000;
-  const exercises = [];
-  let expectedCount = null;
-
   exerciseStatus.textContent = "Loading exercises…";
   exerciseCatalogue.replaceChildren();
 
-  while (expectedCount === null || exercises.length < expectedCount) {
-    const start = exercises.length;
-    const { data, error, count } = await supabase
-      .from("exercises")
-      .select("id, code, name", { count: start === 0 ? "exact" : undefined })
-      .eq("is_active", true)
-      .order("name", { ascending: true })
-      .order("id", { ascending: true })
-      .range(start, start + batchSize - 1);
-
+  try {
+    const exercises = await ensureGlobalExerciseCatalogue(supabase);
     if (requestedUserId !== activeUserId) return;
 
-    if (error) {
-      exerciseStatus.textContent = `Could not load your exercises: ${error.message}`;
-      return;
+    const fragment = document.createDocumentFragment();
+    const options = document.createDocumentFragment();
+    for (const exercise of exercises) {
+      const item = document.createElement("li");
+      item.textContent = exercise.name;
+      fragment.append(item);
+
+      const option = document.createElement("option");
+      option.value = exercise.name;
+      options.append(option);
     }
 
-    if (expectedCount === null) expectedCount = count ?? data.length;
-    exercises.push(...data);
-    if (data.length < batchSize) break;
+    exerciseCatalogue.append(fragment);
+    exerciseStatus.textContent = `${exercises.length.toLocaleString()} global exercises · alphabetical`;
+    sessionExerciseOptions.replaceChildren(options);
+  } catch (error) {
+    if (requestedUserId !== activeUserId) return;
+    exerciseStatus.textContent = `Could not load your exercises: ${error.message}`;
   }
-
-  const fragment = document.createDocumentFragment();
-  const options = document.createDocumentFragment();
-  for (const exercise of exercises) {
-    const item = document.createElement("li");
-    item.textContent = exercise.name;
-    fragment.append(item);
-
-    const option = document.createElement("option");
-    option.value = exercise.name;
-    options.append(option);
-  }
-
-  exerciseCatalogue.append(fragment);
-  exerciseStatus.textContent = `${exercises.length.toLocaleString()} global exercises · alphabetical`;
-  sessionExerciseOptions.replaceChildren(options);
 }
 
+async function loadPresets(supabase, force = false) {
+  const requestedUserId = activeUserId;
+  if (!requestedUserId) return;
+  if (!force && (presetsLoadedForUser === requestedUserId || presetsLoadingForUser === requestedUserId)) return;
+
+  presetsLoadingForUser = requestedUserId;
+  presetStatus.textContent = "Loading your presets…";
+  presetEmpty.hidden = true;
+
+  try {
+    const [presetResult] = await Promise.all([
+      supabase
+        .from("workout_presets")
+        .select("id, name, created_at, updated_at, workout_preset_exercises(exercise_id, exercises(id, name))")
+        .eq("owner_id", requestedUserId)
+        .order("name", { ascending: true })
+        .order("id", { ascending: true }),
+      ensureGlobalExerciseCatalogue(supabase),
+    ]);
+    if (presetResult.error) throw presetResult.error;
+    if (requestedUserId !== activeUserId) return;
+
+    presets = presetResult.data.map((preset) => ({
+      ...preset,
+      exercises: (preset.workout_preset_exercises ?? []).map((membership) => ({
+        id: membership.exercise_id,
+        name: membership.exercises?.name
+          ?? globalExerciseCatalogue.find((exercise) => String(exercise.id) === String(membership.exercise_id))?.name
+          ?? "Unknown exercise",
+      })).sort((a, b) => a.name.localeCompare(b.name)),
+    }));
+    presetsLoadedForUser = requestedUserId;
+    renderPresetList();
+  } catch (error) {
+    if (requestedUserId !== activeUserId) return;
+    presetList.replaceChildren();
+    presetEmpty.hidden = true;
+    presetStatus.textContent = `Could not load your presets: ${formatPresetError(error)}`;
+  } finally {
+    if (presetsLoadingForUser === requestedUserId) presetsLoadingForUser = null;
+  }
+}
+
+function renderPresetList() {
+  const fragment = document.createDocumentFragment();
+
+  for (const preset of presets) {
+    const item = document.createElement("li");
+    item.className = "preset-card";
+
+    const headingRow = document.createElement("div");
+    headingRow.className = "preset-card-heading";
+    const heading = document.createElement("h3");
+    heading.textContent = preset.name;
+    const count = document.createElement("span");
+    count.textContent = `${preset.exercises.length} ${preset.exercises.length === 1 ? "exercise" : "exercises"}`;
+    headingRow.append(heading, count);
+
+    const exerciseList = document.createElement("ul");
+    exerciseList.className = "preset-card-exercises";
+    for (const exercise of preset.exercises) {
+      const exerciseItem = document.createElement("li");
+      exerciseItem.textContent = exercise.name;
+      exerciseList.append(exerciseItem);
+    }
+
+    const actions = document.createElement("div");
+    actions.className = "preset-card-actions";
+    for (const [action, label] of [["open", "Open"], ["rename", "Rename"], ["delete", "Delete"]]) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.dataset.presetAction = action;
+      button.dataset.presetId = preset.id;
+      button.textContent = label;
+      if (action === "delete") button.className = "danger-button";
+      actions.append(button);
+    }
+
+    item.append(headingRow, exerciseList, actions);
+    fragment.append(item);
+  }
+
+  presetList.replaceChildren(fragment);
+  presetEmpty.hidden = presets.length !== 0;
+  presetStatus.textContent = presets.length
+    ? `${presets.length.toLocaleString()} ${presets.length === 1 ? "preset" : "presets"}`
+    : "";
+}
+
+function showPresetCreationChoices() {
+  presetEditor.hidden = true;
+  presetCreationChoices.hidden = false;
+  presetEditorStatus.textContent = "";
+  presetCreationChoices.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  presetCreationChoices.querySelector("[data-preset-source]")?.focus();
+}
+
+function closePresetWorkspace() {
+  presetCreationChoices.hidden = true;
+  presetEditor.hidden = true;
+  presetEditor.reset();
+  presetSessionSource.hidden = true;
+  presetSessionPreview.hidden = true;
+  presetEditorStatus.textContent = "";
+  presetNameInput.setCustomValidity("");
+  editingPresetId = null;
+  presetEditorSource = null;
+  selectedPresetExerciseIds = new Set();
+}
+
+async function openNewPresetEditor(source) {
+  if (source !== "scratch" && source !== "session") return;
+  presetCreationChoices.hidden = true;
+  presetEditor.hidden = false;
+  presetEditor.reset();
+  presetEditorKicker.textContent = "New preset";
+  presetEditorTitle.textContent = source === "session" ? "Create from previous session" : "Create from scratch";
+  savePresetButton.textContent = "Create preset";
+  editingPresetId = null;
+  presetEditorSource = source;
+  selectedPresetExerciseIds = new Set();
+  presetEditorStatus.textContent = "";
+  presetNameInput.setCustomValidity("");
+  presetSessionSource.hidden = source !== "session";
+  presetSessionSelect.required = source === "session";
+  presetSessionPreview.hidden = true;
+  presetExerciseSearch.value = "";
+  setPresetEditorBusy(true);
+
+  try {
+    await ensureGlobalExerciseCatalogue(supabaseClient);
+    if (source === "session") await loadPresetSourceSessions();
+    renderPresetExercisePicker();
+  } catch (error) {
+    presetEditorStatus.textContent = `Could not prepare the preset editor: ${formatPresetError(error)}`;
+  } finally {
+    setPresetEditorBusy(false);
+    presetNameInput.focus();
+  }
+}
+
+function openExistingPresetEditor(preset, focusName = false) {
+  presetCreationChoices.hidden = true;
+  presetEditor.hidden = false;
+  presetEditor.reset();
+  presetEditorKicker.textContent = "Existing preset";
+  presetEditorTitle.textContent = preset.name;
+  savePresetButton.textContent = "Save changes";
+  editingPresetId = preset.id;
+  presetEditorSource = "existing";
+  selectedPresetExerciseIds = new Set(preset.exercises.map((exercise) => String(exercise.id)));
+  presetNameInput.value = preset.name;
+  presetSessionSource.hidden = true;
+  presetSessionSelect.required = false;
+  presetSessionPreview.hidden = true;
+  presetExerciseSearch.value = "";
+  presetEditorStatus.textContent = "";
+  presetNameInput.setCustomValidity("");
+  renderPresetExercisePicker();
+  presetEditor.scrollIntoView({ block: "start", behavior: "smooth" });
+  if (focusName) {
+    presetNameInput.focus();
+    presetNameInput.select();
+  }
+}
+
+async function loadPresetSourceSessions() {
+  const requestedUserId = activeUserId;
+  presetSessionStatus.textContent = "Loading completed sessions…";
+  presetSessionSelect.replaceChildren();
+  presetSessionSelect.disabled = true;
+
+  if (presetSourceSessionsForUser !== requestedUserId) {
+    const sessions = [];
+    const batchSize = 1000;
+    while (true) {
+      const { data, error } = await supabaseClient
+        .from("workout_sessions")
+        .select("id, performed_on, gyms(name), session_exercises(exercise_id, exercise)")
+        .eq("owner_id", requestedUserId)
+        .order("performed_on", { ascending: false })
+        .order("id", { ascending: false })
+        .range(sessions.length, sessions.length + batchSize - 1);
+      if (error) throw error;
+      if (requestedUserId !== activeUserId) return;
+      sessions.push(...data);
+      if (data.length < batchSize) break;
+    }
+    presetSourceSessions = sessions;
+    presetSourceSessionsForUser = requestedUserId;
+  }
+
+  const options = document.createDocumentFragment();
+  for (const session of presetSourceSessions) {
+    const exercises = uniqueSessionExercises(session);
+    const option = document.createElement("option");
+    option.value = session.id;
+    const exerciseSummary = exercises.slice(0, 3).map((exercise) => exercise.name).join(", ");
+    const remaining = exercises.length > 3 ? ` +${exercises.length - 3} more` : "";
+    option.textContent = `${formatDate(session.performed_on)} · ${session.gyms?.name ?? "Gym"} · ${exerciseSummary}${remaining}`;
+    options.append(option);
+  }
+  presetSessionSelect.replaceChildren(options);
+  presetSessionSelect.disabled = presetSourceSessions.length === 0;
+  presetSessionStatus.textContent = presetSourceSessions.length
+    ? `${presetSourceSessions.length.toLocaleString()} completed ${presetSourceSessions.length === 1 ? "session" : "sessions"}`
+    : "No previous sessions are available.";
+  if (presetSourceSessions.length) applySelectedPresetSession();
+}
+
+function applySelectedPresetSession() {
+  const session = presetSourceSessions.find((item) => String(item.id) === presetSessionSelect.value);
+  if (!session) {
+    presetSessionPreview.hidden = true;
+    selectedPresetExerciseIds = new Set();
+    renderPresetExercisePicker();
+    return;
+  }
+
+  const exercises = uniqueSessionExercises(session);
+  selectedPresetExerciseIds = new Set(exercises.map((exercise) => String(exercise.id)));
+  const heading = document.createElement("strong");
+  heading.textContent = `${formatDate(session.performed_on)} · ${session.gyms?.name ?? "Gym"}`;
+  const copy = document.createElement("p");
+  copy.textContent = exercises.map((exercise) => exercise.name).join(" · ") || "No exercises recorded";
+  presetSessionPreview.replaceChildren(heading, copy);
+  presetSessionPreview.hidden = false;
+  renderPresetExercisePicker();
+}
+
+function renderPresetExercisePicker() {
+  renderSelectedPresetExercises();
+  renderPresetExerciseCatalogue();
+}
+
+function renderSelectedPresetExercises() {
+  const selected = globalExerciseCatalogue
+    .filter((exercise) => selectedPresetExerciseIds.has(String(exercise.id)))
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const fragment = document.createDocumentFragment();
+
+  for (const exercise of selected) {
+    const item = document.createElement("li");
+    const name = document.createElement("span");
+    name.textContent = exercise.name;
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.dataset.removeExercise = exercise.id;
+    remove.setAttribute("aria-label", `Remove ${exercise.name}`);
+    remove.textContent = "Remove";
+    item.append(name, remove);
+    fragment.append(item);
+  }
+
+  presetSelectedList.replaceChildren(fragment);
+  presetSelectedCount.textContent = `${selected.length} ${selected.length === 1 ? "exercise" : "exercises"}`;
+  presetSelectedEmpty.hidden = selected.length !== 0;
+}
+
+function renderPresetExerciseCatalogue() {
+  const query = presetExerciseSearch.value.trim().toLocaleLowerCase();
+  const matches = globalExerciseCatalogue.filter((exercise) => exercise.name.toLocaleLowerCase().includes(query));
+  const fragment = document.createDocumentFragment();
+
+  for (const exercise of matches) {
+    const item = document.createElement("li");
+    const name = document.createElement("span");
+    name.textContent = exercise.name;
+    const add = document.createElement("button");
+    const selected = selectedPresetExerciseIds.has(String(exercise.id));
+    add.type = "button";
+    add.dataset.addExercise = exercise.id;
+    add.disabled = selected;
+    add.textContent = selected ? "Added" : "Add";
+    item.append(name, add);
+    fragment.append(item);
+  }
+
+  presetExerciseResults.replaceChildren(fragment);
+  presetExerciseEmpty.hidden = matches.length !== 0;
+}
+
+async function savePreset() {
+  if (!supabaseClient || !activeUserId) {
+    presetEditorStatus.textContent = "You are no longer signed in.";
+    return;
+  }
+
+  const name = normalizePresetName(presetNameInput.value);
+  const exerciseIds = globalExerciseCatalogue
+    .filter((exercise) => selectedPresetExerciseIds.has(String(exercise.id)))
+    .map((exercise) => exercise.id);
+  const validationMessage = validatePresetDraft({
+    presets,
+    presetId: editingPresetId,
+    name,
+    exerciseIds,
+  });
+  presetNameInput.setCustomValidity(validationMessage.includes("name") ? validationMessage : "");
+  if (validationMessage) {
+    presetEditorStatus.textContent = validationMessage;
+    if (!presetNameInput.reportValidity()) presetNameInput.focus();
+    return;
+  }
+
+  const requestedUserId = activeUserId;
+  const wasEditing = editingPresetId !== null;
+  setPresetEditorBusy(true);
+  presetEditorStatus.textContent = wasEditing ? "Saving changes…" : "Creating preset…";
+
+  try {
+    const { error } = await supabaseClient.rpc("save_workout_preset", {
+      p_preset_id: editingPresetId,
+      p_name: name,
+      p_exercise_ids: exerciseIds,
+    });
+    if (error) throw error;
+    if (requestedUserId !== activeUserId) throw new Error("Your session changed while saving.");
+
+    closePresetWorkspace();
+    presetsLoadedForUser = null;
+    await loadPresets(supabaseClient, true);
+    presetStatus.textContent = wasEditing ? "Preset updated." : "Preset created.";
+  } catch (error) {
+    presetEditorStatus.textContent = `Could not save preset: ${formatPresetError(error)}`;
+  } finally {
+    setPresetEditorBusy(false);
+  }
+}
+
+async function deletePreset(preset) {
+  if (!supabaseClient || !activeUserId) return;
+  if (!window.confirm(`Delete “${preset.name}”? This cannot be undone.`)) return;
+
+  const requestedUserId = activeUserId;
+  presetStatus.textContent = `Deleting ${preset.name}…`;
+  try {
+    const { error } = await supabaseClient
+      .from("workout_presets")
+      .delete()
+      .eq("id", preset.id)
+      .eq("owner_id", requestedUserId);
+    if (error) throw error;
+    if (requestedUserId !== activeUserId) return;
+    presetsLoadedForUser = null;
+    await loadPresets(supabaseClient, true);
+    presetStatus.textContent = "Preset deleted.";
+  } catch (error) {
+    if (requestedUserId !== activeUserId) return;
+    presetStatus.textContent = `Could not delete preset: ${formatPresetError(error)}`;
+  }
+}
+
+function setPresetEditorBusy(busy) {
+  for (const control of presetEditor.elements) control.disabled = busy;
+  if (!busy && presetEditorSource === "session" && presetSourceSessions.length === 0) {
+    presetSessionSelect.disabled = true;
+  }
+}
+
+function formatPresetError(error) {
+  if (error?.code === "23505") return "You already have a preset with this name.";
+  if (error?.code === "23503") return "One of the selected exercises is no longer available.";
+  return error?.message ?? "An unexpected error occurred.";
+}
 async function loadSessions(supabase) {
   if (loadingRows || loadedRows >= totalRows && totalRows !== 0) return;
   const requestVersion = sessionRequestVersion;
@@ -1535,6 +1999,29 @@ function resetDashboard() {
   metricGrid.replaceChildren();
   dashboardContent.hidden = true;
   dashboardEmpty.hidden = true;
+}
+
+function resetPresets() {
+  presets = [];
+  presetsLoadedForUser = null;
+  presetsLoadingForUser = null;
+  presetSourceSessions = [];
+  presetSourceSessionsForUser = null;
+  editingPresetId = null;
+  presetEditorSource = null;
+  selectedPresetExerciseIds = new Set();
+  presetList.replaceChildren();
+  presetStatus.textContent = "Loading your presets…";
+  presetEmpty.hidden = true;
+  presetCreationChoices.hidden = true;
+  presetEditor.hidden = true;
+  presetEditor.reset();
+  presetSessionSource.hidden = true;
+  presetSessionPreview.hidden = true;
+  presetSessionSelect.replaceChildren();
+  presetSelectedList.replaceChildren();
+  presetExerciseResults.replaceChildren();
+  presetEditorStatus.textContent = "";
 }
 
 function formatDate(isoDate) {

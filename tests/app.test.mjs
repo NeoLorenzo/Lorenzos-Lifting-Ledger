@@ -6,10 +6,11 @@ import test from "node:test";
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), "utf8");
 
 test("ships an installable app shell", async () => {
-  const [html, manifest, serviceWorker] = await Promise.all([
+  const [html, manifest, serviceWorker, app] = await Promise.all([
     read("index.html"),
     read("manifest.webmanifest"),
     read("service-worker.js"),
+    read("app.js"),
   ]);
 
   assert.match(html, /rel="manifest"/);
@@ -20,6 +21,9 @@ test("ships an installable app shell", async () => {
   assert.match(html, /id="exercise-catalogue"/);
   assert.match(html, /data-page="session-history"/);
   assert.match(html, /data-page-panel="session-history"/);
+  assert.match(html, /data-page="my-stuff"/);
+  assert.match(html, /data-page-panel="my-stuff"/);
+  assert.match(app, /"my-stuff": "My Stuff"/);
   assert.match(html, /<h1>Session history<\/h1>/);
   assert.match(html, /id="lift-list"/);
   assert.match(html, /id="load-more"/);
@@ -534,4 +538,49 @@ test("searches session history by exercise and edits owned exercise sets", async
   assert.match(oneRepMaxMigration, /generated always as/);
   assert.match(styles, /\.session-search/);
   assert.match(styles, /\.exercise-edit-set/);
+});
+test("manages owner-scoped unordered workout presets", async () => {
+  const [html, app, styles, migration, readme, serviceWorker] = await Promise.all([
+    read("index.html"),
+    read("app.js"),
+    read("styles.css"),
+    read("supabase/migrations/20260811012218_create_workout_presets.sql"),
+    read("README.md"),
+    read("service-worker.js"),
+  ]);
+
+  assert.match(html, /<h2 id="my-presets-title">My Presets<\/h2>/);
+  assert.match(html, /id="create-preset"[^>]*>Create preset<\/button>/);
+  assert.match(html, /data-preset-source="scratch"[\s\S]*Create from scratch/);
+  assert.match(html, /data-preset-source="session"[\s\S]*Create from previous session/);
+  assert.match(html, /id="preset-name"/);
+  assert.match(html, /id="preset-session-select"/);
+  assert.match(html, /id="preset-exercise-search"/);
+  assert.match(html, /id="preset-selected-list"/);
+  assert.match(app, /\.from\("workout_presets"\)/);
+  assert.match(app, /\.eq\("owner_id", requestedUserId\)/);
+  assert.match(app, /\.rpc\("save_workout_preset"/);
+  assert.match(app, /data\.map\(\(preset\)/);
+  assert.match(app, /\[\["open", "Open"\], \["rename", "Rename"\], \["delete", "Delete"\]\]/);
+  const sourceSessionLoader = app.slice(app.indexOf("async function loadPresetSourceSessions"), app.indexOf("function applySelectedPresetSession"));
+  assert.match(sourceSessionLoader, /session_exercises\(exercise_id, exercise\)/);
+  assert.doesNotMatch(sourceSessionLoader, /exercise_sets|equipment_id|weight|reps|rpe|is_warmup/i);
+  assert.match(migration, /create table public\.workout_presets/);
+  assert.match(migration, /create table public\.workout_preset_exercises/);
+  assert.match(migration, /unique index workout_presets_owner_name_unique_idx[\s\S]*owner_id, lower\(name\)/);
+  assert.match(migration, /primary key \(preset_id, exercise_id\)/);
+  assert.match(migration, /references public\.workout_presets\(id, owner_id\)[\s\S]*on delete cascade/);
+  assert.match(migration, /exercise_id bigint not null references public\.exercises\(id\) on delete restrict/);
+  assert.doesNotMatch(migration, /exercise_order|set_number|equipment_id|weight|reps|rpe|is_warmup/);
+  assert.match(migration, /security invoker/);
+  assert.match(migration, /preset_owner_id uuid := \(select auth\.uid\(\)\)/);
+  assert.match(migration, /alter table public\.workout_presets enable row level security/);
+  assert.match(migration, /alter table public\.workout_preset_exercises enable row level security/);
+  assert.match(migration, /for update to authenticated[\s\S]*using[\s\S]*with check/);
+  assert.match(migration, /revoke all on public\.workout_presets, public\.workout_preset_exercises from anon/);
+  assert.match(migration, /grant select, insert, update, delete[\s\S]*on public\.workout_presets[\s\S]*to authenticated/);
+  assert.match(styles, /\.preset-list[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /@media \(max-width: 760px\)[\s\S]*\.preset-list/);
+  assert.match(readme, /`workout_presets`/);
+  assert.match(serviceWorker, /\.\/presets\.js/);
 });

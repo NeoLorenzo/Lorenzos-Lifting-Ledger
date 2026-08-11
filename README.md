@@ -5,7 +5,7 @@ An installable, evidence-aware lifting tracker with a public scientific overview
 The current app has two states:
 
 - signed out: a crawlable public front page explaining the product, its training model, scientific foundations, limitations, and design decisions, with **Sign in** in the top-right
-- signed in: Home, owner-scoped training statistics, a Literature hub for the app's scientific foundations, and a sign-out control
+- signed in: Home, Session history, My Data, My Stuff preset management, a Literature hub for the app's scientific foundations, and a sign-out control
 
 It is a static site for GitHub Pages and uses Supabase Auth plus owner-scoped workout data and global reference data in Postgres.
 
@@ -39,6 +39,8 @@ All future user-owned tables must enable Row Level Security before the app write
 - `workout_sessions` stores each dated visit to a gym.
 - `session_exercises` stores the ordered exercise occurrences, their catalogue reference, the original historical label, and any equipment ID used in that session.
 - `exercise_sets` stores each numbered weight/reps pair, optional RPE, warm-up/drop-set/superset flags, and generated Brzycki/Epley estimated 1RM values with a low/high range.
+- `workout_presets` stores each owner-scoped, uniquely named reusable exercise pool.
+- `workout_preset_exercises` stores unordered, deduplicated references from presets to the global exercise catalogue; it never copies session set or equipment data.
 
 All dumbbell exercise weights use one product-wide convention: the stored value is always the weight of **one dumbbell**, for both unilateral and bilateral exercises. A set performed with two 30 kg dumbbells is therefore stored as `30 kg`, not `60 kg`; dumbbell e1RM values use and retain that same per-dumbbell unit.
 
