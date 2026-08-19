@@ -252,11 +252,12 @@ test("uses the authored exercise-to-muscle hypertrophic relevance layer", async 
 });
 
 test("uses exercise-specific names without legacy muscle-group prefixes", async () => {
-  const [matrix, workoutData] = await Promise.all([
+  const [matrix, hypertrophicRelevance] = await Promise.all([
     read("Movement Pattern Mapping Matrix - Mapping_Matrix.csv"),
-    read("Lorenzo Gym Data - All Gym Data.csv"),
+    read("EXERCISE_TO_MUSCLE_HYPERTROPHIC_RELEVANCE.csv"),
   ]);
   const names = matrix.trim().split(/\r?\n/).slice(1).map((line) => line.split(",", 1)[0]);
+  const relevanceNames = hypertrophicRelevance.trim().split(/\r?\n/).slice(1).map((line) => line.split(",", 1)[0]);
   const legacyPrefix = /^(?:Abs|Adductors|Back|Biceps|Calves|Chest|Forearms|Glutes|Hamstrings|Legs|Quads|Shoulders|Triceps) - /;
   const retiredNames = [
     "Back Extentions (Dumbbell)",
@@ -274,7 +275,9 @@ test("uses exercise-specific names without legacy muscle-group prefixes", async 
   ];
 
   assert.equal(names.length, 138);
+  assert.equal(relevanceNames.length, 138);
   assert.equal(new Set(names).size, 138);
+  assert.equal(new Set(relevanceNames).size, 138);
   assert.ok(names.includes("Back Extensions (Dumbbell)"));
   assert.ok(names.includes("Chest Fly (Cable) (Bent Over Standing) (Horizontal)"));
   assert.ok(names.includes("Chest Fly (Cable) (Kneeling) (Horizontal)"));
@@ -286,13 +289,14 @@ test("uses exercise-specific names without legacy muscle-group prefixes", async 
   assert.ok(names.includes("Overhead Press (Landmine) (Barbell) (Kneeling)"));
   assert.ok(names.includes("Pullover (Cable) (EZ Bar Attachment)"));
   assert.ok(retiredNames.every((name) => !names.includes(name)));
-  assert.ok(retiredNames.every((name) => !workoutData.split(/\r?\n/).some((row) => row.split(",")[3] === name)));
+  assert.ok(retiredNames.every((name) => !relevanceNames.includes(name)));
   assert.equal(
     createHash("sha256").update(matrix).digest("hex"),
     "93cc08e6b5c4751f7e8d3b7546a2bf4ea2fc567d25a9aea1f7c85087ceaa6c27",
   );
   assert.equal(names.filter((name) => name.startsWith("Overhead Press")).length, 7);
   assert.equal(names.filter((name) => legacyPrefix.test(name)).length, 0);
+  assert.equal(relevanceNames.filter((name) => legacyPrefix.test(name)).length, 0);
 });
 
 test("renders collapsed sessions with toggleable exercise-level muscle pills", async () => {

@@ -14,7 +14,9 @@
 - Preserve historical workout data and scientific-model provenance. Do not silently reinterpret or destroy either.
 - Add or update focused tests for changed behavior and regressions.
 - Update documentation made stale by the implementation.
-- Run `npm test` as the final repository validation unless the task specifies additional checks.
+- For agent work, run `npm run agent:check` as the final repository validation.
+- `npm run agent:check` is the repository-designated bounded-output validation pathway. It performs the applicable syntax and test checks while keeping routine output in `.agent-logs/`.
+- Do not bypass legitimate validation merely to obtain a passing result.
 - Do not weaken or remove legitimate tests merely to make validation pass.
 - Do not commit or push unless explicitly instructed.
 

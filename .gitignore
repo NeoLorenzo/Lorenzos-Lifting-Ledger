@@ -1,5 +1,6 @@
 # Local dependencies and tools
 node_modules/
+.agent-logs/
 .wrangler/
 .next/
 .vinext/
