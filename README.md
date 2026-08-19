@@ -5,7 +5,7 @@ An installable, evidence-aware lifting tracker with a public scientific overview
 The current app has two states:
 
 - signed out: a crawlable public front page explaining the product, its training model, scientific foundations, limitations, and design decisions, with **Sign in** in the top-right
-- signed in: a Home start/resume-session action, Session history, My Data, My Stuff preset management, a Literature hub for the app's scientific foundations, and a sign-out control
+- signed in: a Home start/resume-session action, Session history, My Data, My Stuff preset management, a Literature hub, Settings for body-weight data, and a sign-out control
 
 It is a static site for GitHub Pages and uses Supabase Auth plus owner-scoped workout data and global reference data in Postgres.
 
@@ -41,6 +41,9 @@ All future user-owned tables must enable Row Level Security before the app write
 - `exercise_sets` stores each numbered weight/reps pair, optional RPE, warm-up/drop-set/superset flags, and generated Brzycki/Epley estimated 1RM values with a low/high range.
 - `workout_presets` stores each owner-scoped, uniquely named reusable exercise pool.
 - `workout_preset_exercises` stores unordered, deduplicated exercise references plus a reusable set count. Starting from a preset randomizes exercise order and creates blank set slots without copying load, reps, equipment, RPE, or warm-up state.
+- `body_weight_measurements` stores owner-scoped imported scale observations in kilograms, with one canonical measurement per owner per date and a link to `data_imports` provenance.
+
+Body-weight CSV imports use column A as an exact `DD/MM/YYYY` date and column B as a positive kilogram value; optional headers and additional ignored columns are supported. The filename and export source are not part of the contract. My Data calculates a daily series only between measured observations using linear interpolation: `W(d) = W1 + (W2 - W1) × (days from d1 / days between d1 and d2)`. Interpolated values remain visibly labelled as calculated, are not persisted as scale observations, and are never extrapolated. Settings supports previewing, importing/correcting, inspecting, and deleting only the signed-in user's body-weight dataset. Relative-to-body-weight estimated 1RM is not part of this subsystem.
 
 All dumbbell exercise weights use one product-wide convention: the stored value is always the weight of **one dumbbell**, for both unilateral and bilateral exercises. A set performed with two 30 kg dumbbells is therefore stored as `30 kg`, not `60 kg`; dumbbell e1RM values use and retain that same per-dumbbell unit.
 
@@ -89,6 +92,7 @@ npm test
 
 - `index.html` — minimal app shell
 - `app.js` — Supabase Google sign-in/session handling
+- `body-weight.js` — generic body-weight CSV parsing, validation, preview, and interpolation helpers
 - `literature.js` — safe in-app Markdown rendering and the Literature document registry
 - `config.js` — public browser configuration only
 - `manifest.webmanifest` and `service-worker.js` — installable PWA metadata and offline shell

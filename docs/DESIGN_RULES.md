@@ -56,3 +56,9 @@ Directional change colors have a fixed semantic meaning throughout the app:
 - No change or unavailable direction is neutral gray.
 
 Every colored change must also include an explicit sign or text label, such as `+12%`, `−8%`, or `No change`, so the meaning remains accessible without color. Exercise-series palettes should avoid reusing the semantic increase and decrease colors where that would make the meaning ambiguous.
+
+## 5. Body-weight observations and interpolation remain distinct
+
+Imported scale weights are measured user data in kilograms. Only those observations may be stored in the canonical body-weight table or displayed as measured markers.
+
+For a missing date strictly between two observations, the app may calculate a daily value with linear interpolation: `W(d) = W1 + (W2 - W1) × (days from d1 / days between d1 and d2)`. The UI must label that value as interpolated and, where practical, identify the surrounding observations. Interpolation is a mathematical convenience, not a scale measurement, prediction, physiological model, or trend-weight estimate. The app must not extrapolate before the first or after the final observation.

@@ -636,9 +636,48 @@ test("creates, resumes, and concludes one persisted active workout session", asy
   assert.match(migration, /security invoker/);
   assert.match(migration, /set search_path = ''/);
   assert.match(migration, /revoke all on function public\.start_or_resume_workout_session\(\) from public, anon/);
-  assert.match(serviceWorker, /lifting-ledger-v34/);
+  assert.match(serviceWorker, /lifting-ledger-v36/);
   assert.match(app, /function renderSessionPresetList\(\)/);
   assert.match(setCountMigration, /row_number\(\) over \(order by random\(\)\)/);
   assert.match(setCountMigration, /generate_series\(1, membership\.set_count\)/);
   assert.match(setCountMigration, /drop constraint exercise_sets_check/);
+});
+
+test("provides owner-scoped body-weight import, interpolation, settings, and analytics", async () => {
+  const [html, app, module, styles, migration, readme, designRules, documentation, serviceWorker] = await Promise.all([
+    read("index.html"), read("app.js"), read("body-weight.js"), read("styles.css"),
+    read("supabase/migrations/20260819090000_add_body_weight_data.sql"), read("README.md"),
+    read("docs/DESIGN_RULES.md"), read("docs/BODY_WEIGHT_DATA.md"), read("service-worker.js"),
+  ]);
+  assert.match(html, /data-page="settings"/);
+  assert.match(html, /id="body-weight-file"[^>]*accept=".csv,text\/csv"/);
+  assert.match(html, /id="body-weight-preview"/);
+  assert.match(html, /id="delete-body-weight"/);
+  assert.match(html, /id="body-weight-chart"/);
+  assert.match(app, /parseBodyWeightCsv/);
+  assert.match(app, /rpc\("import_body_weight"/);
+  assert.match(app, /rpc\("body_weight_daily_series"/);
+  assert.match(app, /p_rows:/);
+  assert.match(app, /rpc\("delete_body_weight_data"/);
+  assert.match(app, /window\.confirm\(/);
+  assert.match(module, /parseBodyWeightDate/);
+  assert.match(module, /Date\.UTC\(year, month - 1, day\)/);
+  assert.doesNotMatch(module, /MacroFactor/);
+  assert.match(styles, /\.body-weight-marker\.is-measured/);
+  assert.match(migration, /add column import_kind text not null default 'lifting_history'/);
+  assert.match(migration, /create table public\.body_weight_measurements/);
+  assert.match(migration, /unique \(owner_id, measured_on\)/);
+  assert.match(migration, /weight_kg numeric not null check \(weight_kg > 0\)/);
+  assert.match(migration, /alter table public\.body_weight_measurements enable row level security/);
+  assert.match(migration, /for update to authenticated[\s\S]*using[\s\S]*with check/);
+  assert.match(migration, /security invoker/g);
+  assert.match(migration, /on conflict \(owner_id, measured_on\) do update/);
+  assert.match(migration, /generate_series\(first_day, last_day/);
+  assert.match(migration, /case when previous_measured_on = next_measured_on then 'measured' else 'interpolated'/);
+  assert.match(migration, /revoke all on function public\.import_body_weight[\s\S]*from public, anon/);
+  assert.match(readme, /Relative-to-body-weight estimated 1RM is not part/);
+  assert.match(designRules, /Interpolation is a mathematical convenience/);
+  assert.match(documentation, /No calculated rows are written/);
+  assert.match(serviceWorker, /body-weight\.js/);
+  assert.match(serviceWorker, /BODY_WEIGHT_DATA\.md/);
 });

@@ -16,7 +16,7 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=23" />
+    <link rel="stylesheet" href="./styles.css?v=24" />
     <title>Lorenzo's Lifting Ledger | Evidence-aware training data</title>
     <script type="application/ld+json">
       {
@@ -246,6 +246,10 @@
               <span class="menu-icon literature-icon" aria-hidden="true">§</span>
               Literature
             </button>
+            <button class="menu-item" type="button" data-page="settings">
+              <span class="menu-icon" aria-hidden="true">⚙</span>
+              Settings
+            </button>
           </nav>
         </aside>
 
@@ -330,6 +334,13 @@
             </fieldset>
           </header>
           <p id="dashboard-status" class="dashboard-status" aria-live="polite">Loading your dashboard…</p>
+          <section class="dashboard-section body-weight-section" aria-labelledby="body-weight-chart-title">
+            <div class="section-heading">
+              <div><p class="section-kicker">Kilograms over time</p><h2 id="body-weight-chart-title">Body weight</h2><p>Markers are imported scale measurements. The connecting daily line uses linear interpolation only between measurements.</p></div>
+            </div>
+            <div id="body-weight-chart" class="body-weight-chart" role="img"></div>
+            <div id="body-weight-empty" class="empty-chart" hidden>No body-weight data in this period. Import a CSV from <button type="button" class="inline-button" data-page-link="settings">Settings</button>.</div>
+          </section>
           <div id="dashboard-empty" class="dashboard-empty" hidden></div>
 
           <div id="dashboard-content" hidden>
@@ -383,6 +394,32 @@
               </div>
             </details>
           </div>
+        </section>
+
+        <section id="settings-page" class="page-panel" data-page-panel="settings" hidden>
+          <header class="data-header settings-header">
+            <div><p class="eyebrow">Account data</p><h1>Settings</h1></div>
+          </header>
+          <section class="dashboard-section settings-section" aria-labelledby="body-weight-data-title">
+            <div class="section-heading">
+              <div><h2 id="body-weight-data-title">Body Weight Data</h2><p>Import measured scale weights in kilograms. Missing days between measurements are calculated by linear interpolation and are never stored as observations.</p></div>
+            </div>
+            <dl id="body-weight-summary" class="body-weight-summary">
+              <div><dt>Measurements</dt><dd id="body-weight-count">0</dd></div>
+              <div><dt>Measured coverage</dt><dd id="body-weight-coverage">No data</dd></div>
+            </dl>
+            <form id="body-weight-import-form" class="body-weight-import-form">
+              <label for="body-weight-file">Body-weight CSV<input id="body-weight-file" type="file" accept=".csv,text/csv" required /></label>
+              <p class="section-note">Column A must be a date in DD/MM/YYYY format and column B a positive weight in kg. Other columns are ignored.</p>
+              <div id="body-weight-preview" class="body-weight-preview" hidden></div>
+              <p id="body-weight-import-status" class="dashboard-status" role="status" aria-live="polite"></p>
+              <button id="body-weight-import-button" class="primary-button" type="submit" disabled>Import measurements</button>
+            </form>
+            <div class="danger-zone">
+              <div><h3>Delete body-weight data</h3><p>Removes only your body-weight measurements and their import provenance.</p></div>
+              <button id="delete-body-weight" type="button" disabled>Delete body-weight data</button>
+            </div>
+          </section>
         </section>
 
         <section id="my-stuff-page" class="page-panel" data-page-panel="my-stuff" hidden>
@@ -673,6 +710,6 @@
       </section>
     </main>
 
-    <script type="module" src="./app.js?v=31"></script>
+    <script type="module" src="./app.js?v=33"></script>
   </body>
 </html>

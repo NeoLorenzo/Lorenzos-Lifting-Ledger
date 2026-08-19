@@ -1,11 +1,12 @@
-const CACHE_NAME = "lifting-ledger-v34";
+const CACHE_NAME = "lifting-ledger-v36";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=23",
-  "./app.js?v=31",
+  "./styles.css?v=24",
+  "./app.js?v=33",
   "./analytics.js",
   "./presets.js",
+  "./body-weight.js",
   "./literature.js",
   "./config.js",
   "./manifest.webmanifest",
@@ -14,6 +15,7 @@ const APP_SHELL = [
   "./icons/icon.svg",
   "./docs/CURRENT_LIMITATIONS_OF_MUSCLE_GROUP_MAPPING.md",
   "./docs/DESIGN_RULES.md",
+  "./docs/BODY_WEIGHT_DATA.md",
   "./docs/MUSCLE_GROUP_TAXONOMY.md",
   "./docs/EXERCISE_MUSCLE_COMPOSITION.md",
   "./docs/EXERCISE_TO_MUSCLE_HYPERTROPHIC_RELEVANCE.md",
