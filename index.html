@@ -370,7 +370,7 @@
 
             <section class="dashboard-section progression-section" aria-labelledby="progression-title">
               <div class="section-heading progression-heading">
-                <div><h2 id="progression-title">Exercise progression</h2><p>Estimated 1RM is secondary context for the same exercise only—not a measured max. Different machines or equipment are shown as separate, color-keyed lines.</p></div>
+                <div><h2 id="progression-title">Exercise progression</h2><p>Estimated 1RM is secondary context for the same exercise only—not a measured max. When relative mode is enabled, each estimate is divided by body weight on its workout date. Different machines or equipment are shown as separate, color-keyed lines.</p></div>
                 <label class="exercise-select-label" for="progression-exercise">Exercise<select id="progression-exercise"></select></label>
               </div>
               <p id="progression-status" class="section-note"></p>
@@ -391,6 +391,7 @@
                 <p><strong>Sessions</strong> counts dated workout records in the selected period. <strong>Working sets</strong> excludes warm-ups. <strong>Exercises trained</strong> counts exact catalogue exercise names with a working set.</p>
                 <p><strong>Modelled muscle exposure</strong> adds the authored exercise–muscle relevance coefficient for every working set. A UI group's value uses the highest child-muscle coefficient for each set, preventing groups with more anatomical entities from being inflated.</p>
                 <p><strong>Exercise progression</strong> includes exercises recorded in at least two sessions and selects one representative working set per equipment identity in each session: highest valid estimated-1RM midpoint, otherwise highest load, with repetitions breaking load ties. Equipment identities share the chart scale but keep separate lines and colors.</p>
+                <p><strong>Relative estimated 1RM</strong> divides both absolute e1RM range bounds by measured or interpolated body weight on the workout date. It is shown in × BW, is unavailable outside body-weight coverage, and never changes the stored absolute estimate.</p>
               </div>
             </details>
           </div>
@@ -408,6 +409,11 @@
               <div><dt>Measurements</dt><dd id="body-weight-count">0</dd></div>
               <div><dt>Measured coverage</dt><dd id="body-weight-coverage">No data</dd></div>
             </dl>
+            <label class="relative-e1rm-setting" for="relative-e1rm-enabled">
+              <input id="relative-e1rm-enabled" type="checkbox" />
+              <span><strong>Show estimated 1RM relative to body weight</strong><small>Uses measured or interpolated body weight on each workout date. Dates outside your body-weight coverage remain unavailable.</small></span>
+            </label>
+            <p id="relative-e1rm-status" class="dashboard-status" role="status" aria-live="polite"></p>
             <form id="body-weight-import-form" class="body-weight-import-form">
               <label for="body-weight-file">Body-weight CSV<input id="body-weight-file" type="file" accept=".csv,text/csv" required /></label>
               <p class="section-note">Column A must be a date in DD/MM/YYYY format and column B a positive weight in kg. Other columns are ignored.</p>
@@ -710,6 +716,6 @@
       </section>
     </main>
 
-    <script type="module" src="./app.js?v=33"></script>
+    <script type="module" src="./app.js?v=34"></script>
   </body>
 </html>

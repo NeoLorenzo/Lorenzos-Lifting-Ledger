@@ -3,6 +3,7 @@ import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./config.js";
 import { LITERATURE_DOCUMENTS, renderMarkdown } from "./literature.js";
 import { normalizePresetName, uniqueSessionExercises, validatePresetDraft } from "./presets.js";
 import { canonicalizeBodyWeightObservations, formatBodyWeightDate, parseBodyWeightCsv } from "./body-weight.js";
+import { getOneRepMaxMidpoint, resolveOneRepMaxRange } from "./relative-e1rm.js";
 import {
   calculateExerciseSources,
   calculateExposureTrend,
@@ -14,7 +15,6 @@ import {
   filterByRange,
   getDateRange,
   getEquipmentSeriesKey,
-  getEstimatedOneRepMax,
   getGroupCatalogue,
   getRepeatedExercises,
   joinDashboardData,
@@ -93,6 +93,8 @@ const bodyWeightImportStatus = document.querySelector("#body-weight-import-statu
 const bodyWeightCount = document.querySelector("#body-weight-count");
 const bodyWeightCoverage = document.querySelector("#body-weight-coverage");
 const deleteBodyWeightButton = document.querySelector("#delete-body-weight");
+const relativeE1rmEnabledInput = document.querySelector("#relative-e1rm-enabled");
+const relativeE1rmStatus = document.querySelector("#relative-e1rm-status");
 const documentBack = document.querySelector("#document-back");
 const documentLabel = document.querySelector("#document-label");
 const documentTitle = document.querySelector("#document-title");
@@ -158,6 +160,7 @@ let activeWorkoutSession = null;
 let activeSessionLoadedForUser = null;
 let activeSessionLoadingForUser = null;
 let pendingBodyWeightImport = null;
+let bodyWeightUserState = createEmptyBodyWeightUserState();
 const EXERCISE_SERIES_COLORS = Object.freeze([
   "#60a5fa", "#c084fc", "#f59e0b", "#22d3ee", "#f472b6",
   "#818cf8", "#fb923c", "#2dd4bf", "#eab308", "#a78bfa",
@@ -214,6 +217,7 @@ progressionSelect.addEventListener("change", () => {
 bodyWeightFile.addEventListener("change", previewBodyWeightFile);
 bodyWeightImportForm.addEventListener("submit", importBodyWeightFile);
 deleteBodyWeightButton.addEventListener("click", deleteBodyWeightData);
+relativeE1rmEnabledInput.addEventListener("change", saveRelativeE1rmSetting);
 window.addEventListener("scroll", updateContextualNavTitle, { passive: true });
 window.addEventListener("resize", updateContextualNavTitle);
 
@@ -418,9 +422,11 @@ function renderSession(session) {
     resetLiftList();
     resetDashboard();
     resetPresets();
+    resetBodyWeightUserState();
     window.setTimeout(() => {
       void loadActiveSession(supabaseClient);
       void ensureGlobalExerciseCatalogue(supabaseClient).then(populateSessionExerciseOptions).catch(() => {});
+      void ensureBodyWeightUserState(supabaseClient);
       void loadSessions(supabaseClient);
     }, 0);
     return;
@@ -440,6 +446,7 @@ function showSignedOut() {
   resetLiftList();
   resetDashboard();
   resetPresets();
+  resetBodyWeightUserState();
   const documentId = new URLSearchParams(window.location.search).get("literature");
   if (documentId && LITERATURE_DOCUMENTS[documentId]) {
     void openPublicLiteratureDocument(documentId, false);
@@ -627,7 +634,7 @@ async function loadDashboard(supabase) {
   dashboardStatus.textContent = "Loading your dashboard…";
 
   try {
-    const [sessions, exercises, sets, , bodyWeightResult] = await Promise.all([
+    const [sessions, exercises, sets, , bodyWeightState] = await Promise.all([
       fetchOwnedRows(supabase, "workout_sessions", "id, performed_on, status", requestedUserId),
       fetchOwnedRows(supabase, "session_exercises", "id, session_id, exercise_id, exercise, equipment_id", requestedUserId),
       fetchOwnedRows(
@@ -637,17 +644,15 @@ async function loadDashboard(supabase) {
         requestedUserId,
       ),
       ensureExerciseMuscleLookup(supabase),
-      supabase.rpc("body_weight_daily_series"),
+      ensureBodyWeightUserState(supabase),
     ]);
-
-    if (bodyWeightResult.error) throw bodyWeightResult.error;
 
     if (requestedUserId !== activeUserId) return;
     const completedSessions = sessions.filter((session) => session.status === "completed");
     dashboardData = {
       sessions: completedSessions,
       records: joinDashboardData(completedSessions, exercises, sets),
-      bodyWeights: normalizeBodyWeightSeries(bodyWeightResult.data ?? []),
+      bodyWeights: bodyWeightState.dailySeries,
     };
     renderDashboard();
     dashboardLoadedForUser = requestedUserId;
@@ -785,15 +790,17 @@ async function importBodyWeightFile(event) {
   pendingBodyWeightImport = null;
   bodyWeightFile.value = "";
   bodyWeightPreview.hidden = true;
-  dashboardLoadedForUser = null;
-  dashboardData = null;
+  resetBodyWeightUserState();
+  await ensureBodyWeightUserState(supabaseClient, true);
+  invalidateE1rmPresentations();
   await loadBodyWeightSummary(supabaseClient);
 }
 
 async function loadBodyWeightSummary(supabase) {
   const requestedUserId = activeUserId;
   if (!requestedUserId) return;
-  const [countResult, firstResult, lastResult] = await Promise.all([
+  const [bodyWeightState, countResult, firstResult, lastResult] = await Promise.all([
+    ensureBodyWeightUserState(supabase),
     supabase.from("body_weight_measurements").select("id", { count: "exact", head: true }).eq("owner_id", requestedUserId),
     supabase.from("body_weight_measurements").select("measured_on").eq("owner_id", requestedUserId).order("measured_on", { ascending: true }).limit(1).maybeSingle(),
     supabase.from("body_weight_measurements").select("measured_on").eq("owner_id", requestedUserId).order("measured_on", { ascending: false }).limit(1).maybeSingle(),
@@ -807,6 +814,7 @@ async function loadBodyWeightSummary(supabase) {
   bodyWeightCount.textContent = count.toLocaleString();
   bodyWeightCoverage.textContent = count ? `${formatBodyWeightDate(firstResult.data.measured_on)} to ${formatBodyWeightDate(lastResult.data.measured_on)}` : "No data";
   deleteBodyWeightButton.disabled = count === 0;
+  renderRelativeE1rmSetting(bodyWeightState);
 }
 
 async function deleteBodyWeightData() {
@@ -819,9 +827,106 @@ async function deleteBodyWeightData() {
     deleteBodyWeightButton.disabled = false;
     return;
   }
-  dashboardLoadedForUser = null;
-  dashboardData = null;
+  resetBodyWeightUserState();
+  await ensureBodyWeightUserState(supabaseClient, true);
+  invalidateE1rmPresentations();
   await loadBodyWeightSummary(supabaseClient);
+}
+
+function createEmptyBodyWeightUserState() {
+  return {
+    userId: null,
+    loaded: false,
+    loading: null,
+    dailySeries: [],
+    weightByDate: new Map(),
+    hasBodyWeight: false,
+    storedRelativeEnabled: false,
+    effectiveRelativeEnabled: false,
+  };
+}
+
+function resetBodyWeightUserState() {
+  bodyWeightUserState = createEmptyBodyWeightUserState();
+  relativeE1rmEnabledInput.checked = false;
+  relativeE1rmEnabledInput.disabled = true;
+  relativeE1rmStatus.textContent = "";
+}
+
+async function ensureBodyWeightUserState(supabase, force = false) {
+  const requestedUserId = activeUserId;
+  if (!requestedUserId) return createEmptyBodyWeightUserState();
+  if (!force && bodyWeightUserState.loaded && bodyWeightUserState.userId === requestedUserId) return bodyWeightUserState;
+  if (!force && bodyWeightUserState.loading && bodyWeightUserState.userId === requestedUserId) return bodyWeightUserState.loading;
+
+  const loading = (async () => {
+    const [seriesResult, settingsResult] = await Promise.all([
+      supabase.rpc("body_weight_daily_series"),
+      supabase.from("user_settings").select("relative_e1rm_enabled").eq("owner_id", requestedUserId).maybeSingle(),
+    ]);
+    const error = seriesResult.error ?? settingsResult.error;
+    if (error) throw error;
+    if (requestedUserId !== activeUserId) return createEmptyBodyWeightUserState();
+    const dailySeries = normalizeBodyWeightSeries(seriesResult.data ?? []);
+    const hasBodyWeight = dailySeries.length > 0;
+    const storedRelativeEnabled = settingsResult.data?.relative_e1rm_enabled === true;
+    bodyWeightUserState = {
+      userId: requestedUserId,
+      loaded: true,
+      loading: null,
+      dailySeries,
+      weightByDate: new Map(dailySeries.map((item) => [item.measured_on, Number(item.weight_kg)])),
+      hasBodyWeight,
+      storedRelativeEnabled,
+      effectiveRelativeEnabled: hasBodyWeight && storedRelativeEnabled,
+    };
+    renderRelativeE1rmSetting(bodyWeightUserState);
+    return bodyWeightUserState;
+  })();
+  bodyWeightUserState = { ...createEmptyBodyWeightUserState(), userId: requestedUserId, loading };
+  return loading;
+}
+
+function renderRelativeE1rmSetting(state = bodyWeightUserState) {
+  relativeE1rmEnabledInput.disabled = !state.hasBodyWeight;
+  relativeE1rmEnabledInput.checked = state.hasBodyWeight && state.storedRelativeEnabled;
+  if (!state.hasBodyWeight) relativeE1rmStatus.textContent = "Import body-weight data to enable relative estimated 1RM.";
+  else if (!relativeE1rmStatus.textContent.startsWith("Could not")) relativeE1rmStatus.textContent = "";
+}
+
+async function saveRelativeE1rmSetting() {
+  if (!supabaseClient || !activeUserId || !bodyWeightUserState.hasBodyWeight) {
+    renderRelativeE1rmSetting();
+    return;
+  }
+  const requestedUserId = activeUserId;
+  const enabled = relativeE1rmEnabledInput.checked;
+  relativeE1rmEnabledInput.disabled = true;
+  relativeE1rmStatus.textContent = "Saving preference…";
+  const { error } = await supabaseClient.from("user_settings").upsert({
+    owner_id: requestedUserId,
+    relative_e1rm_enabled: enabled,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "owner_id" });
+  if (error || requestedUserId !== activeUserId) {
+    relativeE1rmStatus.textContent = `Could not save preference: ${error?.message ?? "Your session changed."}`;
+    renderRelativeE1rmSetting();
+    return;
+  }
+  bodyWeightUserState.storedRelativeEnabled = enabled;
+  bodyWeightUserState.effectiveRelativeEnabled = enabled && bodyWeightUserState.hasBodyWeight;
+  relativeE1rmStatus.textContent = enabled ? "Relative estimated 1RM enabled." : "Absolute estimated 1RM enabled.";
+  relativeE1rmEnabledInput.disabled = false;
+  invalidateE1rmPresentations();
+}
+
+function invalidateE1rmPresentations() {
+  resetSessionResults();
+  resetDashboard();
+  if (activeUserId && supabaseClient) {
+    if (activePageName === "session-history") void loadSessions(supabaseClient);
+    if (activePageName === "my-data") void loadDashboard(supabaseClient);
+  }
 }
 
 function renderBodyWeightChart(values) {
@@ -1053,11 +1158,23 @@ function renderExerciseProgression() {
   }
   const range = getDateRange(dashboardRange, new Date(), dashboardData.sessions);
   const representatives = selectRepresentativeSetsBySeries(filterByRange(dashboardData.records, range), selectedProgressionExercise);
-  const estimates = representatives.map((record) => ({ record, value: getEstimatedOneRepMax(record) })).filter((item) => item.value !== null);
+  const estimates = representatives.map((record) => {
+    const displayRange = resolveProgressionOneRepMax(record);
+    return { record, displayRange, value: getOneRepMaxMidpoint(displayRange) };
+  }).filter((item) => item.value !== null);
+  const uncoveredCount = bodyWeightUserState.effectiveRelativeEnabled
+    ? representatives.filter((record) => {
+      const absoluteRange = resolveOneRepMaxRange({ low: record.estimated_1rm_low, high: record.estimated_1rm_high, exerciseName: record.exercise });
+      return absoluteRange?.available && !resolveProgressionOneRepMax(record)?.available;
+    }).length
+    : 0;
   const sessionCount = new Set(representatives.map((record) => record.session_id)).size;
   const seriesKeys = [...new Set(representatives.map(getEquipmentSeriesKey))];
   const seriesColors = assignExerciseSeriesColors(selectedProgressionExercise, seriesKeys);
-  progressionStatus.textContent = `${sessionCount} sessions · one representative working set per machine in each session`;
+  progressionStatus.textContent = [
+    `${sessionCount} sessions · one representative working set per machine in each session`,
+    uncoveredCount ? `${uncoveredCount} ${uncoveredCount === 1 ? "record has" : "records have"} no body weight for its workout date and ${uncoveredCount === 1 ? "is" : "are"} not plotted` : null,
+  ].filter(Boolean).join(" · ");
   renderProgressionTrend(estimates, sessionCount, seriesColors);
   const fragment = document.createDocumentFragment();
   for (const record of [...representatives].reverse()) {
@@ -1079,8 +1196,12 @@ function renderExerciseProgression() {
     const reps = record.reps === null ? "reps not recorded" : `${record.reps} ${record.reps === 1 ? "rep" : "reps"}`;
     performance.textContent = `${load} × ${reps}`;
     const context = document.createElement("span");
-    const estimate = getEstimatedOneRepMax(record);
-    context.textContent = [record.rpe === null ? "RPE not recorded" : `RPE ${formatDecimal(Number(record.rpe))}`, estimate === null ? null : `e1RM ~${Math.round(estimate)} ${formatWeightUnit(record.exercise)}`].filter(Boolean).join(" · ");
+    const displayRange = resolveProgressionOneRepMax(record);
+    const estimate = getOneRepMaxMidpoint(displayRange);
+    const estimateLabel = !displayRange ? null : displayRange.available
+      ? `e1RM ~${formatOneRepMaxValue(estimate, displayRange.relative)} ${displayRange.unit}`
+      : displayRange.reason;
+    context.textContent = [record.rpe === null ? "RPE not recorded" : `RPE ${formatDecimal(Number(record.rpe))}`, estimateLabel].filter(Boolean).join(" · ");
     row.append(date, series, performance, context);
     fragment.append(row);
   }
@@ -1094,7 +1215,9 @@ function renderProgressionTrend(estimates, sessionCount, seriesColors) {
     return;
   }
   const scale = createLinearScale(estimates.map((item) => item.value));
-  const unit = formatWeightUnit(selectedProgressionExercise);
+  const unit = bodyWeightUserState.effectiveRelativeEnabled
+    ? (/\(Dumbbell\)/i.test(selectedProgressionExercise) ? "× BW per dumbbell" : "× BW")
+    : formatWeightUnit(selectedProgressionExercise);
   const plottedSeries = [...new Set(estimates.map((item) => getEquipmentSeriesKey(item.record)))].sort();
   const legend = document.createElement("div");
   legend.className = "progression-legend";
@@ -1120,7 +1243,7 @@ function renderProgressionTrend(estimates, sessionCount, seriesColors) {
   for (const tick of scale.ticks) {
     const label = document.createElement("span");
     label.style.bottom = `${scale.position(tick)}%`;
-    label.textContent = Math.round(tick).toLocaleString();
+    label.textContent = formatOneRepMaxValue(tick, bodyWeightUserState.effectiveRelativeEnabled);
     tickLayer.append(label);
   }
   yAxis.append(axisTitle, tickLayer);
@@ -1169,10 +1292,10 @@ function renderProgressionTrend(estimates, sessionCount, seriesColors) {
     marker.style.bottom = `${point.y}%`;
     marker.style.setProperty("--series-color", seriesColors.get(point.seriesKey));
     marker.tabIndex = 0;
-    marker.setAttribute("aria-label", `${formatShortDate(point.record.performed_on)}: estimated 1RM approximately ${Math.round(point.value)} ${unit}`);
+    marker.setAttribute("aria-label", `${formatShortDate(point.record.performed_on)}: estimated 1RM approximately ${formatOneRepMaxValue(point.value, point.displayRange.relative)} ${unit}`);
     const value = document.createElement("span");
     value.className = "progression-marker-value";
-    value.textContent = `~${Math.round(point.value)}`;
+    value.textContent = `~${formatOneRepMaxValue(point.value, point.displayRange.relative)}`;
     const dot = document.createElement("span");
     dot.className = "progression-marker-dot";
     const tooltip = document.createElement("span");
@@ -1184,11 +1307,11 @@ function renderProgressionTrend(estimates, sessionCount, seriesColors) {
     const tooltipSeries = document.createElement("span");
     tooltipSeries.textContent = formatEquipmentLabel(point.record.equipment_id);
     const tooltipPerformance = document.createElement("span");
-    const load = point.record.weight === null ? "Load not recorded" : `${formatDecimal(Number(point.record.weight))} ${unit}`;
+    const load = point.record.weight === null ? "Load not recorded" : `${formatDecimal(Number(point.record.weight))} ${formatWeightUnit(point.record.exercise)}`;
     const reps = point.record.reps === null ? "reps not recorded" : `${point.record.reps} ${point.record.reps === 1 ? "rep" : "reps"}`;
     tooltipPerformance.textContent = `${load} × ${reps}`;
     const tooltipContext = document.createElement("span");
-    tooltipContext.textContent = `${point.record.rpe === null ? "RPE not recorded" : `RPE ${formatDecimal(Number(point.record.rpe))}`} · e1RM ~${Math.round(point.value)} ${unit}`;
+    tooltipContext.textContent = `${point.record.rpe === null ? "RPE not recorded" : `RPE ${formatDecimal(Number(point.record.rpe))}`} · e1RM ~${formatOneRepMaxValue(point.value, point.displayRange.relative)} ${unit}`;
     tooltip.append(tooltipDate, tooltipSeries, tooltipPerformance, tooltipContext);
     marker.setAttribute("aria-describedby", tooltip.id);
     marker.append(value, dot, tooltip);
@@ -1206,6 +1329,23 @@ function renderProgressionTrend(estimates, sessionCount, seriesColors) {
   chartBody.append(plot, xLabels);
   progressionChart.replaceChildren(legend, yAxis, chartBody);
   progressionChart.setAttribute("aria-label", `Line chart of estimated one-rep max for ${selectedProgressionExercise}, in ${unit}, with machine series identified by color and text keys.`);
+}
+
+function resolveProgressionOneRepMax(record) {
+  return resolveOneRepMaxRange({
+    low: record.estimated_1rm_low,
+    high: record.estimated_1rm_high,
+    exerciseName: record.exercise,
+    performedOn: record.performed_on,
+    relativeEnabled: bodyWeightUserState.effectiveRelativeEnabled,
+    weightByDate: bodyWeightUserState.weightByDate,
+  });
+}
+
+function formatOneRepMaxValue(value, relative) {
+  return Number(value).toLocaleString(undefined, relative
+    ? { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+    : { maximumFractionDigits: 0 });
 }
 
 function renderRecentChange(groups) {
@@ -1990,9 +2130,10 @@ async function loadSessions(supabase) {
     .order("id", { ascending: false })
     .range(loadedRows, loadedRows + pageSize - 1);
 
-  const [sessionResult, muscleMappingError] = await Promise.all([
+  const [sessionResult, muscleMappingError, bodyWeightStateError] = await Promise.all([
     sessionRequest,
     ensureExerciseMuscleLookup(supabase).then(() => null).catch((error) => error),
+    ensureBodyWeightUserState(supabase).then(() => null).catch((error) => error),
   ]);
   const { data, error, count } = sessionResult;
 
@@ -2008,9 +2149,11 @@ async function loadSessions(supabase) {
   totalRows = count ?? data.length;
   appendSessionRows(data);
   loadedRows += data.length;
-  datasetStatus.textContent = muscleMappingError
-    ? `${totalRows.toLocaleString()} workout sessions · Muscle labels unavailable`
-    : `${totalRows.toLocaleString()} workout sessions`;
+  datasetStatus.textContent = [
+    `${totalRows.toLocaleString()} workout sessions`,
+    muscleMappingError ? "Muscle labels unavailable" : null,
+    bodyWeightStateError ? "Relative e1RM unavailable" : null,
+  ].filter(Boolean).join(" · ");
   loadMoreButton.hidden = loadedRows >= totalRows;
   if (requestedSearch) datasetStatus.textContent = formatSessionResultCount(totalRows, requestedSearch);
   loadMoreButton.disabled = false;
@@ -2070,7 +2213,7 @@ function appendSessionRows(rows) {
     exerciseList.className = "exercise-list";
 
     for (const exercise of exercises) {
-      exerciseList.append(createExerciseItem(exercise));
+      exerciseList.append(createExerciseItem(exercise, session.performed_on));
     }
 
     summaryCopy.append(heading);
@@ -2226,7 +2369,7 @@ async function ensureExerciseMuscleLookup(supabase) {
   return exerciseMuscleLookupPromise;
 }
 
-function createExerciseItem(exercise) {
+function createExerciseItem(exercise, performedOn) {
   const item = document.createElement("li");
   item.className = "exercise-entry";
 
@@ -2260,7 +2403,7 @@ function createExerciseItem(exercise) {
     const weight = set.weight === null ? `— ${weightUnit}` : `${Number(set.weight).toLocaleString()} ${weightUnit}`;
     const reps = set.reps === null ? "— reps" : `${set.reps} reps`;
     const labels = [
-      formatOneRepMaxRange(set.estimated_1rm_low, set.estimated_1rm_high, exercise.exercise),
+      formatOneRepMaxRange(set.estimated_1rm_low, set.estimated_1rm_high, exercise.exercise, performedOn),
       set.is_warmup ? "Warm-up" : null,
       set.is_drop_set ? "Drop set" : null,
       set.is_superset ? "Superset" : null,
@@ -2274,12 +2417,12 @@ function createExerciseItem(exercise) {
   if (muscleViews) item.append(muscleViews);
   item.append(sets);
   editButton.addEventListener("click", () => {
-    showExerciseEditor(item, exercise);
+    showExerciseEditor(item, exercise, performedOn);
   });
   return item;
 }
 
-function showExerciseEditor(item, exercise) {
+function showExerciseEditor(item, exercise, performedOn) {
   const form = document.createElement("form");
   form.className = "exercise-edit-form";
 
@@ -2352,7 +2495,7 @@ function showExerciseEditor(item, exercise) {
   equipmentInput.focus();
 
   cancelButton.addEventListener("click", () => {
-    item.replaceWith(createExerciseItem(exercise));
+    item.replaceWith(createExerciseItem(exercise, performedOn));
   });
 
   form.addEventListener("submit", async (event) => {
@@ -2376,7 +2519,7 @@ function showExerciseEditor(item, exercise) {
 
     try {
       await saveExerciseChanges(exercise, equipmentInput.value.trim() || null, setUpdates);
-      item.replaceWith(createExerciseItem(exercise));
+      item.replaceWith(createExerciseItem(exercise, performedOn));
       datasetStatus.textContent = "Exercise saved. Estimated 1RM values updated.";
     } catch (error) {
       status.textContent = `Could not save changes: ${error.message}`;
@@ -2419,15 +2562,22 @@ async function saveExerciseChanges(exercise, equipmentId, setUpdates) {
   resetDashboard();
 }
 
-function formatOneRepMaxRange(low, high, exerciseName = "") {
-  if (low === null || high === null) return null;
-
-  const lowLabel = Number(low).toLocaleString(undefined, { maximumFractionDigits: 2 });
-  const highLabel = Number(high).toLocaleString(undefined, { maximumFractionDigits: 2 });
-  const unit = formatWeightUnit(exerciseName);
+function formatOneRepMaxRange(low, high, exerciseName = "", performedOn = null) {
+  const range = resolveOneRepMaxRange({
+    low,
+    high,
+    exerciseName,
+    performedOn,
+    relativeEnabled: bodyWeightUserState.effectiveRelativeEnabled,
+    weightByDate: bodyWeightUserState.weightByDate,
+  });
+  if (!range) return null;
+  if (!range.available) return range.reason;
+  const lowLabel = Number(range.low).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  const highLabel = Number(range.high).toLocaleString(undefined, { maximumFractionDigits: 2 });
   return lowLabel === highLabel
-    ? `Estimated 1RM ${lowLabel} ${unit}`
-    : `Estimated 1RM ${lowLabel}–${highLabel} ${unit}`;
+    ? `Estimated 1RM ${lowLabel} ${range.unit}`
+    : `Estimated 1RM ${lowLabel}–${highLabel} ${range.unit}`;
 }
 
 function formatWeightUnit(exerciseName) {

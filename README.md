@@ -42,8 +42,11 @@ All future user-owned tables must enable Row Level Security before the app write
 - `workout_presets` stores each owner-scoped, uniquely named reusable exercise pool.
 - `workout_preset_exercises` stores unordered, deduplicated exercise references plus a reusable set count. Starting from a preset randomizes exercise order and creates blank set slots without copying load, reps, equipment, RPE, or warm-up state.
 - `body_weight_measurements` stores owner-scoped imported scale observations in kilograms, with one canonical measurement per owner per date and a link to `data_imports` provenance.
+- `user_settings` stores the owner-scoped, default-off `relative_e1rm_enabled` presentation preference.
 
-Body-weight CSV imports use column A as an exact `DD/MM/YYYY` date and column B as a positive kilogram value; optional headers and additional ignored columns are supported. The filename and export source are not part of the contract. My Data calculates a daily series only between measured observations using linear interpolation: `W(d) = W1 + (W2 - W1) × (days from d1 / days between d1 and d2)`. Interpolated values remain visibly labelled as calculated, are not persisted as scale observations, and are never extrapolated. Settings supports previewing, importing/correcting, inspecting, and deleting only the signed-in user's body-weight dataset. Relative-to-body-weight estimated 1RM is not part of this subsystem.
+Body-weight CSV imports use column A as an exact `DD/MM/YYYY` date and column B as a positive kilogram value; optional headers and additional ignored columns are supported. The filename and export source are not part of the contract. My Data calculates a daily series only between measured observations using linear interpolation: `W(d) = W1 + (W2 - W1) × (days from d1 / days between d1 and d2)`. Interpolated values remain visibly labelled as calculated, are not persisted as scale observations, and are never extrapolated. Settings supports previewing, importing/correcting, inspecting, and deleting only the signed-in user's body-weight dataset.
+
+When explicitly enabled in Settings, existing absolute e1RM bounds are divided by the measured or interpolated body weight on each workout date and displayed as dimensionless `× BW` values. Absolute generated e1RM columns remain canonical and unchanged. Relative values are unavailable outside body-weight coverage because the app does not extrapolate. Dumbbell relative e1RM remains per dumbbell.
 
 All dumbbell exercise weights use one product-wide convention: the stored value is always the weight of **one dumbbell**, for both unilateral and bilateral exercises. A set performed with two 30 kg dumbbells is therefore stored as `30 kg`, not `60 kg`; dumbbell e1RM values use and retain that same per-dumbbell unit.
 
@@ -57,7 +60,7 @@ The movement-pattern schema, access model, import guarantees, and current follow
 
 The app intentionally does not calculate or display weight × reps, tonnage, or volume load. The scientific and product rationale is documented in [Why the app does not track tonnage](docs/WHY_THE_APP_DOES_NOT_TRACK_TONNAGE.md).
 
-Estimated 1RM values are calculated by Postgres whenever weight or reps changes. Brzycki uses `weight × 36 ÷ (37 − reps)` and Epley uses `weight × (1 + reps ÷ 30)`. The range stores the lower and higher estimates, rounded to two decimal places. Ranges remain empty when a source set has no reps or falls outside Brzycki's valid 1–36 rep domain.
+Estimated 1RM values are calculated by Postgres whenever weight or reps changes. Brzycki uses `weight × 36 ÷ (37 − reps)` and Epley uses `weight × (1 + reps ÷ 30)`. The range stores the lower and higher estimates, rounded to two decimal places. Ranges remain empty when a source set has no reps or falls outside Brzycki's valid 1–36 rep domain. Relative presentation uses `relative e1RM = absolute e1RM ÷ body weight on the workout date`; it does not store or replace those absolute estimates.
 
 ## Live infrastructure
 
@@ -93,6 +96,7 @@ npm test
 - `index.html` — minimal app shell
 - `app.js` — Supabase Google sign-in/session handling
 - `body-weight.js` — generic body-weight CSV parsing, validation, preview, and interpolation helpers
+- `relative-e1rm.js` — pure absolute-to-relative e1RM range and effective-mode helpers
 - `literature.js` — safe in-app Markdown rendering and the Literature document registry
 - `config.js` — public browser configuration only
 - `manifest.webmanifest` and `service-worker.js` — installable PWA metadata and offline shell

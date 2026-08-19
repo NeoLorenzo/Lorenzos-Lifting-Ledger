@@ -2,7 +2,7 @@
 
 ## Purpose and scope
 
-The body-weight subsystem stores imported scale observations and provides a transparent daily series for My Data. Units are kilograms throughout. It does not calculate BMI, body fat, energy needs, trend weight, or relative estimated 1RM.
+The body-weight subsystem stores imported scale observations and provides a transparent daily series for My Data and workout-date-relative e1RM. Scale observations and the daily series use kilograms. It does not calculate BMI, body fat, energy needs, or trend weight.
 
 ## CSV contract
 
@@ -25,3 +25,14 @@ Measured days retain their imported values. Interpolated rows identify their pre
 ## User interface
 
 Settings provides CSV validation and preview, import/correction, measurement count, measured coverage, and explicit confirmed deletion. My Data follows its selected date range and displays imported measurements as visible markers with a line through daily interpolated values. Accessible detail identifies every value as `Measured` or `Interpolated`; interpolated detail includes its surrounding measured observations.
+
+## Relative estimated 1RM
+
+Relative e1RM is a default-off presentation preference. It is usable only while the owner has body-weight measurements. Importing measurements makes the control available but does not enable it; deleting the dataset resets it to off.
+
+For workout date `d`, each existing absolute range bound is transformed independently:
+
+- `relative_e1RM_low = estimated_1rm_low ÷ body_weight(d)`
+- `relative_e1RM_high = estimated_1rm_high ÷ body_weight(d)`
+
+The result is a dimensionless multiple labelled `× BW`. It may use either a measured or transparently interpolated daily weight. It never uses nearest-neighbour filling or extrapolation, so a workout before the first or after the last measurement reports that relative e1RM is unavailable. Absolute e1RM remains the canonical generated database value; the relative range is calculated only for display. For dumbbell exercises, both absolute and relative e1RM retain the one-dumbbell convention and use `× BW per dumbbell` where needed.

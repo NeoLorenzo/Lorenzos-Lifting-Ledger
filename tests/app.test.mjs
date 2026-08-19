@@ -424,7 +424,7 @@ test("defines and applies one per-dumbbell weight convention", async () => {
 
   assert.doesNotMatch(html, /dumbbell/i);
   assert.match(app, /\? "kg per dumbbell" : "kg"/);
-  assert.match(app, /formatOneRepMaxRange\(set\.estimated_1rm_low, set\.estimated_1rm_high, exercise\.exercise\)/);
+  assert.match(app, /formatOneRepMaxRange\(set\.estimated_1rm_low, set\.estimated_1rm_high, exercise\.exercise, performedOn\)/);
   assert.match(designRules, /Dumbbell weight is always per dumbbell/);
   assert.match(designRules, /never infer or display the combined weight/i);
   assert.match(readme, /stored value is always the weight of \*\*one dumbbell\*\*/);
@@ -531,7 +531,7 @@ test("searches session history by exercise and edits owned exercise sets", async
   assert.match(app, /session_exercises\$\{requestedSearch \? "!inner" : ""\}/);
   assert.match(app, /\.ilike\("session_exercises\.exercise"/);
   assert.match(app, /exercise_sets\(id, set_number, weight, reps/);
-  assert.match(app, /showExerciseEditor\(item, exercise\)/);
+  assert.match(app, /showExerciseEditor\(item, exercise, performedOn\)/);
   assert.match(app, /\.from\("session_exercises"\)[\s\S]+\.update\(\{ equipment_id: equipmentId \}\)/);
   assert.match(app, /\.from\("exercise_sets"\)[\s\S]+\.update\(\{ weight: set\.weight, reps: set\.reps \}\)/);
   assert.match(app, /\.eq\("owner_id", requestedUserId\)/);
@@ -636,7 +636,7 @@ test("creates, resumes, and concludes one persisted active workout session", asy
   assert.match(migration, /security invoker/);
   assert.match(migration, /set search_path = ''/);
   assert.match(migration, /revoke all on function public\.start_or_resume_workout_session\(\) from public, anon/);
-  assert.match(serviceWorker, /lifting-ledger-v36/);
+  assert.match(serviceWorker, /lifting-ledger-v37/);
   assert.match(app, /function renderSessionPresetList\(\)/);
   assert.match(setCountMigration, /row_number\(\) over \(order by random\(\)\)/);
   assert.match(setCountMigration, /generate_series\(1, membership\.set_count\)/);
@@ -675,9 +675,44 @@ test("provides owner-scoped body-weight import, interpolation, settings, and ana
   assert.match(migration, /generate_series\(first_day, last_day/);
   assert.match(migration, /case when previous_measured_on = next_measured_on then 'measured' else 'interpolated'/);
   assert.match(migration, /revoke all on function public\.import_body_weight[\s\S]*from public, anon/);
-  assert.match(readme, /Relative-to-body-weight estimated 1RM is not part/);
+  assert.match(readme, /Absolute generated e1RM columns remain canonical and unchanged/);
   assert.match(designRules, /Interpolation is a mathematical convenience/);
   assert.match(documentation, /No calculated rows are written/);
   assert.match(serviceWorker, /body-weight\.js/);
   assert.match(serviceWorker, /BODY_WEIGHT_DATA\.md/);
+});
+
+test("applies the persisted relative-e1RM preference across history and progression", async () => {
+  const [html, app, relativeModule, migration, readme, bodyWeightDocs, designRules, serviceWorker] = await Promise.all([
+    read("index.html"), read("app.js"), read("relative-e1rm.js"),
+    read("supabase/migrations/20260819120000_reconcile_relative_e1rm_user_settings.sql"),
+    read("README.md"), read("docs/BODY_WEIGHT_DATA.md"), read("docs/DESIGN_RULES.md"), read("service-worker.js"),
+  ]);
+  assert.match(html, /id="relative-e1rm-enabled"[^>]*type="checkbox"/);
+  assert.match(html, /body weight on each workout date/i);
+  assert.match(app, /ensureBodyWeightUserState\(supabase\)/);
+  assert.match(app, /new Map\(dailySeries\.map/);
+  assert.match(app, /from\("user_settings"\)\.select\("relative_e1rm_enabled"\)/);
+  assert.match(app, /from\("user_settings"\)\.upsert/);
+  assert.match(app, /effectiveRelativeEnabled: hasBodyWeight && storedRelativeEnabled/);
+  assert.match(app, /createExerciseItem\(exercise, session\.performed_on\)/);
+  assert.match(app, /resolveProgressionOneRepMax\(record\)/);
+  assert.match(app, /× BW per dumbbell/);
+  assert.match(app, /no body weight for its workout date and/);
+  assert.match(relativeModule, /lowValue \/ bodyWeight/);
+  assert.match(relativeModule, /highValue \/ bodyWeight/);
+  assert.match(relativeModule, /weightByDate\.get\(performedOn\)/);
+  assert.match(relativeModule, /Relative e1RM unavailable — no body weight for this date/);
+  assert.match(migration, /create table if not exists public\.user_settings/);
+  assert.match(migration, /relative_e1rm_enabled boolean not null default false/);
+  assert.match(migration, /alter table public\.user_settings enable row level security/);
+  assert.match(migration, /for update to authenticated[\s\S]*using[\s\S]*with check/);
+  assert.match(migration, /revoke all on table public\.user_settings from anon, authenticated/);
+  assert.match(migration, /grant select, insert, update on table public\.user_settings to authenticated/);
+  assert.doesNotMatch(migration, /grant[^;]*truncate/i);
+  assert.match(migration, /set relative_e1rm_enabled = false, updated_at = now\(\)/);
+  assert.match(readme, /relative e1RM = absolute e1RM ÷ body weight on the workout date/);
+  assert.match(bodyWeightDocs, /dimensionless multiple labelled `× BW`/);
+  assert.match(designRules, /Normalization does not make e1RM measured or more accurate/);
+  assert.match(serviceWorker, /relative-e1rm\.js/);
 });
