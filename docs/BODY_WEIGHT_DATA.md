@@ -2,7 +2,7 @@
 
 ## Purpose and scope
 
-The body-weight subsystem stores imported scale observations and provides a transparent daily series for My Data and workout-date-relative e1RM. Scale observations and the daily series use kilograms. It does not calculate BMI, body fat, energy needs, or trend weight.
+The body-weight subsystem stores imported scale observations and provides a transparent daily series for workout-date-relative e1RM. Scale observations and the daily series use kilograms. It does not calculate BMI, body fat, energy needs, trend weight, or a body-weight visualization.
 
 ## CSV contract
 
@@ -14,7 +14,7 @@ The full file is validated before persistence. Impossible dates, malformed nonbl
 
 `body_weight_measurements` contains actual imported observations only. Rows are owner-scoped with RLS, linked to a `data_imports` row whose `import_kind` is `body_weight`, and constrained to one canonical measurement per owner and date. A later valid import updates an overlapping date. An exact source reimport reuses its provenance identity and cannot duplicate the canonical measurement.
 
-Import runs through one database function and is atomic. Dataset deletion removes only the authenticated owner's body-weight measurements and body-weight import records; workout and global reference data are outside its scope.
+Import runs through one database function and is atomic. `data_imports.imported_at` records the latest successful import event for each provenance row, including exact-source refreshes. Dataset deletion removes only the authenticated owner's body-weight measurements and body-weight import records; workout and global reference data are outside its scope.
 
 ## Daily calculated series
 
@@ -24,7 +24,7 @@ Measured days retain their imported values. Interpolated rows identify their pre
 
 ## User interface
 
-Settings provides CSV validation and preview, import/correction, measurement count, measured coverage, and explicit confirmed deletion. My Data follows its selected date range and displays imported measurements as visible markers with a line through daily interpolated values. Accessible detail identifies every value as `Measured` or `Interpolated`; interpolated detail includes its surrounding measured observations.
+Settings provides CSV validation and preview, import/correction, measurement count, measured coverage, latest successful import time, and explicit confirmed deletion. My Data does not visualize body weight.
 
 ## Relative estimated 1RM
 

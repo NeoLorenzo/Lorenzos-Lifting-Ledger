@@ -1,69 +1,12 @@
 import { canonicalizeBodyWeightObservations, formatBodyWeightDate, parseBodyWeightCsv } from "../body-weight.js";
 import { resolveOneRepMaxRange } from "../relative-e1rm.js";
-import { createLinearScale } from "../analytics.js";
 
 const BODY_WEIGHT_RPC_PAGE_SIZE = 1000;
-
-function formatDecimal(value) {
-  return Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 });
-}
 
 function formatOneRepMaxValue(value, relative) {
   return Number(value).toLocaleString(undefined, relative
     ? { minimumFractionDigits: 2, maximumFractionDigits: 2 }
     : { maximumFractionDigits: 0 });
-}
-
-const DAY_MS = 86_400_000;
-
-function utcDate(value) {
-  if (value instanceof Date) {
-    return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
-  }
-  const [year, month, day] = String(value).slice(0, 10).split("-").map(Number);
-  return new Date(Date.UTC(year, month - 1, day));
-}
-
-function isoDate(value) {
-  return value.toISOString().slice(0, 10);
-}
-
-function addUtcDays(value, days) {
-  return new Date(value.getTime() + days * DAY_MS);
-}
-
-function addUtcMonths(value, months) {
-  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth() + months, 1));
-}
-
-function formatAxisDate(value, includeYear = false) {
-  return new Intl.DateTimeFormat(undefined, {
-    day: includeYear ? undefined : "numeric",
-    month: "short",
-    year: includeYear ? "numeric" : undefined,
-    timeZone: "UTC",
-  }).format(value);
-}
-
-function getBodyWeightDateTicks(range) {
-  const start = range?.start ? utcDate(range.start) : null;
-  const end = range?.end ? utcDate(range.end) : null;
-  if (!start || !end) return [];
-  const days = Math.max(0, Math.round((end - start) / DAY_MS));
-  const ticks = [];
-  const addTick = (value) => {
-    if (value >= start && value <= end && !ticks.some((tick) => tick.getTime() === value.getTime())) ticks.push(value);
-  };
-  const weekSteps = { "4w": 7, "8w": 14, "12w": 28 };
-  if (weekSteps[range.key]) {
-    for (let value = start; value <= end; value = addUtcDays(value, weekSteps[range.key])) addTick(value);
-  } else {
-    const monthStep = range?.key === "6m" ? 1 : days <= 365 ? 1 : days <= 730 ? 3 : days <= 1825 ? 6 : 12;
-    for (let value = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1)); value <= end; value = addUtcMonths(value, monthStep)) addTick(value);
-  }
-  addTick(end);
-  const includeYear = range.key === "all" || start.getUTCFullYear() !== end.getUTCFullYear();
-  return ticks.sort((a, b) => a - b).map((value) => ({ value, label: formatAxisDate(value, includeYear) }));
 }
 
 async function sha256Hex(value) {
@@ -101,8 +44,6 @@ export function createBodyWeightFeature(options) {
   const { getClient, getUserId, onInvalidateE1rmPresentations } = options;
 
   // DOM elements lookup
-  const bodyWeightChart = document.querySelector("#body-weight-chart");
-  const bodyWeightEmpty = document.querySelector("#body-weight-empty");
   const bodyWeightFile = document.querySelector("#body-weight-file");
   const bodyWeightImportForm = document.querySelector("#body-weight-import-form");
   const bodyWeightImportButton = document.querySelector("#body-weight-import-button");
@@ -110,6 +51,7 @@ export function createBodyWeightFeature(options) {
   const bodyWeightImportStatus = document.querySelector("#body-weight-import-status");
   const bodyWeightCount = document.querySelector("#body-weight-count");
   const bodyWeightCoverage = document.querySelector("#body-weight-coverage");
+  const bodyWeightLastImported = document.querySelector("#body-weight-last-imported");
   const deleteBodyWeightButton = document.querySelector("#delete-body-weight");
   const relativeE1rmEnabledInput = document.querySelector("#relative-e1rm-enabled");
   const relativeE1rmStatus = document.querySelector("#relative-e1rm-status");
@@ -321,13 +263,14 @@ export function createBodyWeightFeature(options) {
     const supabase = getClient();
     const requestedUserId = getUserId();
     if (!requestedUserId || !supabase) return;
-    const [bodyWeightState, countResult, firstResult, lastResult] = await Promise.all([
+    const [bodyWeightState, countResult, firstResult, lastResult, importResult] = await Promise.all([
       ensureBodyWeightUserState(),
       supabase.from("body_weight_measurements").select("id", { count: "exact", head: true }).eq("owner_id", requestedUserId),
       supabase.from("body_weight_measurements").select("measured_on").eq("owner_id", requestedUserId).order("measured_on", { ascending: true }).limit(1).maybeSingle(),
       supabase.from("body_weight_measurements").select("measured_on").eq("owner_id", requestedUserId).order("measured_on", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("data_imports").select("imported_at").eq("owner_id", requestedUserId).eq("import_kind", "body_weight").order("imported_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
-    const error = countResult.error ?? firstResult.error ?? lastResult.error;
+    const error = countResult.error ?? firstResult.error ?? lastResult.error ?? importResult.error;
     if (error) {
       if (bodyWeightImportStatus) {
         bodyWeightImportStatus.textContent = `Could not load body-weight status: ${error.message}`;
@@ -339,84 +282,13 @@ export function createBodyWeightFeature(options) {
     if (bodyWeightCoverage) {
       bodyWeightCoverage.textContent = count ? `${formatBodyWeightDate(firstResult.data.measured_on)} to ${formatBodyWeightDate(lastResult.data.measured_on)}` : "No data";
     }
+    if (bodyWeightLastImported) {
+      bodyWeightLastImported.textContent = importResult.data?.imported_at
+        ? new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(importResult.data.imported_at))
+        : "Never imported";
+    }
     if (deleteBodyWeightButton) deleteBodyWeightButton.disabled = count === 0;
     renderRelativeE1rmSetting(bodyWeightState);
-  }
-
-  function renderChart(values, range = null) {
-    if (!bodyWeightChart) return;
-    if (!values.length) {
-      bodyWeightChart.replaceChildren();
-      bodyWeightChart.removeAttribute("aria-label");
-      if (bodyWeightEmpty) bodyWeightEmpty.hidden = false;
-      return;
-    }
-    if (bodyWeightEmpty) bodyWeightEmpty.hidden = true;
-    const scale = createLinearScale(values.map((item) => Number(item.weight_kg)), 6);
-    const plot = document.createElement("div");
-    plot.className = "body-weight-plot";
-    const yAxisLabel = document.createElement("div");
-    yAxisLabel.className = "body-weight-y-axis-label";
-    yAxisLabel.textContent = "Body weight (kg)";
-    const yAxis = document.createElement("div");
-    yAxis.className = "body-weight-y-axis";
-    for (const tick of scale.ticks) {
-      const label = document.createElement("span");
-      label.className = "body-weight-y-tick";
-      label.style.bottom = `${scale.position(tick)}%`;
-      label.textContent = formatDecimal(tick);
-      yAxis.append(label);
-    }
-    const chartArea = document.createElement("div");
-    chartArea.className = "body-weight-chart-area";
-    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svg.setAttribute("viewBox", "0 0 100 100");
-    svg.setAttribute("preserveAspectRatio", "none");
-    svg.setAttribute("aria-hidden", "true");
-    const rangeStart = range?.start ? utcDate(range.start) : utcDate(values[0].measured_on);
-    const rangeEnd = range?.end ? utcDate(range.end) : utcDate(values.at(-1).measured_on);
-    const rangeDuration = rangeEnd.getTime() - rangeStart.getTime();
-    const points = values.map((item) => ({
-      item,
-      x: rangeDuration > 0 ? ((utcDate(item.measured_on) - rangeStart) / rangeDuration) * 100 : 50,
-      y: scale.position(Number(item.weight_kg)),
-    }));
-    const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-    line.setAttribute("class", "body-weight-line");
-    line.setAttribute("points", points.map((point) => `${point.x},${100 - point.y}`).join(" "));
-    svg.append(line);
-    chartArea.append(svg);
-    for (const [index, point] of points.entries()) {
-      if (range?.key !== "4w" || point.item.provenance !== "measured") continue;
-      const marker = document.createElement("span");
-      marker.className = "body-weight-marker is-measured";
-      marker.style.left = `${point.x}%`;
-      marker.style.bottom = `${point.y}%`;
-      marker.tabIndex = 0;
-      const kind = "Measured";
-      marker.setAttribute("aria-label", `${formatBodyWeightDate(point.item.measured_on)}: ${formatDecimal(Number(point.item.weight_kg))} kg, ${kind}`);
-      const tooltip = document.createElement("span");
-      tooltip.id = `body-weight-tooltip-${index}`;
-      tooltip.className = "progression-tooltip";
-      tooltip.setAttribute("role", "tooltip");
-      const detail = "Imported scale observation";
-      tooltip.innerHTML = `<strong>${formatBodyWeightDate(point.item.measured_on)}</strong><span>${formatDecimal(Number(point.item.weight_kg))} kg · ${kind}</span><span>${detail}</span>`;
-      marker.setAttribute("aria-describedby", tooltip.id);
-      marker.append(tooltip);
-      chartArea.append(marker);
-    }
-    const xAxis = document.createElement("div");
-    xAxis.className = "body-weight-x-axis";
-    for (const tick of getBodyWeightDateTicks(range)) {
-      const label = document.createElement("span");
-      label.className = "body-weight-x-tick";
-      label.style.left = `${rangeDuration > 0 ? ((tick.value - rangeStart) / rangeDuration) * 100 : 50}%`;
-      label.textContent = tick.label;
-      xAxis.append(label);
-    }
-    plot.append(yAxisLabel, yAxis, chartArea, xAxis);
-    bodyWeightChart.replaceChildren(plot);
-    bodyWeightChart.setAttribute("aria-label", "Body weight in kilograms over time. Visible markers are measured observations; the daily connecting series is linearly interpolated between them without extrapolation.");
   }
 
   return {
@@ -438,16 +310,6 @@ export function createBodyWeightFeature(options) {
     },
     reset() {
       resetBodyWeightUserState();
-    },
-    renderChart(values, range = null) {
-      renderChart(values, range);
-    },
-    clearChart() {
-      if (bodyWeightChart) {
-        bodyWeightChart.replaceChildren();
-        bodyWeightChart.removeAttribute("aria-label");
-      }
-      if (bodyWeightEmpty) bodyWeightEmpty.hidden = true;
     },
     resolveOneRepMaxRange({ low, high, exerciseName, performedOn }) {
       return resolveOneRepMaxRange({

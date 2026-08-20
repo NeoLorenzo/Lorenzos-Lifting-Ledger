@@ -664,7 +664,8 @@ test("provides owner-scoped body-weight import, interpolation, settings, and ana
   assert.match(html, /id="body-weight-file"[^>]*accept=".csv,text\/csv"/);
   assert.match(html, /id="body-weight-preview"/);
   assert.match(html, /id="delete-body-weight"/);
-  assert.match(html, /id="body-weight-chart"/);
+  assert.doesNotMatch(html, /id="body-weight-chart"/);
+  assert.match(html, /id="body-weight-last-imported">Never imported/);
   assert.match(feature, /parseBodyWeightCsv/);
   assert.match(feature, /rpc\("import_body_weight"/);
   assert.match(feature, /rpc\("body_weight_daily_series"/);
@@ -674,7 +675,10 @@ test("provides owner-scoped body-weight import, interpolation, settings, and ana
   assert.match(module, /parseBodyWeightDate/);
   assert.match(module, /Date\.UTC\(year, month - 1, day\)/);
   assert.doesNotMatch(module, /MacroFactor/);
-  assert.match(styles, /\.body-weight-marker\.is-measured/);
+  assert.doesNotMatch(styles, /\.body-weight-(?:chart|plot|line|marker|y-axis|x-axis)/);
+  assert.doesNotMatch(feature, /renderChart|clearChart|bodyWeightChart/);
+  assert.match(feature, /from\("data_imports"\)\.select\("imported_at"\)/);
+  assert.match(feature, /importResult\.data\?\.imported_at/);
   assert.match(migration, /create table public\.body_weight_measurements/);
   assert.match(migration, /create table public\.body_weight_measurements/);
   assert.match(migration, /unique \(owner_id, measured_on\)/);
@@ -691,6 +695,8 @@ test("provides owner-scoped body-weight import, interpolation, settings, and ana
   assert.match(documentation, /No calculated rows are written/);
   assert.match(serviceWorker, /body-weight\.js/);
   assert.match(serviceWorker, /BODY_WEIGHT_DATA\.md/);
+  const freshnessMigration = await read("supabase/migrations/20260821103000_refresh_body_weight_import_timestamp.sql");
+  assert.match(freshnessMigration, /imported_at = now\(\)/);
 });
 
 test("applies the persisted relative-e1RM preference across history and progression", async () => {

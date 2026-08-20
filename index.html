@@ -334,13 +334,6 @@
             </fieldset>
           </header>
           <p id="dashboard-status" class="dashboard-status" aria-live="polite">Loading your dashboard…</p>
-          <section class="dashboard-section body-weight-section" aria-labelledby="body-weight-chart-title">
-            <div class="section-heading">
-              <div><p class="section-kicker">Kilograms over time</p><h2 id="body-weight-chart-title">Body weight</h2><p>Markers are imported scale measurements. The connecting daily line uses linear interpolation only between measurements.</p></div>
-            </div>
-            <div id="body-weight-chart" class="body-weight-chart" role="img"></div>
-            <div id="body-weight-empty" class="empty-chart" hidden>No body-weight data in this period. Import a CSV from <button type="button" class="inline-button" data-page-link="settings">Settings</button>.</div>
-          </section>
           <div id="dashboard-empty" class="dashboard-empty" hidden></div>
 
           <div id="dashboard-content" hidden>
@@ -408,6 +401,7 @@
             <dl id="body-weight-summary" class="body-weight-summary">
               <div><dt>Measurements</dt><dd id="body-weight-count">0</dd></div>
               <div><dt>Measured coverage</dt><dd id="body-weight-coverage">No data</dd></div>
+              <div><dt>Last imported</dt><dd id="body-weight-last-imported">Never imported</dd></div>
             </dl>
             <label class="relative-e1rm-setting" for="relative-e1rm-enabled">
               <input id="relative-e1rm-enabled" type="checkbox" />

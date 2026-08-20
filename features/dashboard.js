@@ -39,8 +39,6 @@ export function createDashboardFeature(options) {
     ensureExerciseMuscleLookup,
     ensureBodyWeightState,
     getBodyWeightState,
-    renderBodyWeightChart,
-    clearBodyWeightChart,
   } = options;
 
   // DOM elements lookup
@@ -141,11 +139,9 @@ export function createDashboardFeature(options) {
 
       if (requestedUserId !== getUserId()) return;
       const completedSessions = sessions.filter((session) => session.status === "completed");
-      const bodyWeights = getBodyWeightState().dailySeries;
       dashboardData = {
         sessions: completedSessions,
         records: joinDashboardData(completedSessions, exercises, sets),
-        bodyWeights,
         exerciseMuscleLookup: exerciseMuscleLookup ?? new Map(),
       };
       renderDashboard();
@@ -160,9 +156,8 @@ export function createDashboardFeature(options) {
 
   function renderDashboard() {
     if (!dashboardData) return;
-    const { sessions, records, bodyWeights, exerciseMuscleLookup } = dashboardData;
-    const rangeSources = [...sessions, ...bodyWeights.map((item) => ({ performed_on: item.measured_on }))];
-    const range = getDateRange(dashboardRange, new Date(), rangeSources);
+    const { sessions, records, exerciseMuscleLookup } = dashboardData;
+    const range = getDateRange(dashboardRange, new Date(), sessions);
     const periodSessions = filterByRange(sessions, range);
     const periodRecords = filterByRange(records, range);
     const periodWorkingSets = workingSets(periodRecords);
@@ -171,8 +166,6 @@ export function createDashboardFeature(options) {
     for (const button of rangeButtons) {
       button.setAttribute("aria-pressed", String(button.dataset.dashboardRange === dashboardRange));
     }
-    renderBodyWeightChart(filterByRange(bodyWeights, range, "measured_on"), range);
-
     if (!sessions.length) {
       showDashboardEmpty("No training data yet", "My Data will populate after you log your first training session.");
       if (dashboardStatus) dashboardStatus.textContent = "No workout data yet";
@@ -638,7 +631,6 @@ export function createDashboardFeature(options) {
     if (metricGrid) metricGrid.replaceChildren();
     if (dashboardContent) dashboardContent.hidden = true;
     if (dashboardEmpty) dashboardEmpty.hidden = true;
-    clearBodyWeightChart();
   }
 
   function invalidateDashboardState() {

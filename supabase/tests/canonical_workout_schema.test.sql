@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(22);
+select plan(25);
 
 select hasnt_table('public', 'lift_entries', 'legacy lift_entries is absent');
 select hasnt_table('public', 'lift_sets', 'legacy lift_sets is absent');
@@ -70,6 +70,19 @@ select is((select count(*) from public.body_weight_measurements), 1::bigint, 'im
 select ok(not exists (
   select 1 from public.data_imports where import_kind <> 'body_weight'
 ), 'new provenance uses body_weight semantics only');
+select has_column('public', 'data_imports', 'imported_at', 'body-weight provenance records its import time');
+update public.data_imports
+set imported_at = '2000-01-01 00:00:00+00'
+where owner_id = '10000000-0000-0000-0000-000000000002' and import_kind = 'body_weight';
+select lives_ok($body_reimport$
+  select * from public.import_body_weight(
+    'body-weight-export-refresh.csv',
+    repeat('a', 64),
+    repeat('b', 64),
+    '[{"source_row":2,"measured_on":"2026-08-18","weight_kg":80.5}]'::jsonb
+  )
+$body_reimport$, 'exact-source body-weight reimport remains callable');
+select ok((select imported_at > '2000-01-01 00:00:00+00'::timestamptz from public.data_imports where owner_id = '10000000-0000-0000-0000-000000000002' and import_kind = 'body_weight'), 'a successful body-weight reimport refreshes its import time');
 
 insert into public.user_settings (owner_id, relative_e1rm_enabled)
 values ('10000000-0000-0000-0000-000000000002', true);

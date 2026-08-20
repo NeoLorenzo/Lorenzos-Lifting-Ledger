@@ -15,8 +15,6 @@ test("createDashboardFeature returns lifecycle and invalidation API", () => {
     ensureExerciseMuscleLookup: async () => new Map(),
     ensureBodyWeightState: async () => ({}),
     getBodyWeightState: () => ({ dailySeries: [], effectiveRelativeEnabled: false }),
-    renderBodyWeightChart: () => {},
-    clearBodyWeightChart: () => {},
     resolveOneRepMaxRange: () => null,
   });
 

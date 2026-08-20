@@ -43,7 +43,7 @@ All future user-owned tables must enable Row Level Security before the app write
 - `body_weight_measurements` stores owner-scoped imported scale observations in kilograms, with one canonical measurement per owner per date and a link to `data_imports` provenance.
 - `user_settings` stores the owner-scoped, default-off `relative_e1rm_enabled` presentation preference.
 
-Body-weight CSV imports use column A as an exact `DD/MM/YYYY` date and column B as a positive kilogram value; optional headers and additional ignored columns are supported. The filename and export source are not part of the contract. My Data calculates a daily series only between measured observations using linear interpolation: `W(d) = W1 + (W2 - W1) × (days from d1 / days between d1 and d2)`. Interpolated values remain visibly labelled as calculated, are not persisted as scale observations, and are never extrapolated. Settings supports previewing, importing/correcting, inspecting, and deleting only the signed-in user's body-weight dataset.
+Body-weight CSV imports use column A as an exact `DD/MM/YYYY` date and column B as a positive kilogram value; optional headers and additional ignored columns are supported. The filename and export source are not part of the contract. The app calculates a daily series only between measured observations using linear interpolation: `W(d) = W1 + (W2 - W1) × (days from d1 / days between d1 and d2)`. Interpolated values are not persisted as scale observations and are never extrapolated. Settings supports previewing, importing/correcting, inspecting measurement coverage and last-import freshness, and deleting only the signed-in user's body-weight dataset.
 
 When explicitly enabled in Settings, each absolute e1RM formula value is divided independently by the measured or interpolated body weight on each workout date and displayed as a dimensionless `× BW` value. Absolute generated e1RM columns remain canonical and unchanged. Relative values are unavailable outside body-weight coverage because the app does not extrapolate. Dumbbell relative e1RM remains per dumbbell.
 
@@ -96,7 +96,7 @@ npm test
 
 - `index.html` — minimal app shell
 - `app.js` — Supabase Google sign-in/session handling, top-level orchestration
-- `features/body-weight.js` — body-weight import/deletion controller, relative e1RM preference settings, and body weight chart UI
+- `features/body-weight.js` — body-weight import/deletion controller and relative e1RM preference settings
 - `features/dashboard.js` — My Data / Dashboard UI controller, state management, date-range and muscle exposure filtering, progression charts, and recent change rendering
 - `features/presets.js` — My Stuff / presets creation, editing, deletion controller, and preset exercise picker UI
 - `body-weight.js` — generic body-weight CSV parsing, validation, preview, and interpolation helpers

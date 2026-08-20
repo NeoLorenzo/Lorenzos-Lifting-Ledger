@@ -91,8 +91,6 @@ const dashboardFeature = createDashboardFeature({
   ensureExerciseMuscleLookup: (supabase) => ensureExerciseMuscleLookup(supabase),
   ensureBodyWeightState: () => bodyWeightFeature.ensureState(),
   getBodyWeightState: () => bodyWeightFeature.getState(),
-  renderBodyWeightChart: (values, range) => bodyWeightFeature.renderChart(values, range),
-  clearBodyWeightChart: () => bodyWeightFeature.clearChart(),
 });
 
 menuToggle.addEventListener("click", () => {
