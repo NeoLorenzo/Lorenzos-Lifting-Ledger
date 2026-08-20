@@ -545,7 +545,7 @@ test("searches session history by exercise and edits owned exercise sets", async
   assert.match(styles, /\.exercise-edit-set/);
 });
 test("manages owner-scoped unordered workout presets", async () => {
-  const [html, app, styles, migration, indexMigration, setCountMigration, readme, serviceWorker] = await Promise.all([
+  const [html, app, styles, migration, indexMigration, setCountMigration, readme, serviceWorker, presetsFeature] = await Promise.all([
     read("index.html"),
     read("app.js"),
     read("styles.css"),
@@ -554,6 +554,7 @@ test("manages owner-scoped unordered workout presets", async () => {
     read("supabase/migrations/20260811115349_add_preset_set_counts_and_session_population.sql"),
     read("README.md"),
     read("service-worker.js"),
+    read("features/presets.js"),
   ]);
 
   assert.match(html, /<h2 id="my-presets-title">My Presets<\/h2>/);
@@ -564,19 +565,19 @@ test("manages owner-scoped unordered workout presets", async () => {
   assert.match(html, /id="preset-session-select"/);
   assert.match(html, /id="preset-exercise-search"/);
   assert.match(html, /id="preset-selected-list"/);
-  assert.match(app, /\.from\("workout_presets"\)/);
-  assert.match(app, /\.eq\("owner_id", requestedUserId\)/);
-  assert.match(app, /\.rpc\("save_workout_preset"/);
-  assert.match(app, /p_set_counts: setCounts/);
-  assert.match(app, /data-preset-set-count/);
-  assert.match(app, /data\.map\(\(preset\)/);
-  assert.match(app, /\[\["edit", "Edit"\], \["delete", "Delete"\]\]/);
-  assert.doesNotMatch(app, /\["open", "Open"\]|\["rename", "Rename"\]/);
+  assert.match(presetsFeature, /\.from\("workout_presets"\)/);
+  assert.match(presetsFeature, /\.eq\("owner_id", requestedUserId\)/);
+  assert.match(presetsFeature, /\.rpc\("save_workout_preset"/);
+  assert.match(presetsFeature, /p_set_counts: setCounts/);
+  assert.match(presetsFeature, /data-preset-set-count/);
+  assert.match(presetsFeature, /data\.map\(\(preset\)/);
+  assert.match(presetsFeature, /\[\["edit", "Edit"\], \["delete", "Delete"\]\]/);
+  assert.doesNotMatch(presetsFeature, /\["open", "Open"\]|\["rename", "Rename"\]/);
   assert.match(html, /<dialog id="preset-modal" class="preset-modal"/);
-  assert.match(app, /presetModal\.showModal\(\)/);
+  assert.match(presetsFeature, /presetModal\.showModal\(\)/);
   assert.match(styles, /\.preset-card:hover \.preset-card-actions[\s\S]*opacity: 1/);
   assert.match(styles, /\.preset-modal[\s\S]*height: 100dvh/);
-  const sourceSessionLoader = app.slice(app.indexOf("async function loadPresetSourceSessions"), app.indexOf("function applySelectedPresetSession"));
+  const sourceSessionLoader = presetsFeature.slice(presetsFeature.indexOf("async function loadPresetSourceSessions"), presetsFeature.indexOf("function applySelectedPresetSession"));
   assert.match(sourceSessionLoader, /session_exercises\(exercise_id, exercise, exercise_sets\(id\)\)/);
   assert.doesNotMatch(sourceSessionLoader, /equipment_id|weight|reps|rpe|is_warmup/i);
   assert.match(sourceSessionLoader, /\.eq\("status", "completed"\)/);
@@ -606,13 +607,14 @@ test("manages owner-scoped unordered workout presets", async () => {
 });
 
 test("creates, resumes, and concludes one persisted active workout session", async () => {
-  const [html, app, styles, migration, setCountMigration, serviceWorker] = await Promise.all([
+  const [html, app, styles, migration, setCountMigration, serviceWorker, presetsFeature] = await Promise.all([
     read("index.html"),
     read("app.js"),
     read("styles.css"),
     read("supabase/migrations/20260811112258_add_workout_session_lifecycle.sql"),
     read("supabase/migrations/20260811115349_add_preset_set_counts_and_session_population.sql"),
     read("service-worker.js"),
+    read("features/presets.js"),
   ]);
 
   assert.match(html, /id="start-session"[^>]*>Loading session/);
@@ -640,8 +642,8 @@ test("creates, resumes, and concludes one persisted active workout session", asy
   assert.match(migration, /security invoker/);
   assert.match(migration, /set search_path = ''/);
   assert.match(migration, /revoke all on function public\.start_or_resume_workout_session\(\) from public, anon/);
-  assert.match(serviceWorker, /lifting-ledger-v37/);
-  assert.match(app, /function renderSessionPresetList\(\)/);
+  assert.match(serviceWorker, /lifting-ledger-v38/);
+  assert.match(presetsFeature, /async function openSessionPresetPicker\(\)/);
   assert.match(setCountMigration, /row_number\(\) over \(order by random\(\)\)/);
   assert.match(setCountMigration, /generate_series\(1, membership\.set_count\)/);
   assert.match(setCountMigration, /drop constraint exercise_sets_check/);
