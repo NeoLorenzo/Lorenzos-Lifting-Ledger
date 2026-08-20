@@ -7,6 +7,7 @@ const APP_SHELL = [
   "./analytics.js",
   "./presets.js",
   "./body-weight.js",
+  "./features/body-weight.js",
   "./relative-e1rm.js",
   "./literature.js",
   "./config.js",

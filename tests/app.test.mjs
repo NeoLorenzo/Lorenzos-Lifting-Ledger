@@ -648,22 +648,23 @@ test("creates, resumes, and concludes one persisted active workout session", asy
 });
 
 test("provides owner-scoped body-weight import, interpolation, settings, and analytics", async () => {
-  const [html, app, module, styles, migration, readme, designRules, documentation, serviceWorker] = await Promise.all([
+  const [html, app, module, styles, migration, readme, designRules, documentation, serviceWorker, feature] = await Promise.all([
     read("index.html"), read("app.js"), read("body-weight.js"), read("styles.css"),
     read("supabase/migrations/20260819090000_add_body_weight_data.sql"), read("README.md"),
     read("docs/DESIGN_RULES.md"), read("docs/BODY_WEIGHT_DATA.md"), read("service-worker.js"),
+    read("features/body-weight.js"),
   ]);
   assert.match(html, /data-page="settings"/);
   assert.match(html, /id="body-weight-file"[^>]*accept=".csv,text\/csv"/);
   assert.match(html, /id="body-weight-preview"/);
   assert.match(html, /id="delete-body-weight"/);
   assert.match(html, /id="body-weight-chart"/);
-  assert.match(app, /parseBodyWeightCsv/);
-  assert.match(app, /rpc\("import_body_weight"/);
-  assert.match(app, /rpc\("body_weight_daily_series"/);
-  assert.match(app, /p_rows:/);
-  assert.match(app, /rpc\("delete_body_weight_data"/);
-  assert.match(app, /window\.confirm\(/);
+  assert.match(feature, /parseBodyWeightCsv/);
+  assert.match(feature, /rpc\("import_body_weight"/);
+  assert.match(feature, /rpc\("body_weight_daily_series"/);
+  assert.match(feature, /p_rows:/);
+  assert.match(feature, /rpc\("delete_body_weight_data"/);
+  assert.match(feature, /window\.confirm\(/);
   assert.match(module, /parseBodyWeightDate/);
   assert.match(module, /Date\.UTC\(year, month - 1, day\)/);
   assert.doesNotMatch(module, /MacroFactor/);
@@ -687,18 +688,19 @@ test("provides owner-scoped body-weight import, interpolation, settings, and ana
 });
 
 test("applies the persisted relative-e1RM preference across history and progression", async () => {
-  const [html, app, relativeModule, migration, readme, bodyWeightDocs, designRules, serviceWorker] = await Promise.all([
+  const [html, app, relativeModule, migration, readme, bodyWeightDocs, designRules, serviceWorker, feature] = await Promise.all([
     read("index.html"), read("app.js"), read("relative-e1rm.js"),
     read("supabase/migrations/20260819120000_reconcile_relative_e1rm_user_settings.sql"),
     read("README.md"), read("docs/BODY_WEIGHT_DATA.md"), read("docs/DESIGN_RULES.md"), read("service-worker.js"),
+    read("features/body-weight.js"),
   ]);
   assert.match(html, /id="relative-e1rm-enabled"[^>]*type="checkbox"/);
   assert.match(html, /body weight on each workout date/i);
-  assert.match(app, /ensureBodyWeightUserState\(supabase\)/);
-  assert.match(app, /new Map\(dailySeries\.map/);
-  assert.match(app, /from\("user_settings"\)\.select\("relative_e1rm_enabled"\)/);
-  assert.match(app, /from\("user_settings"\)\.upsert/);
-  assert.match(app, /effectiveRelativeEnabled: hasBodyWeight && storedRelativeEnabled/);
+  assert.match(app, /bodyWeightFeature\.ensureState/);
+  assert.match(feature, /new Map\(dailySeries\.map/);
+  assert.match(feature, /from\("user_settings"\)\.select\("relative_e1rm_enabled"\)/);
+  assert.match(feature, /from\("user_settings"\)\.upsert/);
+  assert.match(feature, /effectiveRelativeEnabled: hasBodyWeight && storedRelativeEnabled/);
   assert.match(app, /createExerciseItem\(exercise, session\.performed_on\)/);
   assert.match(app, /resolveProgressionOneRepMax\(record\)/);
   assert.match(app, /× BW per dumbbell/);

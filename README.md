@@ -94,7 +94,8 @@ npm test
 ## Files
 
 - `index.html` — minimal app shell
-- `app.js` — Supabase Google sign-in/session handling
+- `app.js` — Supabase Google sign-in/session handling, top-level orchestration
+- `features/body-weight.js` — body-weight import/deletion controller, relative e1RM preference settings, and body weight chart UI
 - `body-weight.js` — generic body-weight CSV parsing, validation, preview, and interpolation helpers
 - `relative-e1rm.js` — pure absolute-to-relative e1RM range and effective-mode helpers
 - `literature.js` — safe in-app Markdown rendering and the Literature document registry
