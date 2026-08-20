@@ -2,6 +2,8 @@ import { canonicalizeBodyWeightObservations, formatBodyWeightDate, parseBodyWeig
 import { resolveOneRepMaxRange } from "../relative-e1rm.js";
 import { createLinearScale } from "../analytics.js";
 
+const BODY_WEIGHT_RPC_PAGE_SIZE = 1000;
+
 function formatDecimal(value) {
   return Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 });
 }
@@ -28,6 +30,19 @@ function normalizeBodyWeightSeries(rows) {
     previous_weight_kg: item.previous_weight_kg ?? measuredWeights.get(item.previous_measured_on) ?? null,
     next_weight_kg: item.next_weight_kg ?? measuredWeights.get(item.next_measured_on) ?? null,
   }));
+}
+
+async function fetchBodyWeightDailySeries(supabase) {
+  const rows = [];
+  for (let from = 0; ; from += BODY_WEIGHT_RPC_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .rpc("body_weight_daily_series")
+      .range(from, from + BODY_WEIGHT_RPC_PAGE_SIZE - 1);
+    if (error) throw error;
+    const page = data ?? [];
+    rows.push(...page);
+    if (page.length < BODY_WEIGHT_RPC_PAGE_SIZE) return rows;
+  }
 }
 
 export function createBodyWeightFeature(options) {
@@ -182,13 +197,12 @@ export function createBodyWeightFeature(options) {
 
     const loading = (async () => {
       const [seriesResult, settingsResult] = await Promise.all([
-        supabase.rpc("body_weight_daily_series"),
+        fetchBodyWeightDailySeries(supabase),
         supabase.from("user_settings").select("relative_e1rm_enabled").eq("owner_id", requestedUserId).maybeSingle(),
       ]);
-      const error = seriesResult.error ?? settingsResult.error;
-      if (error) throw error;
+      if (settingsResult.error) throw settingsResult.error;
       if (requestedUserId !== getUserId()) return createEmptyBodyWeightUserState();
-      const dailySeries = normalizeBodyWeightSeries(seriesResult.data ?? []);
+      const dailySeries = normalizeBodyWeightSeries(seriesResult);
       const hasBodyWeight = dailySeries.length > 0;
       const storedRelativeEnabled = settingsResult.data?.relative_e1rm_enabled === true;
       bodyWeightUserState = {
