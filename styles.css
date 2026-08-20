@@ -1283,14 +1283,23 @@ body.session-modal-open {
 }
 
 .body-weight-plot {
-  position: relative;
-  height: 18rem;
+  display: grid;
+  grid-template-columns: 2.8rem 3.4rem minmax(0, 1fr);
+  grid-template-rows: 18rem 2.5rem;
   margin: 1.5rem 0 0;
+}
+
+.body-weight-chart-area {
+  position: absolute;
+  position: relative;
+  grid-column: 3;
+  grid-row: 1;
+  border-left: 1px solid rgba(148, 163, 184, 0.35);
   border-bottom: 1px solid rgba(148, 163, 184, 0.35);
   background: linear-gradient(rgba(148, 163, 184, 0.1) 1px, transparent 1px) 0 0 / 100% 25%;
 }
 
-.body-weight-plot svg {
+.body-weight-chart-area svg {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -1326,6 +1335,24 @@ body.session-modal-open {
 .body-weight-marker:focus .progression-tooltip {
   display: grid;
 }
+
+.body-weight-y-axis-label {
+  grid-column: 1;
+  grid-row: 1;
+  align-self: center;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  white-space: nowrap;
+  writing-mode: vertical-rl;
+  rotate: 180deg;
+}
+
+.body-weight-y-axis { grid-column: 2; grid-row: 1; position: relative; color: #94a3b8; font-size: 0.72rem; }
+.body-weight-y-tick { position: absolute; right: 0.55rem; translate: 0 50%; }
+.body-weight-x-axis { grid-column: 3; grid-row: 2; position: relative; color: #94a3b8; font-size: 0.72rem; }
+.body-weight-x-tick { position: absolute; top: 0.45rem; translate: -50% 0; white-space: nowrap; }
+.body-weight-x-tick:first-child { translate: 0 0; }
+.body-weight-x-tick:last-child { translate: -100% 0; }
 
 .body-weight-summary {
   display: grid;

@@ -171,7 +171,7 @@ export function createDashboardFeature(options) {
     for (const button of rangeButtons) {
       button.setAttribute("aria-pressed", String(button.dataset.dashboardRange === dashboardRange));
     }
-    renderBodyWeightChart(filterByRange(bodyWeights, range, "measured_on"));
+    renderBodyWeightChart(filterByRange(bodyWeights, range, "measured_on"), range);
 
     if (!sessions.length) {
       showDashboardEmpty("No training data yet", "My Data will populate after you log your first training session.");

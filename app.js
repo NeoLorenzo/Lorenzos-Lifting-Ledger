@@ -91,7 +91,7 @@ const dashboardFeature = createDashboardFeature({
   ensureExerciseMuscleLookup: (supabase) => ensureExerciseMuscleLookup(supabase),
   ensureBodyWeightState: () => bodyWeightFeature.ensureState(),
   getBodyWeightState: () => bodyWeightFeature.getState(),
-  renderBodyWeightChart: (values) => bodyWeightFeature.renderChart(values),
+  renderBodyWeightChart: (values, range) => bodyWeightFeature.renderChart(values, range),
   clearBodyWeightChart: () => bodyWeightFeature.clearChart(),
 });
 
