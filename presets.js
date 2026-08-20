@@ -22,7 +22,7 @@ export function uniqueSessionExercises(session) {
     } else {
       byExercise.set(key, {
         id: exercise.exercise_id,
-        name: exercise.exercises?.name ?? exercise.exercise,
+        name: exercise.exercises.name,
         setCount,
       });
     }

@@ -38,6 +38,7 @@ function getDiagnosticLines(rawOutput) {
 const stages = [
   { id: "syntax", name: "Syntax", script: "check:syntax" },
   { id: "tests", name: "Tests", script: "test" },
+  { id: "database", name: "Database", script: "check:db" },
 ];
 
 const npmCmd = process.platform === "win32" ? "npm.cmd" : "npm";

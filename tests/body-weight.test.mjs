@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   interpolateBodyWeight,
@@ -52,9 +51,10 @@ test("interpolates increasing and decreasing gaps without extrapolation", () => 
   ])[1].weightKg, 71);
 });
 
-test("the provided real-world export passes the generic parser", async () => {
-  const source = await readFile(new URL("../MacroFactor-20260818173855.csv", import.meta.url), "utf8");
-  const parsed = parseBodyWeightCsv(source);
-  assert.ok(parsed.observations.length > 0);
-  assert.equal(parsed.preview.count, parsed.observations.length);
+test("accepts a representative MacroFactor-style two-column export", () => {
+  const parsed = parseBodyWeightCsv("Date,Weight (kg)\n17/08/2026,81.2\n18/08/2026,81.0\n");
+  assert.deepEqual(parsed.observations.map(({ measuredOn, weightKg }) => ({ measuredOn, weightKg })), [
+    { measuredOn: "2026-08-17", weightKg: 81.2 },
+    { measuredOn: "2026-08-18", weightKg: 81 },
+  ]);
 });

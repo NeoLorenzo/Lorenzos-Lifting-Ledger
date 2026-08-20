@@ -19,9 +19,9 @@ test("normalizes preset names and checks uniqueness case-insensitively per loade
 test("extracts one alphabetical exercise pool from a previous session", () => {
   const session = {
     session_exercises: [
-      { exercise_id: 9, exercise: "Row", exercise_sets: [{ id: 1 }, { id: 2 }] },
-      { exercise_id: 2, exercise: "Bench Press", exercise_sets: [{ id: 3 }, { id: 4 }, { id: 5 }] },
-      { exercise_id: 9, exercise: "Row", exercise_sets: [{ id: 6 }] },
+      { exercise_id: 9, exercises: { name: "Row" }, exercise_sets: [{ id: 1 }, { id: 2 }] },
+      { exercise_id: 2, exercises: { name: "Bench Press" }, exercise_sets: [{ id: 3 }, { id: 4 }, { id: 5 }] },
+      { exercise_id: 9, exercises: { name: "Row" }, exercise_sets: [{ id: 6 }] },
     ],
   };
 

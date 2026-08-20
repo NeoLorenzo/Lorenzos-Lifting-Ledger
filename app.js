@@ -690,13 +690,13 @@ async function loadSessions(supabase) {
   let sessionRequest = supabase
     .from("workout_sessions")
     .select(
-      `id, performed_on, status, gyms(name), session_exercises${requestedSearch ? "!inner" : ""}(id, exercise_id, exercise_order, exercise, equipment_id, exercise_sets(id, set_number, weight, reps, rpe, is_warmup, is_drop_set, is_superset, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_low, estimated_1rm_high))`,
+      `id, performed_on, status, gyms(name), session_exercises${requestedSearch ? "!inner" : ""}(id, exercise_id, exercise_order, equipment_id, exercises${requestedSearch ? "!inner" : ""}(name), exercise_sets(id, set_number, weight, reps, rpe, is_warmup, is_drop_set, is_superset, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_low, estimated_1rm_high))`,
       { count: "exact" },
     )
     .eq("owner_id", requestedUserId);
 
   if (requestedSearch) {
-    sessionRequest = sessionRequest.ilike("session_exercises.exercise", `%${escapeLikePattern(requestedSearch)}%`);
+    sessionRequest = sessionRequest.ilike("session_exercises.exercises.name", `%${escapeLikePattern(requestedSearch)}%`);
   }
 
   sessionRequest = sessionRequest
@@ -949,7 +949,7 @@ function createExerciseItem(exercise, performedOn) {
   item.className = "exercise-entry";
 
   const heading = document.createElement("h3");
-  heading.textContent = exercise.exercise;
+  heading.textContent = exercise.exercises.name;
 
   const headingRow = document.createElement("div");
   headingRow.className = "exercise-heading";
@@ -974,11 +974,11 @@ function createExerciseItem(exercise, performedOn) {
 
   for (const set of [...exercise.exercise_sets].sort((a, b) => a.set_number - b.set_number)) {
     const setItem = document.createElement("li");
-    const weightUnit = formatWeightUnit(exercise.exercise);
+    const weightUnit = formatWeightUnit(exercise.exercises.name);
     const weight = set.weight === null ? `— ${weightUnit}` : `${Number(set.weight).toLocaleString()} ${weightUnit}`;
     const reps = set.reps === null ? "— reps" : `${set.reps} reps`;
     const labels = [
-      formatOneRepMaxRange(set.estimated_1rm_low, set.estimated_1rm_high, exercise.exercise, performedOn),
+      formatOneRepMaxRange(set.estimated_1rm_low, set.estimated_1rm_high, exercise.exercises.name, performedOn),
       set.is_warmup ? "Warm-up" : null,
       set.is_drop_set ? "Drop set" : null,
       set.is_superset ? "Superset" : null,
@@ -1002,7 +1002,7 @@ function showExerciseEditor(item, exercise, performedOn) {
   form.className = "exercise-edit-form";
 
   const heading = document.createElement("h3");
-  heading.textContent = `Edit ${exercise.exercise}`;
+  heading.textContent = `Edit ${exercise.exercises.name}`;
 
   const equipmentLabel = document.createElement("label");
   equipmentLabel.className = "exercise-edit-equipment";
@@ -1026,7 +1026,7 @@ function showExerciseEditor(item, exercise, performedOn) {
     number.textContent = `Set ${set.set_number}`;
 
     const weightLabel = document.createElement("label");
-    weightLabel.textContent = `Weight (${formatWeightUnit(exercise.exercise)})`;
+    weightLabel.textContent = `Weight (${formatWeightUnit(exercise.exercises.name)})`;
     const weightInput = document.createElement("input");
     weightInput.type = "number";
     weightInput.name = "weight";

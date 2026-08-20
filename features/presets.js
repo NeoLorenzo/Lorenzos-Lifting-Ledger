@@ -357,7 +357,7 @@ export function createPresetFeature(options) {
       while (true) {
         const { data, error } = await supabase
           .from("workout_sessions")
-          .select("id, performed_on, gyms(name), session_exercises(exercise_id, exercise, exercise_sets(id))")
+          .select("id, performed_on, gyms(name), session_exercises(exercise_id, exercises(name), exercise_sets(id))")
           .eq("owner_id", requestedUserId)
           .eq("status", "completed")
           .order("performed_on", { ascending: false })

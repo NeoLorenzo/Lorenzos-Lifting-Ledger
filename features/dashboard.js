@@ -121,7 +121,7 @@ export function createDashboardFeature(options) {
     try {
       const [sessions, exercises, sets, exerciseMuscleLookup] = await Promise.all([
         fetchOwnedRows(supabase, "workout_sessions", "id, performed_on, status", requestedUserId),
-        fetchOwnedRows(supabase, "session_exercises", "id, session_id, exercise_id, exercise, equipment_id", requestedUserId),
+        fetchOwnedRows(supabase, "session_exercises", "id, session_id, exercise_id, equipment_id, exercises(name)", requestedUserId),
         fetchOwnedRows(
           supabase,
           "exercise_sets",
@@ -203,7 +203,7 @@ export function createDashboardFeature(options) {
     renderSelectedMuscle(groups, exposure, periodRecords, range, exerciseMuscleLookup);
 
     const periodExercises = getRepeatedExercises(periodRecords);
-    if (!periodExercises.includes(selectedProgressionExercise)) selectedProgressionExercise = chooseDefaultExercise(periodRecords);
+    if (!periodExercises.some((exercise) => String(exercise.exercise_id) === String(selectedProgressionExercise))) selectedProgressionExercise = chooseDefaultExercise(periodRecords);
     renderProgressionOptions(periodExercises);
     renderExerciseProgression();
     renderRecentChange(groups, exerciseMuscleLookup);
@@ -299,7 +299,7 @@ export function createDashboardFeature(options) {
     if (exerciseSourcesTitle) exerciseSourcesTitle.textContent = group.name;
     renderTrendChart(calculateExposureTrend(periodRecords, exerciseMuscleLookup, group.code, range), range);
 
-    const sources = calculateExerciseSources(periodRecords, exerciseMuscleLookup, group.code).map((item) => ({ label: item.exercise, value: item.value }));
+    const sources = calculateExerciseSources(periodRecords, exerciseMuscleLookup, group.code).map((item) => ({ label: item.exercise_name, value: item.value }));
     if (exerciseSourcesList) renderRankedList(exerciseSourcesList, sources, "No exercises contributed modelled exposure to this group.");
   }
 
@@ -367,9 +367,9 @@ export function createDashboardFeature(options) {
     const fragment = document.createDocumentFragment();
     for (const exercise of exercises) {
       const option = document.createElement("option");
-      option.value = exercise;
-      option.textContent = exercise;
-      option.selected = exercise === selectedProgressionExercise;
+      option.value = exercise.exercise_id;
+      option.textContent = exercise.exercise_name;
+      option.selected = String(exercise.exercise_id) === String(selectedProgressionExercise);
       fragment.append(option);
     }
     progressionSelect.replaceChildren(fragment);
@@ -386,6 +386,7 @@ export function createDashboardFeature(options) {
     }
     const range = getDateRange(dashboardRange, new Date(), dashboardData.sessions);
     const representatives = selectRepresentativeSetsBySeries(filterByRange(dashboardData.records, range), selectedProgressionExercise);
+    const selectedExerciseName = representatives[0]?.exercise_name ?? "Exercise";
     const estimates = representatives.map((record) => {
       const displayRange = resolveProgressionOneRepMax(record);
       return { record, displayRange, value: getOneRepMaxMidpoint(displayRange) };
@@ -393,13 +394,13 @@ export function createDashboardFeature(options) {
     const bodyWeightState = getBodyWeightState();
     const uncoveredCount = bodyWeightState.effectiveRelativeEnabled
       ? representatives.filter((record) => {
-        const absoluteRange = resolveOneRepMaxRange({ low: record.estimated_1rm_low, high: record.estimated_1rm_high, exerciseName: record.exercise, performedOn: record.performed_on });
+        const absoluteRange = resolveOneRepMaxRange({ low: record.estimated_1rm_low, high: record.estimated_1rm_high, exerciseName: record.exercise_name, performedOn: record.performed_on });
         return absoluteRange?.available && !resolveProgressionOneRepMax(record)?.available;
       }).length
       : 0;
     const sessionCount = new Set(representatives.map((record) => record.session_id)).size;
     const seriesKeys = [...new Set(representatives.map(getEquipmentSeriesKey))];
-    const seriesColors = assignExerciseSeriesColors(selectedProgressionExercise, seriesKeys);
+    const seriesColors = assignExerciseSeriesColors(selectedExerciseName, seriesKeys);
     progressionStatus.textContent = [
       `${sessionCount} sessions · one representative working set per machine in each session`,
       uncoveredCount ? `${uncoveredCount} ${uncoveredCount === 1 ? "record has" : "records have"} no body weight for its workout date and ${uncoveredCount === 1 ? "is" : "are"} not plotted` : null,
@@ -421,7 +422,7 @@ export function createDashboardFeature(options) {
       seriesLabel.textContent = formatEquipmentLabel(record.equipment_id);
       series.append(swatch, seriesLabel);
       const performance = document.createElement("strong");
-      const load = record.weight === null ? "Load not recorded" : `${formatDecimal(Number(record.weight))} ${formatWeightUnit(record.exercise)}`;
+      const load = record.weight === null ? "Load not recorded" : `${formatDecimal(Number(record.weight))} ${formatWeightUnit(record.exercise_name)}`;
       const reps = record.reps === null ? "reps not recorded" : `${record.reps} ${record.reps === 1 ? "rep" : "reps"}`;
       performance.textContent = `${load} × ${reps}`;
       const context = document.createElement("span");
@@ -447,8 +448,8 @@ export function createDashboardFeature(options) {
     const scale = createLinearScale(estimates.map((item) => item.value));
     const bodyWeightState = getBodyWeightState();
     const unit = bodyWeightState.effectiveRelativeEnabled
-      ? (/\(Dumbbell\)/i.test(selectedProgressionExercise) ? "× BW per dumbbell" : "× BW")
-      : formatWeightUnit(selectedProgressionExercise);
+      ? (/\(Dumbbell\)/i.test(estimates[0]?.record.exercise_name ?? "") ? "× BW per dumbbell" : "× BW")
+      : formatWeightUnit(estimates[0]?.record.exercise_name ?? "");
     const plottedSeries = [...new Set(estimates.map((item) => getEquipmentSeriesKey(item.record)))].sort();
     const legend = document.createElement("div");
     legend.className = "progression-legend";
@@ -538,7 +539,7 @@ export function createDashboardFeature(options) {
       const tooltipSeries = document.createElement("span");
       tooltipSeries.textContent = formatEquipmentLabel(point.record.equipment_id);
       const tooltipPerformance = document.createElement("span");
-      const load = point.record.weight === null ? "Load not recorded" : `${formatDecimal(Number(point.record.weight))} ${formatWeightUnit(point.record.exercise)}`;
+      const load = point.record.weight === null ? "Load not recorded" : `${formatDecimal(Number(point.record.weight))} ${formatWeightUnit(point.record.exercise_name)}`;
       const reps = point.record.reps === null ? "reps not recorded" : `${point.record.reps} ${point.record.reps === 1 ? "rep" : "reps"}`;
       tooltipPerformance.textContent = `${load} × ${reps}`;
       const tooltipContext = document.createElement("span");
@@ -559,14 +560,14 @@ export function createDashboardFeature(options) {
     }
     chartBody.append(plot, xLabels);
     progressionChart.replaceChildren(legend, yAxis, chartBody);
-    progressionChart.setAttribute("aria-label", `Line chart of estimated one-rep max for ${selectedProgressionExercise}, in ${unit}, with machine series identified by color and text keys.`);
+    progressionChart.setAttribute("aria-label", `Line chart of estimated one-rep max for ${estimates[0]?.record.exercise_name ?? "exercise"}, in ${unit}, with machine series identified by color and text keys.`);
   }
 
   function resolveProgressionOneRepMax(record) {
     return resolveOneRepMaxRange({
       low: record.estimated_1rm_low,
       high: record.estimated_1rm_high,
-      exerciseName: record.exercise,
+      exerciseName: record.exercise_name,
       performedOn: record.performed_on,
     });
   }

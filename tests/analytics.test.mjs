@@ -39,7 +39,7 @@ const set = (overrides = {}) => ({
   session_id: 10,
   performed_on: "2026-08-10",
   exercise_id: 1,
-  exercise: "Press",
+  exercise_name: "Press",
   is_warmup: false,
   weight: 100,
   reps: 8,
@@ -51,7 +51,7 @@ const set = (overrides = {}) => ({
 test("joins dashboard records and excludes warm-ups from working sets", () => {
   const records = joinDashboardData(
     [{ id: 10, performed_on: "2026-08-10" }],
-    [{ id: 20, session_id: 10, exercise_id: 1, exercise: "Press" }],
+    [{ id: 20, session_id: 10, exercise_id: 1, exercises: { name: "Press" } }],
     [{ id: 1, session_exercise_id: 20, is_warmup: true }, { id: 2, session_exercise_id: 20, is_warmup: false }, { id: 3, session_exercise_id: 20, is_warmup: false, weight: null, reps: null }],
   );
   assert.equal(records.length, 3);
@@ -61,7 +61,7 @@ test("joins dashboard records and excludes warm-ups from working sets", () => {
 test("keeps equipment identity on joined dashboard records", () => {
   const [record] = joinDashboardData(
     [{ id: 10, performed_on: "2026-08-10" }],
-    [{ id: 20, session_id: 10, exercise_id: 1, exercise: "Press", equipment_id: "Machine A" }],
+    [{ id: 20, session_id: 10, exercise_id: 1, exercises: { name: "Press" }, equipment_id: "Machine A" }],
     [{ id: 1, session_exercise_id: 20, is_warmup: false }],
   );
   assert.equal(record.equipment_id, "Machine A");
@@ -85,7 +85,7 @@ test("credits one compound set independently across UI groups", () => {
 
 test("attributes exercise sources as working sets times max-child group relevance", () => {
   const sources = calculateExerciseSources([set(), set({ id: 2 })], lookup, "chest");
-  assert.deepEqual(sources, [{ exercise: "Press", value: 2 }]);
+  assert.deepEqual(sources, [{ exercise_id: 1, exercise_name: "Press", value: 2 }]);
 });
 
 test("filters four- and eight-week ranges and creates ordered Monday buckets", () => {
@@ -133,17 +133,27 @@ test("representative set prefers e1RM midpoint, then load, then reps, and ignore
     set({ id: 5, session_id: 11, performed_on: "2026-08-03", weight: 110, reps: 6 }),
     set({ id: 6, session_id: 11, performed_on: "2026-08-03", weight: 110, reps: 7 }),
   ];
-  assert.deepEqual(selectRepresentativeSets(records, "Press").map((record) => record.id), [6, 3]);
+  assert.deepEqual(selectRepresentativeSets(records, 1).map((record) => record.id), [6, 3]);
 });
 
 test("progression eligibility requires working sets in at least two sessions", () => {
   const records = [
-    set({ id: 1, exercise: "Repeated", session_id: 10 }),
-    set({ id: 2, exercise: "Repeated", session_id: 11 }),
-    set({ id: 3, exercise: "One off", session_id: 12 }),
-    set({ id: 4, exercise: "Warm-up only", session_id: 13, is_warmup: true }),
+    set({ id: 1, exercise_name: "Repeated", session_id: 10 }),
+    set({ id: 2, exercise_name: "Repeated", session_id: 11 }),
+    set({ id: 3, exercise_id: 2, exercise_name: "One off", session_id: 12 }),
+    set({ id: 4, exercise_id: 3, exercise_name: "Warm-up only", session_id: 13, is_warmup: true }),
   ];
-  assert.deepEqual(getRepeatedExercises(records), ["Repeated"]);
+  assert.deepEqual(getRepeatedExercises(records), [{ exercise_id: 1, exercise_name: "Repeated" }]);
+});
+
+test("keys exercise analytics by canonical ID even when display labels collide", () => {
+  const records = [
+    set({ id: 1, exercise_id: 1, exercise_name: "Current label", session_id: 10 }),
+    set({ id: 2, exercise_id: 1, exercise_name: "Current label", session_id: 11 }),
+    set({ id: 3, exercise_id: 2, exercise_name: "Current label", session_id: 12 }),
+  ];
+  assert.deepEqual(getRepeatedExercises(records), [{ exercise_id: 1, exercise_name: "Current label" }]);
+  assert.deepEqual(selectRepresentativeSets(records, 1).map((record) => record.id), [1, 2]);
 });
 
 test("progression chooses a representative set per session and equipment series", () => {
@@ -153,15 +163,15 @@ test("progression chooses a representative set per session and equipment series"
     set({ id: 3, equipment_id: "Machine B", weight: 80 }),
     set({ id: 4, session_id: 11, performed_on: "2026-08-11", equipment_id: "Machine A", weight: 105 }),
   ];
-  assert.deepEqual(selectRepresentativeSetsBySeries(records, "Press").map((record) => record.id), [2, 3, 4]);
+  assert.deepEqual(selectRepresentativeSetsBySeries(records, 1).map((record) => record.id), [2, 3, 4]);
 });
 
 test("handles missing RPE, e1RM, and exercise mappings without inventing values", () => {
-  const records = [set({ rpe: null }), set({ id: 2, exercise_id: 99, exercise: "Unknown" })];
+  const records = [set({ rpe: null }), set({ id: 2, exercise_id: 99, exercise_name: "Unknown" })];
   const result = calculateMuscleExposure(records, lookup, groups);
   assert.equal(records[0].rpe, null);
   assert.equal(records[0].estimated_1rm_low, null);
-  assert.deepEqual([...result.unmappedExercises], ["Unknown"]);
+  assert.deepEqual([...result.unmappedExercises], [[99, "Unknown"]]);
 });
 
 test("dashboard source contains no tonnage calculation", async () => {

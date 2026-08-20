@@ -89,7 +89,7 @@ export function joinDashboardData(sessions, exercises, sets) {
       session_id: session.id,
       performed_on: session.performed_on,
       exercise_id: exercise.exercise_id,
-      exercise: exercise.exercise,
+      exercise_name: exercise.exercises?.name ?? exercise.exercise_name,
       equipment_id: exercise.equipment_id ?? null,
     }];
   });
@@ -133,12 +133,12 @@ export function calculateMuscleExposure(records, exerciseMuscleLookup, groupCata
   const groupExposure = new Map(groupCatalogue.map((group) => [group.code, 0]));
   const groupRawSets = new Map(groupCatalogue.map((group) => [group.code, 0]));
   const detailedExposure = new Map();
-  const unmappedExercises = new Set();
+  const unmappedExercises = new Map();
 
   for (const record of workingSets(records)) {
     const muscles = exerciseMuscleLookup.get(record.exercise_id);
     if (!muscles?.length) {
-      unmappedExercises.add(record.exercise);
+      unmappedExercises.set(record.exercise_id, record.exercise_name);
       continue;
     }
     const perSetGroups = new Map();
@@ -161,10 +161,15 @@ export function calculateExerciseSources(records, exerciseMuscleLookup, groupCod
   const exposure = new Map();
   for (const record of workingSets(records)) {
     const relevance = relevanceForGroup(exerciseMuscleLookup.get(record.exercise_id), groupCode);
-    if (relevance > 0) exposure.set(record.exercise, (exposure.get(record.exercise) ?? 0) + relevance);
+    if (relevance > 0) {
+      const source = exposure.get(record.exercise_id) ?? { exercise_id: record.exercise_id, exercise_name: record.exercise_name, value: 0 };
+      source.value += relevance;
+      source.exercise_name = record.exercise_name;
+      exposure.set(record.exercise_id, source);
+    }
   }
-  return [...exposure].map(([exercise, value]) => ({ exercise, value }))
-    .sort((a, b) => b.value - a.value || a.exercise.localeCompare(b.exercise));
+  return [...exposure.values()]
+    .sort((a, b) => b.value - a.value || a.exercise_name.localeCompare(b.exercise_name) || String(a.exercise_id).localeCompare(String(b.exercise_id)));
 }
 
 function bucketKey(date, bucket) {
@@ -196,7 +201,7 @@ export function calculateExposureTrend(records, exerciseMuscleLookup, groupCode,
 export function summarizeTraining(sessions, records, range) {
   const periodSessions = filterByRange(sessions, range);
   const periodSets = workingSets(filterByRange(records, range));
-  const exercises = new Set(periodSets.map((set) => set.exercise));
+  const exercises = new Set(periodSets.map((set) => set.exercise_id));
   let weeks = range.periodWeeks;
   if (!weeks && periodSessions.length) {
     const dates = periodSessions.map((session) => dateOnly(session.performed_on).getTime());
@@ -231,9 +236,9 @@ function comparePerformanceSets(a, b) {
   return (Number(a.reps) || 0) - (Number(b.reps) || 0);
 }
 
-export function selectRepresentativeSets(records, exerciseName) {
+export function selectRepresentativeSets(records, exerciseId) {
   const bySession = new Map();
-  for (const record of workingSets(records).filter((item) => item.exercise === exerciseName)) {
+  for (const record of workingSets(records).filter((item) => String(item.exercise_id) === String(exerciseId))) {
     const selected = bySession.get(record.session_id);
     // Prefer the highest valid e1RM midpoint; otherwise use load, then reps.
     if (!selected || comparePerformanceSets(record, selected) > 0) bySession.set(record.session_id, record);
@@ -248,9 +253,9 @@ export function getEquipmentSeriesKey(record) {
     : `equipment-${String(equipmentId)}`;
 }
 
-export function selectRepresentativeSetsBySeries(records, exerciseName) {
+export function selectRepresentativeSetsBySeries(records, exerciseId) {
   const bySessionAndSeries = new Map();
-  for (const record of workingSets(records).filter((item) => item.exercise === exerciseName)) {
+  for (const record of workingSets(records).filter((item) => String(item.exercise_id) === String(exerciseId))) {
     const seriesKey = getEquipmentSeriesKey(record);
     const key = `${seriesKey}:${record.session_id}`;
     const selected = bySessionAndSeries.get(key);
@@ -266,26 +271,28 @@ export function selectRepresentativeSetsBySeries(records, exerciseName) {
 export function getRepeatedExercises(records, minimumSessions = 2) {
   const sessionsByExercise = new Map();
   for (const record of workingSets(records)) {
-    const sessions = sessionsByExercise.get(record.exercise) ?? new Set();
-    sessions.add(record.session_id);
-    sessionsByExercise.set(record.exercise, sessions);
+    const entry = sessionsByExercise.get(record.exercise_id) ?? { exercise_id: record.exercise_id, exercise_name: record.exercise_name, sessions: new Set() };
+    entry.sessions.add(record.session_id);
+    entry.exercise_name = record.exercise_name;
+    sessionsByExercise.set(record.exercise_id, entry);
   }
-  return [...sessionsByExercise]
-    .filter(([, sessions]) => sessions.size >= minimumSessions)
-    .map(([exercise]) => exercise)
-    .sort((a, b) => a.localeCompare(b));
+  return [...sessionsByExercise.values()]
+    .filter((entry) => entry.sessions.size >= minimumSessions)
+    .map(({ sessions, ...exercise }) => exercise)
+    .sort((a, b) => a.exercise_name.localeCompare(b.exercise_name) || String(a.exercise_id).localeCompare(String(b.exercise_id)));
 }
 
 export function chooseDefaultExercise(records) {
   const stats = new Map();
   for (const record of workingSets(records)) {
-    const stat = stats.get(record.exercise) ?? { exercise: record.exercise, sessions: new Set(), latest: "" };
+    const stat = stats.get(record.exercise_id) ?? { exercise_id: record.exercise_id, exercise_name: record.exercise_name, sessions: new Set(), latest: "" };
     stat.sessions.add(record.session_id);
     if (record.performed_on > stat.latest) stat.latest = record.performed_on;
-    stats.set(record.exercise, stat);
+    stat.exercise_name = record.exercise_name;
+    stats.set(record.exercise_id, stat);
   }
   const candidates = [...stats.values()].filter((stat) => stat.sessions.size >= 2);
-  return candidates.sort((a, b) => b.sessions.size - a.sessions.size || b.latest.localeCompare(a.latest) || a.exercise.localeCompare(b.exercise))[0]?.exercise ?? null;
+  return candidates.sort((a, b) => b.sessions.size - a.sessions.size || b.latest.localeCompare(a.latest) || a.exercise_name.localeCompare(b.exercise_name) || String(a.exercise_id).localeCompare(String(b.exercise_id)))[0]?.exercise_id ?? null;
 }
 
 export function compareRecentPeriods(sessions, records, exerciseMuscleLookup, now = new Date(), groupCatalogue = getGroupCatalogue(exerciseMuscleLookup)) {

@@ -5,11 +5,15 @@
   "type": "module",
   "scripts": {
     "dev": "node scripts/dev-server.mjs",
-    "check:syntax": "node --check app.js && node --check analytics.js && node --check body-weight.js && node --check features/body-weight.js && node --check features/dashboard.js && node --check features/presets.js && node --check literature.js && node --check presets.js && node --check relative-e1rm.js && node --check service-worker.js && node --check scripts/dev-server.mjs",
+    "check:syntax": "node --check app.js && node --check analytics.js && node --check body-weight.js && node --check features/body-weight.js && node --check features/dashboard.js && node --check features/presets.js && node --check literature.js && node --check presets.js && node --check relative-e1rm.js && node --check service-worker.js && node --check scripts/dev-server.mjs && node --check scripts/db-check.mjs",
+    "check:db": "node scripts/db-check.mjs",
     "agent:check": "node scripts/agent-check.mjs",
     "test": "node --test tests/*.test.mjs"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "supabase": "2.111.0"
   }
 }

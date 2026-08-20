@@ -93,7 +93,7 @@ test("uses Google OAuth without privileged credentials", async () => {
   assert.match(app, /\.eq\("is_active", true\)/);
   assert.doesNotMatch(app, /\.from\("exercises"\)[\s\S]{0,250}\.eq\("owner_id"/);
   assert.match(app, /\.order\("name", \{ ascending: true \}\)/);
-  assert.match(app, /session_exercises\$\{requestedSearch[\s\S]+\}\(id, exercise_id, exercise_order, exercise, equipment_id, exercise_sets/);
+  assert.match(app, /session_exercises\$\{requestedSearch[\s\S]+\}\(id, exercise_id, exercise_order, equipment_id, exercises/);
   assert.match(app, /"session-history": "Session history"/);
   assert.match(app, /is_warmup/);
   assert.match(app, /is_drop_set/);
@@ -109,17 +109,18 @@ test("uses Google OAuth without privileged credentials", async () => {
 });
 
 test("uses global versioned exercise and movement reference data", async () => {
-  const [catalogueMigration, movementMigration, catalogueSyncMigration, consolidationMigration, muscleMigration] = await Promise.all([
+  const [catalogueMigration, movementMigration, catalogueSyncMigration, consolidationMigration, muscleMigration, hardeningMigration] = await Promise.all([
     read("supabase/migrations/20260806153407_create_exercise_catalogue.sql"),
     read("supabase/migrations/20260807140438_global_exercise_and_movement_model.sql"),
     read("supabase/migrations/20260810182625_add_close_grip_incline_press.sql"),
     read("supabase/migrations/20260810195322_consolidate_exercise_definitions.sql"),
     read("supabase/migrations/20260810183743_create_muscle_catalogue.sql"),
+    read("supabase/migrations/20260820174224_harden_canonical_workout_store.sql"),
   ]);
 
   assert.doesNotMatch(movementMigration, /add column equipment_id/);
   assert.match(movementMigration, /drop column owner_id/);
-  assert.match(movementMigration, /create table public\.exercise_aliases/);
+  assert.match(hardeningMigration, /drop table public\.exercise_aliases/);
   assert.match(movementMigration, /create table public\.movement_patterns/);
   assert.match(movementMigration, /create table public\.movement_mapping_versions/);
   assert.match(movementMigration, /create table public\.exercise_movement_pattern_coefficients/);
@@ -429,7 +430,7 @@ test("defines and applies one per-dumbbell weight convention", async () => {
 
   assert.doesNotMatch(html, /dumbbell/i);
   assert.match(app, /\? "kg per dumbbell" : "kg"/);
-  assert.match(app, /formatOneRepMaxRange\(set\.estimated_1rm_low, set\.estimated_1rm_high, exercise\.exercise, performedOn\)/);
+  assert.match(app, /formatOneRepMaxRange\(set\.estimated_1rm_low, set\.estimated_1rm_high, exercise\.exercises\.name, performedOn\)/);
   assert.match(designRules, /Dumbbell weight is always per dumbbell/);
   assert.match(designRules, /never infer or display the combined weight/i);
   assert.match(readme, /stored value is always the weight of \*\*one dumbbell\*\*/);
@@ -535,7 +536,7 @@ test("searches session history by exercise and edits owned exercise sets", async
   assert.match(html, /id="session-search"[^>]+type="search"/);
   assert.match(html, /id="session-exercise-options"/);
   assert.match(app, /session_exercises\$\{requestedSearch \? "!inner" : ""\}/);
-  assert.match(app, /\.ilike\("session_exercises\.exercise"/);
+  assert.match(app, /\.ilike\("session_exercises\.exercises\.name"/);
   assert.match(app, /exercise_sets\(id, set_number, weight, reps/);
   assert.match(app, /showExerciseEditor\(item, exercise, performedOn\)/);
   assert.match(app, /\.from\("session_exercises"\)[\s\S]+\.update\(\{ equipment_id: equipmentId \}\)/);
@@ -580,7 +581,7 @@ test("manages owner-scoped unordered workout presets", async () => {
   assert.match(styles, /\.preset-card:hover \.preset-card-actions[\s\S]*opacity: 1/);
   assert.match(styles, /\.preset-modal[\s\S]*height: 100dvh/);
   const sourceSessionLoader = presetsFeature.slice(presetsFeature.indexOf("async function loadPresetSourceSessions"), presetsFeature.indexOf("function applySelectedPresetSession"));
-  assert.match(sourceSessionLoader, /session_exercises\(exercise_id, exercise, exercise_sets\(id\)\)/);
+  assert.match(sourceSessionLoader, /session_exercises\(exercise_id, exercises\(name\), exercise_sets\(id\)\)/);
   assert.doesNotMatch(sourceSessionLoader, /equipment_id|weight|reps|rpe|is_warmup/i);
   assert.match(sourceSessionLoader, /\.eq\("status", "completed"\)/);
   assert.match(migration, /create table public\.workout_presets/);
@@ -673,7 +674,7 @@ test("provides owner-scoped body-weight import, interpolation, settings, and ana
   assert.match(module, /Date\.UTC\(year, month - 1, day\)/);
   assert.doesNotMatch(module, /MacroFactor/);
   assert.match(styles, /\.body-weight-marker\.is-measured/);
-  assert.match(migration, /add column import_kind text not null default 'lifting_history'/);
+  assert.match(migration, /create table public\.body_weight_measurements/);
   assert.match(migration, /create table public\.body_weight_measurements/);
   assert.match(migration, /unique \(owner_id, measured_on\)/);
   assert.match(migration, /weight_kg numeric not null check \(weight_kg > 0\)/);

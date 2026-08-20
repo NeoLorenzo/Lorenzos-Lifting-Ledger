@@ -22,9 +22,8 @@ All future user-owned tables must enable Row Level Security before the app write
 
 ## Data model
 
-- `data_imports` records source provenance and checksums per user.
+- `data_imports` records body-weight CSV provenance and checksums per user.
 - `exercises` is the global, app-managed exercise catalogue shared by every user.
-- `exercise_aliases` maps historical or alternative labels to global exercises without displaying duplicate exercises in the catalogue.
 - `movement_patterns` defines the global biomechanical dimensions used by the movement matrix.
 - `muscles` defines the ordered 40-entity global muscle catalogue used by the hypertrophy model.
 - `movement_mapping_versions` records immutable published matrix metadata and source hashes.
@@ -37,7 +36,7 @@ All future user-owned tables must enable Row Level Security before the app write
 - `exercise_muscle_relevance_coefficients` stores all 5,520 explicit relevance cells using the documented `0`, `0.25`, `0.50`, `0.75`, and `1.00` contract.
 - `gyms` is the top-level owner-scoped gym list.
 - `workout_sessions` stores completed and in-progress workouts. A partial unique index allows only one in-progress session per owner; blank active sessions may not have a gym yet.
-- `session_exercises` stores the ordered exercise occurrences, their catalogue reference, the original historical label, and any equipment ID used in that session.
+- `session_exercises` stores ordered exercise occurrences by canonical `exercise_id` plus any equipment ID used in that session. `exercises.name` is the sole display label.
 - `exercise_sets` stores each numbered weight/reps pair, optional RPE, warm-up/drop-set/superset flags, and generated Brzycki/Epley estimated 1RM values with a low/high range.
 - `workout_presets` stores each owner-scoped, uniquely named reusable exercise pool.
 - `workout_preset_exercises` stores unordered, deduplicated exercise references plus a reusable set count. Starting from a preset randomizes exercise order and creates blank set slots without copying load, reps, equipment, RPE, or warm-up state.
@@ -50,11 +49,11 @@ When explicitly enabled in Settings, existing absolute e1RM bounds are divided b
 
 All dumbbell exercise weights use one product-wide convention: the stored value is always the weight of **one dumbbell**, for both unilateral and bilateral exercises. A set performed with two 30 kg dumbbells is therefore stored as `30 kg`, not `60 kg`; dumbbell e1RM values use and retain that same per-dumbbell unit.
 
-Every user-data table has an `owner_id` reference to `auth.users`. Row Level Security limits select, insert, update, and delete operations to the signed-in owner. Parent/child foreign keys also include the owner ID so records cannot be connected across users. Global exercise and movement reference tables are readable by authenticated users but are not writable from the public client. The initial gym-data CSV remains local and is ignored by Git because this repository is public.
+Every user-data table has an `owner_id` reference to `auth.users`. Row Level Security limits select, insert, update, and delete operations to the signed-in owner. Parent/child foreign keys also include the owner ID so records cannot be connected across users. Global exercise and movement reference tables are readable by authenticated users but are not writable from the public client. Personal gym and body-weight exports remain local and are ignored by Git because this repository is public.
 
-The current dataset contains 138 global exercise definitions, 40 movement patterns, 40 muscles, a current 5,520-cell exercise-to-pattern mapping version, a current 1,600-cell movement-pattern-to-muscle functional mapping version, a current 5,520-cell derived exercise-to-muscle composition version, a current 5,520-cell exercise-to-muscle hypertrophic-relevance version, 11 gyms, 407 inferred sessions, 1,936 session exercises, and 4,541 sets spanning 23 January 2023 through 10 August 2026. Historical sessions are inferred from user + gym + date because the source CSV contains no workout time. A positional comparison found zero missing or mismatched rows after import.
+The current scientific catalogue contains 138 global exercise definitions, 40 movement patterns, 40 muscles, a current 5,520-cell exercise-to-pattern mapping version, a current 1,600-cell movement-pattern-to-muscle functional mapping version, a current 5,520-cell derived exercise-to-muscle composition version, and a current 5,520-cell exercise-to-muscle hypertrophic-relevance version. Canonical workout history lives only in the normalized workout hierarchy.
 
-Exercise names are globally standardized, while aliases can resolve old import labels without creating duplicate catalogue entries. The original label remains on each historical session exercise. Equipment IDs also remain on session exercises rather than exercise definitions because different machines for the same movement can have different resistance profiles.
+Exercise names are globally standardized. `session_exercises.exercise_id` is the sole performed-exercise identity and the current `exercises.name` is always used for presentation. Equipment IDs remain on session exercises rather than exercise definitions because different machines for the same movement can have different resistance profiles.
 
 The movement-pattern schema, access model, import guarantees, and current follow-up work are documented in [Movement-pattern data model](docs/MOVEMENT_PATTERN_DATA_MODEL.md). Coefficient semantics and limitations are documented separately in [Movement-pattern contribution coefficients](docs/MOVEMENT_PATTERN_COEFFICIENTS.md). The 40-entity hypertrophy model is defined in [Muscle Group Taxonomy for Hypertrophy Modelling](docs/MUSCLE_GROUP_TAXONOMY.md). The functional link between movement patterns and muscles is documented in [Movement Pattern → Muscle Function Matrix](docs/MOVEMENT_PATTERN_TO_MUSCLE_FUNCTION.md). The deterministic matrix product is documented in [Exercise × Muscle Functional Composition Matrix](docs/EXERCISE_MUSCLE_COMPOSITION.md). The exercise-specific filtering and weighting layer is documented in [Exercise → Muscle Hypertrophic Relevance Matrix](docs/EXERCISE_TO_MUSCLE_HYPERTROPHIC_RELEVANCE.md), with shared scientific limits stated in [Current Limitations of Muscle Group Mapping](docs/CURRENT_LIMITATIONS_OF_MUSCLE_GROUP_MAPPING.md).
 

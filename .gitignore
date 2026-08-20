@@ -20,3 +20,5 @@ Thumbs.db
 
 # Personal source exports stay local; imported rows are protected by Supabase RLS.
 Lorenzo Gym Data - All Gym Data.csv
+MacroFactor-*.csv
+body-weight-export*.csv
