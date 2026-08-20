@@ -1,7 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
-import { createDashboardFeature } from "../features/dashboard.js";
+import {
+  createDashboardFeature,
+  createProgressionScale,
+  datePosition,
+  deriveProgressionObservation,
+  formatProgressionAnnotation,
+  getAdaptiveDateTicks,
+} from "../features/dashboard.js";
 
 test("exports createDashboardFeature factory function", () => {
   assert.equal(typeof createDashboardFeature, "function");
@@ -46,7 +53,7 @@ test("dashboard synchronizes contextual range controls and keeps progression his
   assert.match(source, /\$\{formatDecimal\(Number\(record\.weight\)\)\} kg/);
   assert.match(source, /return equipmentId === null[\s\S]*: String\(equipmentId\);/);
   assert.doesNotMatch(source, /: `Equipment \$\{equipmentId\}`/);
-  assert.doesNotMatch(source, /E1RM_MODELS\.map\(\(model\) => `\$\{model\.label\}:/);
+  assert.match(source, /E1RM_MODELS\.map\(\(model\) => `\$\{model\.label\}: \$\{formatOneRepMaxValue/);
 });
 
 test("dashboard muscle exposure begins unselected and supports toggle and outside deselection", async () => {
@@ -85,4 +92,50 @@ test("muscle detail sections are hidden until a group is selected", async () => 
 
   assert.match(html, /id="muscle-trend-panel"[^>]*hidden/);
   assert.match(html, /id="exercise-sources-section"[^>]*hidden/);
+});
+
+test("progression observations retain all four estimates and derive their visual envelope", () => {
+  const values = { observedBrzycki: 190.2, observedEpley: 192.1, adjustedBrzycki: 194.4, adjustedEpley: 196.3 };
+  const observation = deriveProgressionObservation({ equipment_id: "Machine A", performed_on: "2026-08-10" }, { values });
+
+  assert.deepEqual(observation.values, values);
+  assert.equal(observation.low, 190.2);
+  assert.equal(observation.high, 196.3);
+  assert.equal(observation.seriesKey, "equipment-Machine A");
+});
+
+test("progression annotation collapses equal formatted endpoints and otherwise shows a range", () => {
+  assert.equal(formatProgressionAnnotation({ low: 191.2, high: 191.4 }, false), "191");
+  assert.equal(formatProgressionAnnotation({ low: 1.921, high: 1.974 }, true), "1.92–1.97");
+});
+
+test("progression scale uses visible values and does not force a zero baseline", () => {
+  const scale = createProgressionScale([190.2, 196.3, 201.1]);
+  assert.ok(scale.minimum > 0);
+  assert.ok(scale.minimum < 190.2);
+  assert.ok(scale.maximum > 201.1);
+  assert.ok(scale.ticks.length >= 4 && scale.ticks.length <= 6);
+});
+
+test("progression date axis spaces actual dates and reduces ticks on narrow layouts", () => {
+  const dates = ["2025-12-31", "2026-01-01", "2026-01-10", "2026-03-15", "2026-08-20", "2026-08-21"];
+  assert.ok(datePosition(dates[1], dates) < 3);
+  assert.ok(datePosition(dates[4], dates) > 90);
+  const narrow = getAdaptiveDateTicks(dates, 168);
+  const wide = getAdaptiveDateTicks(dates, 504);
+  assert.deepEqual(narrow, [dates[0], dates.at(-1)]);
+  assert.equal(wide[0], dates[0]);
+  assert.equal(wide.at(-1), dates.at(-1));
+  assert.ok(wide.length > narrow.length);
+});
+
+test("progression uses equipment toggle pills instead of formula legend entries", async () => {
+  const source = await readFile(new URL("../features/dashboard.js", import.meta.url), "utf8");
+
+  assert.match(source, /className = "progression-series-pill"/);
+  assert.match(source, /aria-pressed/);
+  assert.match(source, /hiddenProgressionSeries/);
+  assert.match(source, /visibleObservations = observations\.filter/);
+  assert.match(source, /class", "progression-band"/);
+  assert.doesNotMatch(source, /for \(const model of E1RM_MODELS\) \{[\s\S]{0,180}legend\.append/);
 });

@@ -396,7 +396,7 @@ test("provides a modelled muscle-exposure dashboard without tonnage", async () =
   assert.match(app, /currentPageTitle\.textContent = isContextual \? pageTitle : ""/);
   assert.match(app, /"my-stuff": "My Stuff"/);
   assert.match(styles, /\.trend-chart/);
-  assert.match(dashboard, /createElementNS\("http:\/\/www\.w3\.org\/2000\/svg", "polyline"\)/);
+  assert.match(dashboard, /createElementNS\("http:\/\/www\.w3\.org\/2000\/svg", "path"\)/);
   assert.match(dashboard, /className = "progression-y-axis"/);
   assert.match(dashboard, /className = "progression-x-labels"/);
   assert.match(dashboard, /getRepeatedExercises\(periodRecords\)/);
@@ -405,7 +405,7 @@ test("provides a modelled muscle-exposure dashboard without tonnage", async () =
   assert.match(dashboard, /className = "progression-tooltip"/);
   assert.match(dashboard, /marker\.tabIndex = 0/);
   assert.doesNotMatch(dashboard, /representatives\.slice\(0,\s*12\)/);
-  assert.match(styles, /\.progression-line/);
+  assert.match(styles, /\.progression-band/);
   assert.match(styles, /\.progression-marker:hover \.progression-tooltip/);
   assert.match(dashboard, /formatPercentageChange\(item\.current, item\.previous\)/);
   assert.match(dashboard, /formatPercentageChange\(group\.current, group\.previous\)/);

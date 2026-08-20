@@ -5,7 +5,6 @@ import {
   calculatePercentageChange,
   chooseDefaultExercise,
   compareRecentPeriods,
-  createLinearScale,
   filterByRange,
   getDateRange,
   getEquipmentSeriesKey,
@@ -70,6 +69,7 @@ export function createDashboardFeature(options) {
   let dashboardRange = "8w";
   let selectedDashboardGroup = null;
   let selectedProgressionExercise = null;
+  let hiddenProgressionSeries = new Set();
 
   // Register event listeners
   for (const button of rangeButtons) {
@@ -101,6 +101,7 @@ export function createDashboardFeature(options) {
   if (progressionSelect) {
     progressionSelect.addEventListener("change", () => {
       selectedProgressionExercise = progressionSelect.value || null;
+      hiddenProgressionSeries = new Set();
       renderExerciseProgression();
     });
   }
@@ -411,10 +412,10 @@ export function createDashboardFeature(options) {
     const range = getDateRange(dashboardRange, new Date(), dashboardData.sessions);
     const representatives = selectRepresentativeSetsBySeries(filterByRange(dashboardData.records, range), selectedProgressionExercise);
     const selectedExerciseName = representatives[0]?.exercise_name ?? "Exercise";
-    const estimates = representatives.flatMap((record) => {
+    const observations = representatives.flatMap((record) => {
       const display = resolveProgressionOneRepMax(record);
       if (!display?.available) return [];
-      return E1RM_MODELS.map((model) => ({ record, display, model, value: display.values[model.key] }));
+      return [deriveProgressionObservation(record, display)];
     });
     const bodyWeightState = getBodyWeightState();
     const uncoveredCount = bodyWeightState.effectiveRelativeEnabled
@@ -429,7 +430,7 @@ export function createDashboardFeature(options) {
       `${sessionCount} sessions · one representative working set per machine in each session`,
       uncoveredCount ? `${uncoveredCount} ${uncoveredCount === 1 ? "record has" : "records have"} no body weight for its workout date and ${uncoveredCount === 1 ? "is" : "are"} not plotted` : null,
     ].filter(Boolean).join(" · ");
-    renderProgressionTrend(estimates, sessionCount, seriesColors);
+    renderProgressionTrend(observations, sessionCount, seriesColors);
     const fragment = document.createDocumentFragment();
     for (const record of [...representatives].reverse()) {
       const row = document.createElement("div");
@@ -461,38 +462,50 @@ export function createDashboardFeature(options) {
     progressionHistory.replaceChildren(fragment);
   }
 
-  function renderProgressionTrend(estimates, sessionCount, seriesColors) {
+  function renderProgressionTrend(observations, sessionCount, seriesColors) {
     if (!progressionChart) return;
-    if (sessionCount < 2 || estimates.length < 2) {
+    if (sessionCount < 2 || observations.length < 2) {
       progressionChart.replaceChildren();
       progressionChart.removeAttribute("aria-label");
       return;
     }
-    const scale = createLinearScale(estimates.map((item) => item.value));
     const bodyWeightState = getBodyWeightState();
     const unit = bodyWeightState.effectiveRelativeEnabled
-      ? (/\(Dumbbell\)/i.test(estimates[0]?.record.exercise_name ?? "") ? "× BW per dumbbell" : "× BW")
-      : formatWeightUnit(estimates[0]?.record.exercise_name ?? "");
-    const plottedSeries = [...new Set(estimates.map((item) => getEquipmentSeriesKey(item.record)))].sort();
+      ? (/\(Dumbbell\)/i.test(observations[0]?.record.exercise_name ?? "") ? "× BW per dumbbell" : "× BW")
+      : formatWeightUnit(observations[0]?.record.exercise_name ?? "");
+    const plottedSeries = [...new Set(observations.map((item) => item.seriesKey))].sort();
     const legend = document.createElement("div");
     legend.className = "progression-legend";
-    legend.setAttribute("aria-label", "Machine series key");
+    legend.setAttribute("aria-label", "Equipment series filters");
     for (const seriesKey of plottedSeries) {
-      const sample = estimates.find((item) => getEquipmentSeriesKey(item.record) === seriesKey)?.record;
-      const item = document.createElement("span");
+      const sample = observations.find((item) => item.seriesKey === seriesKey)?.record;
+      const item = document.createElement("button");
+      const enabled = !hiddenProgressionSeries.has(seriesKey);
+      item.type = "button";
+      item.className = "progression-series-pill";
+      item.setAttribute("aria-pressed", String(enabled));
+      item.setAttribute("aria-label", `${enabled ? "Hide" : "Show"} ${formatEquipmentLabel(sample?.equipment_id)} series`);
       item.style.setProperty("--series-color", seriesColors.get(seriesKey));
       const swatch = document.createElement("i");
       swatch.setAttribute("aria-hidden", "true");
       const label = document.createElement("span");
       label.textContent = formatEquipmentLabel(sample?.equipment_id);
       item.append(swatch, label);
+      item.addEventListener("click", () => {
+        hiddenProgressionSeries = new Set(hiddenProgressionSeries);
+        if (hiddenProgressionSeries.has(seriesKey)) hiddenProgressionSeries.delete(seriesKey);
+        else hiddenProgressionSeries.add(seriesKey);
+        renderProgressionTrend(observations, sessionCount, seriesColors);
+      });
       legend.append(item);
     }
-    for (const model of E1RM_MODELS) {
-      const item = document.createElement("span");
-      item.textContent = model.label;
-      legend.append(item);
+    const visibleObservations = observations.filter((item) => !hiddenProgressionSeries.has(item.seriesKey));
+    if (!visibleObservations.length) {
+      progressionChart.replaceChildren(legend, createEmptyMessage("Select an equipment series to view its estimated 1RM range."));
+      progressionChart.removeAttribute("aria-label");
+      return;
     }
+    const scale = createProgressionScale(visibleObservations.flatMap((item) => [item.low, item.high]));
     const yAxis = document.createElement("div");
     yAxis.className = "progression-y-axis";
     const axisTitle = document.createElement("span");
@@ -527,24 +540,23 @@ export function createDashboardFeature(options) {
       line.setAttribute("y2", String(y));
       grid.append(line);
     }
-    const dates = [...new Set(estimates.map((item) => item.record.performed_on))].sort();
-    const points = estimates.map((item) => ({
+    const dates = [...new Set(visibleObservations.map((item) => item.record.performed_on))].sort();
+    const points = visibleObservations.map((item) => ({
       ...item,
-      seriesKey: getEquipmentSeriesKey(item.record),
-      x: dates.length === 1 ? 50 : 2 + (dates.indexOf(item.record.performed_on) / (dates.length - 1)) * 96,
-      y: scale.position(item.value),
+      x: datePosition(item.record.performed_on, dates),
+      lowY: scale.position(item.low),
+      highY: scale.position(item.high),
+      y: scale.position((item.low + item.high) / 2),
     }));
     svg.append(grid);
     for (const seriesKey of plottedSeries) {
-      for (const model of E1RM_MODELS) {
-        const seriesPoints = points.filter((point) => point.seriesKey === seriesKey && point.model.key === model.key).sort((a, b) => a.record.performed_on.localeCompare(b.record.performed_on));
-        const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-        line.setAttribute("class", "progression-line");
-        line.setAttribute("points", seriesPoints.map((point) => `${point.x},${100 - point.y}`).join(" "));
-        if (model.dash) line.setAttribute("stroke-dasharray", model.dash);
-        line.style.stroke = seriesColors.get(seriesKey);
-        svg.append(line);
-      }
+      const seriesPoints = points.filter((point) => point.seriesKey === seriesKey).sort((a, b) => a.record.performed_on.localeCompare(b.record.performed_on));
+      if (!seriesPoints.length) continue;
+      const band = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      band.setAttribute("class", "progression-band");
+      band.setAttribute("d", `M ${seriesPoints.map((point) => `${point.x} ${100 - point.highY}`).join(" L ")} L ${[...seriesPoints].reverse().map((point) => `${point.x} ${100 - point.lowY}`).join(" L ")} Z`);
+      band.style.fill = seriesColors.get(seriesKey);
+      svg.append(band);
     }
     plot.append(svg);
     for (const [index, point] of points.entries()) {
@@ -555,10 +567,10 @@ export function createDashboardFeature(options) {
       marker.style.bottom = `${point.y}%`;
       marker.style.setProperty("--series-color", seriesColors.get(point.seriesKey));
       marker.tabIndex = 0;
-      marker.setAttribute("aria-label", `${formatShortDate(point.record.performed_on)}: ${point.model.label} estimated 1RM ${formatOneRepMaxValue(point.value, point.display.relative)} ${unit}`);
+      marker.setAttribute("aria-label", `${formatShortDate(point.record.performed_on)}: ${formatProgressionAnnotation(point, point.display.relative)} estimated 1RM ${unit}`);
       const value = document.createElement("span");
       value.className = "progression-marker-value";
-      value.textContent = formatOneRepMaxValue(point.value, point.display.relative);
+      value.textContent = formatProgressionAnnotation(point, point.display.relative);
       const dot = document.createElement("span");
       dot.className = "progression-marker-dot";
       const tooltip = document.createElement("span");
@@ -574,7 +586,7 @@ export function createDashboardFeature(options) {
       const reps = point.record.reps === null ? "reps not recorded" : `${point.record.reps} ${point.record.reps === 1 ? "rep" : "reps"}`;
       tooltipPerformance.textContent = `${load} × ${reps}`;
       const tooltipContext = document.createElement("span");
-      tooltipContext.textContent = `Reported RIR ${point.record.reported_rir_bucket} · ${point.model.label}: ${formatOneRepMaxValue(point.value, point.display.relative)} ${unit}`;
+      tooltipContext.textContent = `Reported RIR ${point.record.reported_rir_bucket} · ${E1RM_MODELS.map((model) => `${model.label}: ${formatOneRepMaxValue(point.values[model.key], point.display.relative)}`).join(" · ")} ${unit}`;
       tooltip.append(tooltipDate, tooltipSeries, tooltipPerformance, tooltipContext);
       marker.setAttribute("aria-describedby", tooltip.id);
       marker.append(value, dot, tooltip);
@@ -582,16 +594,17 @@ export function createDashboardFeature(options) {
     }
     const xLabels = document.createElement("div");
     xLabels.className = "progression-x-labels";
-    xLabels.style.gridTemplateColumns = `repeat(${dates.length}, minmax(0, 1fr))`;
-    for (const dateValue of dates) {
+    const tickDates = getAdaptiveDateTicks(dates, plot.clientWidth || progressionChart.clientWidth || 480);
+    for (const dateValue of tickDates) {
       const date = document.createElement("time");
       date.dateTime = dateValue;
-      date.textContent = formatShortDate(dateValue);
+      date.style.left = `${datePosition(dateValue, dates)}%`;
+      date.textContent = formatChartDate(dateValue, dates[0], dates.at(-1));
       xLabels.append(date);
     }
     chartBody.append(plot, xLabels);
     progressionChart.replaceChildren(legend, yAxis, chartBody);
-    progressionChart.setAttribute("aria-label", `Line chart of four estimated one-rep-max model values for ${estimates[0]?.record.exercise_name ?? "exercise"}, in ${unit}. This is a formula spread, not a confidence interval.`);
+    progressionChart.setAttribute("aria-label", `Line chart of estimated one-rep-max model ranges for ${observations[0]?.record.exercise_name ?? "exercise"}, in ${unit}. The shaded envelope is a formula spread, not a confidence interval.`);
   }
 
   function resolveProgressionOneRepMax(record) {
@@ -656,6 +669,7 @@ export function createDashboardFeature(options) {
     dashboardData = null;
     selectedDashboardGroup = null;
     selectedProgressionExercise = null;
+    hiddenProgressionSeries = new Set();
     if (dashboardStatus) dashboardStatus.textContent = "Loading your dashboard…";
     if (metricGrid) metricGrid.replaceChildren();
     if (dashboardContent) dashboardContent.hidden = true;
@@ -680,6 +694,71 @@ export function createDashboardFeature(options) {
       resetDashboardState();
     },
   };
+}
+
+export function deriveProgressionObservation(record, display) {
+  const values = Object.fromEntries(E1RM_MODELS.map((model) => [model.key, display.values[model.key]]));
+  const estimates = Object.values(values).filter(Number.isFinite);
+  return {
+    record,
+    display,
+    values,
+    low: Math.min(...estimates),
+    high: Math.max(...estimates),
+    seriesKey: getEquipmentSeriesKey(record),
+  };
+}
+
+export function createProgressionScale(values, targetTickCount = 5) {
+  const finite = values.map(Number).filter(Number.isFinite);
+  if (!finite.length) return null;
+  const rawMinimum = Math.min(...finite);
+  const rawMaximum = Math.max(...finite);
+  const rawSpread = rawMaximum - rawMinimum;
+  const padding = Math.max(rawSpread * 0.12, Math.abs(rawMaximum) * 0.03, rawSpread ? 0 : Math.max(Math.abs(rawMaximum) * 0.08, 1));
+  const step = niceProgressionStep((rawSpread + padding * 2) / Math.max(targetTickCount - 1, 1));
+  const minimum = Math.floor((rawMinimum - padding) / step) * step;
+  const maximum = Math.max(minimum + step, Math.ceil((rawMaximum + padding) / step) * step);
+  const ticks = [];
+  for (let value = minimum; value <= maximum + step / 2; value += step) ticks.push(Number(value.toFixed(10)));
+  return { minimum, maximum, ticks, position: (value) => ((Number(value) - minimum) / (maximum - minimum)) * 100 };
+}
+
+function niceProgressionStep(value) {
+  const magnitude = 10 ** Math.floor(Math.log10(Math.max(value, Number.EPSILON)));
+  const normalized = value / magnitude;
+  return (normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10) * magnitude;
+}
+
+export function formatProgressionAnnotation(observation, relative) {
+  const low = formatOneRepMaxAnnotationValue(observation.low, relative);
+  const high = formatOneRepMaxAnnotationValue(observation.high, relative);
+  return low === high
+    ? formatOneRepMaxAnnotationValue((observation.low + observation.high) / 2, relative)
+    : `${low}–${high}`;
+}
+
+function formatOneRepMaxAnnotationValue(value, relative) {
+  return Number(value).toLocaleString(undefined, relative
+    ? { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+    : { maximumFractionDigits: 0 });
+}
+
+export function datePosition(value, dates) {
+  if (dates.length <= 1) return 50;
+  const first = Date.parse(`${dates[0]}T00:00:00Z`);
+  const last = Date.parse(`${dates.at(-1)}T00:00:00Z`);
+  const current = Date.parse(`${value}T00:00:00Z`);
+  return 2 + ((current - first) / (last - first)) * 96;
+}
+
+export function getAdaptiveDateTicks(dates, availableWidth = 480) {
+  if (dates.length <= 2) return dates;
+  const maximum = Math.max(2, Math.min(6, Math.floor(availableWidth / 84)));
+  if (dates.length <= maximum) return dates;
+  const indexes = new Set([0, dates.length - 1]);
+  for (let index = 1; index < maximum - 1; index += 1) indexes.add(Math.round((index * (dates.length - 1)) / (maximum - 1)));
+  return [...indexes].sort((a, b) => a - b).map((index) => dates[index]);
 }
 
 function stableStringHash(value) {
@@ -744,6 +823,14 @@ function formatPercentageChange(current, previous) {
 
 function formatShortDate(value) {
   return new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
+}
+
+function formatChartDate(value, firstDate, lastDate) {
+  const date = new Date(`${value}T00:00:00Z`);
+  const includeYear = firstDate.slice(0, 4) !== lastDate.slice(0, 4) || value === firstDate || value === lastDate;
+  return new Intl.DateTimeFormat(undefined, {
+    day: "numeric", month: "short", ...(includeYear ? { year: "2-digit" } : {}), timeZone: "UTC",
+  }).format(date);
 }
 
 function formatHistoryDate(value) {

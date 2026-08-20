@@ -1945,20 +1945,42 @@ body.session-modal-open {
   font-size: 0.68rem;
 }
 
-.progression-legend > span,
+.progression-series-pill,
 .performance-series {
   display: inline-flex;
   gap: 0.4rem;
   align-items: center;
 }
 
-.progression-legend i,
+.progression-series-pill i,
 .performance-series i {
   width: 0.62rem;
   height: 0.62rem;
   flex: 0 0 auto;
   border-radius: 50%;
   background: var(--series-color);
+}
+
+.progression-series-pill {
+  padding: 0.32rem 0.55rem;
+  border: 1px solid color-mix(in srgb, var(--series-color) 55%, #334155);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--series-color) 16%, #0b1323);
+  color: #dbeafe;
+  cursor: pointer;
+  font: inherit;
+}
+
+.progression-series-pill[aria-pressed="false"] {
+  border-color: #334155;
+  background: #0b1323;
+  color: #64748b;
+  opacity: 0.7;
+}
+
+.progression-series-pill:focus-visible {
+  outline: 2px solid #f8fafc;
+  outline-offset: 2px;
 }
 
 .progression-y-axis {
@@ -2015,20 +2037,16 @@ body.session-modal-open {
   vector-effect: non-scaling-stroke;
 }
 
-.progression-line {
-  fill: none;
-  stroke: #60a5fa;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-  stroke-width: 2.25;
-  vector-effect: non-scaling-stroke;
+.progression-band {
+  fill-opacity: 0.22;
+  stroke: none;
 }
 
 .progression-marker {
   position: absolute;
   z-index: 1;
-  width: 0.65rem;
-  height: 0.65rem;
+  width: 0.5rem;
+  height: 0.5rem;
   transform: translate(-50%, 50%);
 }
 
@@ -2036,7 +2054,7 @@ body.session-modal-open {
   display: block;
   width: 100%;
   height: 100%;
-  border: 2px solid #dbeafe;
+  border: 1.5px solid #dbeafe;
   border-radius: 50%;
   background: var(--series-color, #2563eb);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--series-color, #2563eb) 20%, transparent);
@@ -2120,19 +2138,26 @@ body.session-modal-open {
 }
 
 .progression-x-labels {
-  display: grid;
-  gap: 0;
+  position: relative;
+  height: 1.4rem;
   padding-top: 0.6rem;
 }
 
 .progression-x-labels time {
-  min-width: 0;
-  overflow: hidden;
+  position: absolute;
   color: #718096;
   font-size: 0.62rem;
   text-align: center;
-  text-overflow: ellipsis;
   white-space: nowrap;
+  transform: translateX(-50%);
+}
+
+.progression-x-labels time:first-child {
+  transform: translateX(0);
+}
+
+.progression-x-labels time:last-child {
+  transform: translateX(-100%);
 }
 
 .performance-history {
