@@ -215,9 +215,19 @@
           <button id="menu-toggle" class="menu-toggle" type="button" aria-label="Open menu" aria-controls="app-menu" aria-expanded="false">
             <span></span><span></span><span></span>
           </button>
-          <div class="brand-lockup">
-            <span>Lifting Ledger</span>
-            <strong id="current-page-title">Home</strong>
+          <div class="top-bar-context">
+            <div class="brand-lockup">
+              <span>Lifting Ledger</span>
+              <strong id="current-page-title">Home</strong>
+            </div>
+            <fieldset id="contextual-dashboard-range" class="range-control contextual-range-control" aria-label="Dashboard time range" hidden>
+              <legend>Time range</legend>
+              <button type="button" data-dashboard-range="4w" aria-pressed="false">4 weeks</button>
+              <button type="button" data-dashboard-range="8w" aria-pressed="true">8 weeks</button>
+              <button type="button" data-dashboard-range="12w" aria-pressed="false">12 weeks</button>
+              <button type="button" data-dashboard-range="6m" aria-pressed="false">6 months</button>
+              <button type="button" data-dashboard-range="all" aria-pressed="false">All time</button>
+            </fieldset>
           </div>
           <button id="sign-out" class="link-button" type="button">Sign out</button>
         </header>
@@ -324,7 +334,7 @@
               <h1 id="my-data-heading">My data</h1>
               <p class="dashboard-intro">Understand what is changing in your training.</p>
             </div>
-            <fieldset class="range-control" aria-label="Dashboard time range">
+            <fieldset id="dashboard-page-range" class="range-control" aria-label="Dashboard time range">
               <legend>Time range</legend>
               <button type="button" data-dashboard-range="4w" aria-pressed="false">4 weeks</button>
               <button type="button" data-dashboard-range="8w" aria-pressed="true">8 weeks</button>
@@ -342,6 +352,7 @@
               <div id="metric-grid" class="metric-grid" aria-label="Training summary"></div>
             </section>
 
+            <div id="muscle-exposure-interaction">
             <section class="dashboard-section exposure-section" aria-labelledby="muscle-exposure-title">
               <div class="section-heading">
                 <div><p class="section-kicker">Weighted sets</p><h2 id="muscle-exposure-title">Muscle exposure</h2><p>Modelled from working sets and exercise-specific muscle relevance.</p></div>
@@ -351,15 +362,16 @@
               <p id="exposure-warning" class="data-warning" hidden></p>
               <div id="muscle-exposure-grid" class="muscle-exposure-grid" aria-label="Select a muscle group to inspect"></div>
             </section>
-            <section class="dashboard-section trend-panel" aria-labelledby="muscle-trend-title">
+            <section id="muscle-trend-panel" class="dashboard-section trend-panel" aria-labelledby="muscle-trend-title" hidden>
                 <div class="section-heading compact-heading"><div><p class="section-kicker">Over time</p><h2 id="muscle-trend-title"></h2></div></div>
                 <div id="muscle-trend-chart" class="trend-chart" role="img"></div>
               </section>
 
-            <section class="dashboard-section sources-section" aria-labelledby="exercise-sources-title">
+            <section id="exercise-sources-section" class="dashboard-section sources-section" aria-labelledby="exercise-sources-title" hidden>
               <div class="section-heading compact-heading"><div><p class="section-kicker">What trained it</p><h2 id="exercise-sources-title"></h2></div></div>
               <div id="exercise-sources-list" class="ranked-list source-list"></div>
             </section>
+            </div>
 
             <section class="dashboard-section progression-section" aria-labelledby="progression-title">
               <div class="section-heading progression-heading">

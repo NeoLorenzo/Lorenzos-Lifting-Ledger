@@ -392,7 +392,8 @@ test("provides a modelled muscle-exposure dashboard without tonnage", async () =
   assert.match(dashboard, /button\.setAttribute\("aria-expanded", String\(expanded\)\)/);
   assert.doesNotMatch(`${app}\n${dashboard}`, /metric-note|detailedMuscleTitle|detailedMuscleList/);
   assert.match(app, /const activePanel = pagePanels\.find[\s\S]*activePanel\?\.querySelector\("h1, \[data-page-heading-anchor\]"\)/);
-  assert.match(app, /headingBottom <= topBarBottom \? pageTitle : ""/);
+  assert.match(app, /const isContextual = headingBottom <= topBarBottom;/);
+  assert.match(app, /currentPageTitle\.textContent = isContextual \? pageTitle : ""/);
   assert.match(app, /"my-stuff": "My Stuff"/);
   assert.match(styles, /\.trend-chart/);
   assert.match(dashboard, /createElementNS\("http:\/\/www\.w3\.org\/2000\/svg", "polyline"\)/);

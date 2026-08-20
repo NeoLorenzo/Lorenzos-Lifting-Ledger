@@ -682,6 +682,13 @@ h1 {
   backdrop-filter: blur(18px);
 }
 
+.top-bar-context {
+  display: flex;
+  min-width: 0;
+  gap: 0.65rem;
+  align-items: center;
+}
+
 .menu-toggle {
   display: grid;
   width: 2.8rem;
@@ -722,6 +729,20 @@ h1 {
   overflow: hidden;
   font-size: 1rem;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contextual-range-control {
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding: 0.18rem;
+}
+
+.contextual-range-control button {
+  min-height: 2rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.68rem;
   white-space: nowrap;
 }
 
@@ -2139,7 +2160,15 @@ body.session-modal-open {
 }
 
 .performance-series {
-  color: #94a3b8;
+  display: inline-flex;
+  width: fit-content;
+  gap: 0.35rem;
+  align-items: center;
+  padding: 0.2rem 0.42rem;
+  border: 1px solid rgba(100, 116, 139, 0.45);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.7);
+  color: #cbd5e1;
   font-size: 0.72rem;
 }
 

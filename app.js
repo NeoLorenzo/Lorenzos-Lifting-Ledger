@@ -393,7 +393,13 @@ function updateContextualNavTitle() {
   }
   const headingBottom = heading.getBoundingClientRect().bottom;
   const topBarBottom = topBar.getBoundingClientRect().bottom;
-  currentPageTitle.textContent = headingBottom <= topBarBottom ? pageTitle : "";
+  const isContextual = headingBottom <= topBarBottom;
+  currentPageTitle.textContent = isContextual ? pageTitle : "";
+  const contextualDashboardRange = document.querySelector("#contextual-dashboard-range");
+  const dashboardPageRange = document.querySelector("#dashboard-page-range");
+  const isDashboardRangeContextual = activePageName === "my-data" && isContextual;
+  if (contextualDashboardRange) contextualDashboardRange.hidden = !isDashboardRangeContextual;
+  if (dashboardPageRange) dashboardPageRange.hidden = isDashboardRangeContextual;
 }
 async function openLiteratureDocument(documentId) {
   const documentDefinition = LITERATURE_DOCUMENTS[documentId];

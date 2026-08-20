@@ -48,6 +48,9 @@ export function createDashboardFeature(options) {
   const dashboardContent = typeof document !== "undefined" ? document.querySelector("#dashboard-content") : null;
   const dashboardEmpty = typeof document !== "undefined" ? document.querySelector("#dashboard-empty") : null;
   const muscleExposureGrid = typeof document !== "undefined" ? document.querySelector("#muscle-exposure-grid") : null;
+  const muscleExposureInteraction = typeof document !== "undefined" ? document.querySelector("#muscle-exposure-interaction") : null;
+  const muscleTrendPanel = typeof document !== "undefined" ? document.querySelector("#muscle-trend-panel") : null;
+  const exerciseSourcesSection = typeof document !== "undefined" ? document.querySelector("#exercise-sources-section") : null;
   const exposureWarning = typeof document !== "undefined" ? document.querySelector("#exposure-warning") : null;
   const muscleTrendTitle = typeof document !== "undefined" ? document.querySelector("#muscle-trend-title") : null;
   const muscleTrendChart = typeof document !== "undefined" ? document.querySelector("#muscle-trend-chart") : null;
@@ -72,6 +75,7 @@ export function createDashboardFeature(options) {
   for (const button of rangeButtons) {
     button.addEventListener("click", () => {
       dashboardRange = button.dataset.dashboardRange;
+      syncRangeControls();
       renderDashboard();
     });
   }
@@ -80,7 +84,16 @@ export function createDashboardFeature(options) {
     muscleExposureGrid.addEventListener("click", (event) => {
       const button = event.target.closest("[data-muscle-group]");
       if (!button) return;
-      selectedDashboardGroup = button.dataset.muscleGroup;
+      selectedDashboardGroup = selectedDashboardGroup === button.dataset.muscleGroup ? null : button.dataset.muscleGroup;
+      renderDashboard();
+      event.stopPropagation();
+    });
+  }
+
+  if (typeof document !== "undefined") {
+    document.addEventListener("click", (event) => {
+      if (!selectedDashboardGroup || muscleExposureInteraction?.contains(event.target)) return;
+      selectedDashboardGroup = null;
       renderDashboard();
     });
   }
@@ -163,9 +176,7 @@ export function createDashboardFeature(options) {
     const periodWorkingSets = workingSets(periodRecords);
     const groups = getGroupCatalogue(exerciseMuscleLookup);
 
-    for (const button of rangeButtons) {
-      button.setAttribute("aria-pressed", String(button.dataset.dashboardRange === dashboardRange));
-    }
+    syncRangeControls();
     if (!sessions.length) {
       showDashboardEmpty("No training data yet", "My Data will populate after you log your first training session.");
       if (dashboardStatus) dashboardStatus.textContent = "No workout data yet";
@@ -189,10 +200,7 @@ export function createDashboardFeature(options) {
     ]);
 
     const exposure = calculateMuscleExposure(periodRecords, exerciseMuscleLookup, groups);
-    const highestGroup = [...groups].sort((a, b) => (exposure.groupExposure.get(b.code) ?? 0) - (exposure.groupExposure.get(a.code) ?? 0))[0];
-    if (!groups.some((group) => group.code === selectedDashboardGroup)) {
-      selectedDashboardGroup = (exposure.groupExposure.get(highestGroup?.code) ?? 0) > 0 ? highestGroup.code : (groups.find((group) => group.code === "back")?.code ?? highestGroup?.code);
-    }
+    if (!groups.some((group) => group.code === selectedDashboardGroup)) selectedDashboardGroup = null;
     renderMuscleExposure(groups, exposure);
     if (exposureWarning) {
       if (!periodWorkingSets.length) {
@@ -294,7 +302,17 @@ export function createDashboardFeature(options) {
 
   function renderSelectedMuscle(groups, exposure, periodRecords, range, exerciseMuscleLookup) {
     const group = groups.find((item) => item.code === selectedDashboardGroup);
-    if (!group) return;
+    if (!group) {
+      if (muscleTrendPanel) muscleTrendPanel.hidden = true;
+      if (exerciseSourcesSection) exerciseSourcesSection.hidden = true;
+      if (muscleTrendTitle) muscleTrendTitle.textContent = "";
+      if (exerciseSourcesTitle) exerciseSourcesTitle.textContent = "";
+      if (muscleTrendChart) muscleTrendChart.replaceChildren();
+      if (exerciseSourcesList) exerciseSourcesList.replaceChildren();
+      return;
+    }
+    if (muscleTrendPanel) muscleTrendPanel.hidden = false;
+    if (exerciseSourcesSection) exerciseSourcesSection.hidden = false;
     if (muscleTrendTitle) muscleTrendTitle.textContent = group.name;
     if (exerciseSourcesTitle) exerciseSourcesTitle.textContent = group.name;
     renderTrendChart(calculateExposureTrend(periodRecords, exerciseMuscleLookup, group.code, range), range);
@@ -376,6 +394,12 @@ export function createDashboardFeature(options) {
     progressionSelect.disabled = exercises.length === 0;
   }
 
+  function syncRangeControls() {
+    for (const button of rangeButtons) {
+      button.setAttribute("aria-pressed", String(button.dataset.dashboardRange === dashboardRange));
+    }
+  }
+
   function renderExerciseProgression() {
     if (!progressionStatus || !progressionChart || !progressionHistory) return;
     if (!dashboardData || !selectedProgressionExercise) {
@@ -413,7 +437,7 @@ export function createDashboardFeature(options) {
       row.style.setProperty("--series-color", seriesColors.get(getEquipmentSeriesKey(record)));
       const date = document.createElement("time");
       date.dateTime = record.performed_on;
-      date.textContent = formatShortDate(record.performed_on);
+      date.textContent = formatHistoryDate(record.performed_on);
       const series = document.createElement("span");
       series.className = "performance-series";
       const swatch = document.createElement("i");
@@ -422,15 +446,15 @@ export function createDashboardFeature(options) {
       seriesLabel.textContent = formatEquipmentLabel(record.equipment_id);
       series.append(swatch, seriesLabel);
       const performance = document.createElement("strong");
-      const load = record.weight === null ? "Load not recorded" : `${formatDecimal(Number(record.weight))} ${formatWeightUnit(record.exercise_name)}`;
+      const load = record.weight === null ? "Load not recorded" : `${formatDecimal(Number(record.weight))} kg`;
       const reps = record.reps === null ? "reps not recorded" : `${record.reps} ${record.reps === 1 ? "rep" : "reps"}`;
       performance.textContent = `${load} × ${reps}`;
       const context = document.createElement("span");
       const display = resolveProgressionOneRepMax(record);
       const estimateLabel = !display ? null : display.available
-        ? E1RM_MODELS.map((model) => `${model.label}: ${formatOneRepMaxValue(display.values[model.key], display.relative)} ${display.unit}`).join(" · ")
-        : display.reason;
-      context.textContent = [`Reported RIR ${record.reported_rir_bucket}`, estimateLabel].filter(Boolean).join(" · ");
+        ? `e1RM ${formatOneRepMaxRange(display)} ${display.unit}`
+        : "Relative e1RM unavailable";
+      context.textContent = [`RIR ${record.reported_rir_bucket}`, estimateLabel].filter(Boolean).join(" · ");
       row.append(date, series, performance, context);
       fragment.append(row);
     }
@@ -584,6 +608,11 @@ export function createDashboardFeature(options) {
       : { maximumFractionDigits: 0 });
   }
 
+  function formatOneRepMaxRange(display) {
+    const values = E1RM_MODELS.map((model) => display.values[model.key]).filter(Number.isFinite);
+    return `${formatOneRepMaxValue(Math.min(...values), display.relative)}–${formatOneRepMaxValue(Math.max(...values), display.relative)}`;
+  }
+
   function renderRecentChange(groups, exerciseMuscleLookup) {
     if (!recentOverview || !recentGroups) return;
     const comparison = compareRecentPeriods(dashboardData.sessions, dashboardData.records, exerciseMuscleLookup, new Date(), groups);
@@ -680,8 +709,8 @@ function assignExerciseSeriesColors(exerciseName, seriesKeys) {
 
 function formatEquipmentLabel(equipmentId) {
   return equipmentId === null || equipmentId === undefined || equipmentId === ""
-    ? "Equipment not recorded"
-    : `Equipment ${equipmentId}`;
+    ? "Not recorded"
+    : String(equipmentId);
 }
 
 function getChangeDirectionClass(current, previous) {
@@ -715,6 +744,11 @@ function formatPercentageChange(current, previous) {
 
 function formatShortDate(value) {
   return new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${value}T00:00:00Z`));
+}
+
+function formatHistoryDate(value) {
+  const date = new Date(`${value}T00:00:00Z`);
+  return `${String(date.getUTCDate()).padStart(2, "0")}/${String(date.getUTCMonth() + 1).padStart(2, "0")}/${date.getUTCFullYear()}`;
 }
 
 function formatBucketLabel(value, bucket) {
