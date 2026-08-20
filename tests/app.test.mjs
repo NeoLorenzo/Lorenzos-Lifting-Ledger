@@ -351,9 +351,10 @@ test("renders collapsed sessions with toggleable exercise-level muscle pills", a
 });
 
 test("provides a modelled muscle-exposure dashboard without tonnage", async () => {
-  const [html, app, analytics, styles, policy] = await Promise.all([
+  const [html, app, dashboard, analytics, styles, policy] = await Promise.all([
     read("index.html"),
     read("app.js"),
+    read("features/dashboard.js"),
     read("analytics.js"),
     read("styles.css"),
     read("docs/WHY_THE_APP_DOES_NOT_TRACK_TONNAGE.md"),
@@ -373,49 +374,49 @@ test("provides a modelled muscle-exposure dashboard without tonnage", async () =
   assert.doesNotMatch(html, /weight-convention-note|dashboard-detail-grid/);
   assert.doesNotMatch(html, />Exposure over time<|>Exercise sources</);
   assert.doesNotMatch(html, /Recorded volume|kg × reps|volume load/i);
-  assert.match(app, /fetchOwnedRows\(supabase, "workout_sessions"/);
-  assert.match(app, /fetchOwnedRows\(supabase, "session_exercises"/);
-  assert.match(app, /"exercise_sets"/);
-  assert.match(app, /\.eq\("owner_id", ownerId\)/);
+  assert.match(dashboard, /fetchOwnedRows\(supabase, "workout_sessions"/);
+  assert.match(dashboard, /fetchOwnedRows\(supabase, "session_exercises"/);
+  assert.match(dashboard, /"exercise_sets"/);
+  assert.match(dashboard, /\.eq\("owner_id", ownerId\)/);
   assert.match(app, /\.select\("exercise_id, muscle_id, relevance"\)/);
   assert.match(analytics, /record\.is_warmup !== true/);
   assert.match(analytics, /Math\.max\(perSetGroups\.get/);
-  assert.doesNotMatch(`${app}\n${analytics}`, /setVolume|monthlyVolume|recordedVolume|weight\s*\*\s*reps/i);
-  assert.doesNotMatch(app, /\$\{weight\}\s*×\s*\$\{reps\}/);
+  assert.doesNotMatch(`${app}\n${dashboard}\n${analytics}`, /setVolume|monthlyVolume|recordedVolume|weight\s*\*\s*reps/i);
+  assert.doesNotMatch(`${app}\n${dashboard}`, /\$\{weight\}\s*×\s*\$\{reps\}/);
   assert.match(styles, /[.]muscle-exposure-grid/);
   assert.match(styles, /grid-template-columns: minmax\(0, 1fr\)/);
   assert.match(styles, /[.]exposure-item[.]is-expanded/);
-  assert.match(app, /className = "exposure-breakdown ranked-list"/);
-  assert.match(app, /button\.setAttribute\("aria-expanded", String\(expanded\)\)/);
-  assert.doesNotMatch(app, /metric-note|detailedMuscleTitle|detailedMuscleList/);
+  assert.match(dashboard, /className = "exposure-breakdown ranked-list"/);
+  assert.match(dashboard, /button\.setAttribute\("aria-expanded", String\(expanded\)\)/);
+  assert.doesNotMatch(`${app}\n${dashboard}`, /metric-note|detailedMuscleTitle|detailedMuscleList/);
   assert.match(app, /const activePanel = pagePanels\.find[\s\S]*activePanel\?\.querySelector\("h1, \[data-page-heading-anchor\]"\)/);
   assert.match(app, /headingBottom <= topBarBottom \? pageTitle : ""/);
   assert.match(app, /"my-stuff": "My Stuff"/);
   assert.match(styles, /\.trend-chart/);
-  assert.match(app, /createElementNS\("http:\/\/www\.w3\.org\/2000\/svg", "polyline"\)/);
-  assert.match(app, /className = "progression-y-axis"/);
-  assert.match(app, /className = "progression-x-labels"/);
-  assert.match(app, /getRepeatedExercises\(periodRecords\)/);
-  assert.match(app, /selectRepresentativeSetsBySeries/);
-  assert.match(app, /className = "progression-legend"/);
-  assert.match(app, /className = "progression-tooltip"/);
-  assert.match(app, /marker\.tabIndex = 0/);
-  assert.doesNotMatch(app, /representatives\.slice\(0,\s*12\)/);
+  assert.match(dashboard, /createElementNS\("http:\/\/www\.w3\.org\/2000\/svg", "polyline"\)/);
+  assert.match(dashboard, /className = "progression-y-axis"/);
+  assert.match(dashboard, /className = "progression-x-labels"/);
+  assert.match(dashboard, /getRepeatedExercises\(periodRecords\)/);
+  assert.match(dashboard, /selectRepresentativeSetsBySeries/);
+  assert.match(dashboard, /className = "progression-legend"/);
+  assert.match(dashboard, /className = "progression-tooltip"/);
+  assert.match(dashboard, /marker\.tabIndex = 0/);
+  assert.doesNotMatch(dashboard, /representatives\.slice\(0,\s*12\)/);
   assert.match(styles, /\.progression-line/);
   assert.match(styles, /\.progression-marker:hover \.progression-tooltip/);
-  assert.match(app, /formatPercentageChange\(item\.current, item\.previous\)/);
-  assert.match(app, /formatPercentageChange\(group\.current, group\.previous\)/);
-  assert.match(app, /"New this period"/);
-  assert.match(app, /change-positive/);
-  assert.match(app, /change-negative/);
+  assert.match(dashboard, /formatPercentageChange\(item\.current, item\.previous\)/);
+  assert.match(dashboard, /formatPercentageChange\(group\.current, group\.previous\)/);
+  assert.match(dashboard, /"New this period"/);
+  assert.match(dashboard, /change-positive/);
+  assert.match(dashboard, /change-negative/);
   assert.match(styles, /\.change-positive > strong[\s\S]*#4ade80/);
   assert.match(styles, /\.change-negative > strong[\s\S]*#fb7185/);
-  assert.doesNotMatch(app, /delta\.textContent = `\$\{formatSigned/);
+  assert.doesNotMatch(dashboard, /delta\.textContent = `\$\{formatSigned/);
   assert.match(policy, /Never use or display weight × reps/);
   assert.match(policy, /prefer fewer meaningful metrics/i);
   assert.match(styles, /\.progression-tooltip[\s\S]*display: none/);
   assert.match(styles, /\.progression-marker:hover \.progression-tooltip[\s\S]*display: grid/);
-  assert.match(app, /point\.x <= 50 \? "is-start" : "is-end"/);
+  assert.match(dashboard, /point\.x <= 50 \? "is-start" : "is-end"/);
 });
 
 test("defines and applies one per-dumbbell weight convention", async () => {
@@ -435,14 +436,15 @@ test("defines and applies one per-dumbbell weight convention", async () => {
 });
 
 test("defines consistent exercise and directional color rules", async () => {
-  const [app, styles, designRules] = await Promise.all([
+  const [app, dashboard, styles, designRules] = await Promise.all([
     read("app.js"),
+    read("features/dashboard.js"),
     read("styles.css"),
     read("docs/DESIGN_RULES.md"),
   ]);
 
-  assert.match(app, /EXERCISE_SERIES_COLORS/);
-  assert.match(app, /stableStringHash\(`\$\{exerciseName\}:\$\{seriesKey\}`\)/);
+  assert.match(dashboard, /EXERCISE_SERIES_COLORS/);
+  assert.match(dashboard, /stableStringHash\(`\$\{exerciseName\}:\$\{seriesKey\}`\)/);
   assert.match(styles, /background: var\(--series-color/);
   assert.match(designRules, /same exact exercise and equipment identity must keep the same color/i);
   assert.match(designRules, /Positive increases are green/);
@@ -642,7 +644,7 @@ test("creates, resumes, and concludes one persisted active workout session", asy
   assert.match(migration, /security invoker/);
   assert.match(migration, /set search_path = ''/);
   assert.match(migration, /revoke all on function public\.start_or_resume_workout_session\(\) from public, anon/);
-  assert.match(serviceWorker, /lifting-ledger-v38/);
+  assert.match(serviceWorker, /lifting-ledger-v39/);
   assert.match(presetsFeature, /async function openSessionPresetPicker\(\)/);
   assert.match(setCountMigration, /row_number\(\) over \(order by random\(\)\)/);
   assert.match(setCountMigration, /generate_series\(1, membership\.set_count\)/);
@@ -690,8 +692,8 @@ test("provides owner-scoped body-weight import, interpolation, settings, and ana
 });
 
 test("applies the persisted relative-e1RM preference across history and progression", async () => {
-  const [html, app, relativeModule, migration, readme, bodyWeightDocs, designRules, serviceWorker, feature] = await Promise.all([
-    read("index.html"), read("app.js"), read("relative-e1rm.js"),
+  const [html, app, dashboard, relativeModule, migration, readme, bodyWeightDocs, designRules, serviceWorker, feature] = await Promise.all([
+    read("index.html"), read("app.js"), read("features/dashboard.js"), read("relative-e1rm.js"),
     read("supabase/migrations/20260819120000_reconcile_relative_e1rm_user_settings.sql"),
     read("README.md"), read("docs/BODY_WEIGHT_DATA.md"), read("docs/DESIGN_RULES.md"), read("service-worker.js"),
     read("features/body-weight.js"),
@@ -704,9 +706,9 @@ test("applies the persisted relative-e1RM preference across history and progress
   assert.match(feature, /from\("user_settings"\)\.upsert/);
   assert.match(feature, /effectiveRelativeEnabled: hasBodyWeight && storedRelativeEnabled/);
   assert.match(app, /createExerciseItem\(exercise, session\.performed_on\)/);
-  assert.match(app, /resolveProgressionOneRepMax\(record\)/);
-  assert.match(app, /× BW per dumbbell/);
-  assert.match(app, /no body weight for its workout date and/);
+  assert.match(dashboard, /resolveProgressionOneRepMax\(record\)/);
+  assert.match(dashboard, /× BW per dumbbell/);
+  assert.match(dashboard, /no body weight for its workout date and/);
   assert.match(relativeModule, /lowValue \/ bodyWeight/);
   assert.match(relativeModule, /highValue \/ bodyWeight/);
   assert.match(relativeModule, /weightByDate\.get\(performedOn\)/);

@@ -96,6 +96,7 @@ npm test
 - `index.html` — minimal app shell
 - `app.js` — Supabase Google sign-in/session handling, top-level orchestration
 - `features/body-weight.js` — body-weight import/deletion controller, relative e1RM preference settings, and body weight chart UI
+- `features/dashboard.js` — My Data / Dashboard UI controller, state management, date-range and muscle exposure filtering, progression charts, and recent change rendering
 - `features/presets.js` — My Stuff / presets creation, editing, deletion controller, and preset exercise picker UI
 - `body-weight.js` — generic body-weight CSV parsing, validation, preview, and interpolation helpers
 - `presets.js` — pure preset name normalization, draft validation, and unique exercise extraction helpers
