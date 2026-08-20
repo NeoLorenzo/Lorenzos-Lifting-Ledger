@@ -354,7 +354,7 @@
                 <div><p class="section-kicker">Weighted sets</p><h2 id="muscle-exposure-title">Muscle exposure</h2><p>Modelled from working sets and exercise-specific muscle relevance.</p></div>
                 <a class="method-link" href="?literature=exercise-muscle-relevance" data-document="exercise-muscle-relevance">Methodology <span aria-hidden="true">→</span></a>
               </div>
-              <p class="model-explanation">Each working set contributes between 0 and 1 weighted set to a muscle or group based on the exercise's authored hypertrophic-relevance mapping. This estimates worthwhile muscular involvement; it is not a direct measurement of growth, force, or “effective sets.” RPE is not currently used to change these coefficients.</p>
+              <p class="model-explanation">Each working set (reported RIR 0–3) contributes between 0 and 1 weighted set to a muscle or group based on the exercise's authored hypertrophic-relevance mapping. Warm-ups and 4+ RIR sets are excluded by this product rule; that does not mean 4+ RIR produces literally zero hypertrophy. This estimates worthwhile muscular involvement, not growth, force, or “effective sets.”</p>
               <p id="exposure-warning" class="data-warning" hidden></p>
               <div id="muscle-exposure-grid" class="muscle-exposure-grid" aria-label="Select a muscle group to inspect"></div>
             </section>
@@ -370,7 +370,7 @@
 
             <section class="dashboard-section progression-section" aria-labelledby="progression-title">
               <div class="section-heading progression-heading">
-                <div><h2 id="progression-title">Exercise progression</h2><p>Estimated 1RM is secondary context for the same exercise only—not a measured max. When relative mode is enabled, each estimate is divided by body weight on its workout date. Different machines or equipment are shown as separate, color-keyed lines.</p></div>
+                <div><h2 id="progression-title">Exercise progression</h2><p>Each qualifying set preserves Brzycki and Epley estimates from completed reps plus both estimates using reps + reported RIR. This four-value model spread is not a confidence interval or a measured max. 4+ RIR sets are excluded. Relative mode divides each value independently by body weight on its workout date.</p></div>
                 <label class="exercise-select-label" for="progression-exercise">Exercise<select id="progression-exercise"></select></label>
               </div>
               <p id="progression-status" class="section-note"></p>
@@ -388,10 +388,10 @@
             <details class="method-card">
               <summary>How these numbers are calculated</summary>
               <div class="method-copy">
-                <p><strong>Sessions</strong> counts dated workout records in the selected period. <strong>Working sets</strong> excludes warm-ups. <strong>Exercises trained</strong> counts exact catalogue exercise names with a working set.</p>
+                <p><strong>Sessions</strong> counts dated workout records in the selected period. <strong>Working sets</strong> includes non-warm-up sets with reported RIR 0–3; warm-ups and 4+ RIR sets remain in history but are excluded. <strong>Exercises trained</strong> counts exact catalogue exercise names with a working set.</p>
                 <p><strong>Modelled muscle exposure</strong> adds the authored exercise–muscle relevance coefficient for every working set. A UI group's value uses the highest child-muscle coefficient for each set, preventing groups with more anatomical entities from being inflated.</p>
-                <p><strong>Exercise progression</strong> includes exercises recorded in at least two sessions and selects one representative working set per equipment identity in each session: highest valid estimated-1RM midpoint, otherwise highest load, with repetitions breaking load ties. Equipment identities share the chart scale but keep separate lines and colors.</p>
-                <p><strong>Relative estimated 1RM</strong> divides both absolute e1RM range bounds by measured or interpolated body weight on the workout date. It is shown in × BW, is unavailable outside body-weight coverage, and never changes the stored absolute estimate.</p>
+                <p><strong>Exercise progression</strong> selects one representative RIR 0–3 working set per equipment identity and session using completed performance only: higher lower observed Brzycki/Epley estimate, then higher upper estimate, load, and reps. It then plots four inspectable values: observed Brzycki and Epley, and both formulas using completed reps + reported RIR.</p>
+                <p><strong>Relative estimated 1RM</strong> divides all four calculated values independently by measured or interpolated body weight on the workout date. It is shown in × BW, is unavailable outside body-weight coverage, and never changes stored absolute estimates.</p>
               </div>
             </details>
           </div>

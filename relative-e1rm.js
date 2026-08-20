@@ -7,6 +7,26 @@ export function calculateRelativeOneRepMaxRange(low, high, bodyWeightKg) {
   return { low: lowValue / bodyWeight, high: highValue / bodyWeight };
 }
 
+export function resolveOneRepMaxEstimates(estimates, bodyWeightKg, { relativeEnabled = false, exerciseName = "" } = {}) {
+  if (!estimates) return null;
+  const entries = Object.entries(estimates);
+  if (entries.some(([, value]) => !Number.isFinite(Number(value)))) return null;
+  const perDumbbell = /\(Dumbbell\)/i.test(exerciseName);
+  if (!relativeEnabled) {
+    return { available: true, relative: false, values: Object.fromEntries(entries.map(([key, value]) => [key, Number(value)])), unit: perDumbbell ? "kg per dumbbell" : "kg" };
+  }
+  const bodyWeight = Number(bodyWeightKg);
+  if (!Number.isFinite(bodyWeight) || bodyWeight <= 0) {
+    return { available: false, relative: true, reason: "Relative e1RM unavailable — no body weight for this date." };
+  }
+  return {
+    available: true,
+    relative: true,
+    values: Object.fromEntries(entries.map(([key, value]) => [key, Number(value) / bodyWeight])),
+    unit: perDumbbell ? "× BW per dumbbell" : "× BW",
+  };
+}
+
 export function resolveOneRepMaxRange({
   low,
   high,

@@ -27,6 +27,8 @@ The app must never calculate, display, or use weight × reps—also called tonna
 
 Load and repetitions remain useful as separate, exercise-specific performance data. Hypertrophy-relevant volume should primarily refer to sufficiently hard working sets and explicitly justified measures derived from them.
 
+The product classifies an explicitly marked warm-up as a warm-up, a non-warm-up set reported at RIR 0–3 as a working set, and a non-warm-up set reported at 4+ RIR as a high-RIR history set. Warm-ups and high-RIR sets are excluded from hypertrophy analytics. The 0–3 cutoff is a product inclusion rule, not a claim that 4+ RIR causes literally zero hypertrophy.
+
 The rationale and product-wide implementation rule are defined in [Why the app does not track tonnage](WHY_THE_APP_DOES_NOT_TRACK_TONNAGE.md).
 
 ## 3. Dumbbell weight is always per dumbbell
@@ -64,3 +66,5 @@ Imported scale weights are measured user data in kilograms. Only those observati
 For a missing date strictly between two observations, the app may calculate a daily value with linear interpolation: `W(d) = W1 + (W2 - W1) × (days from d1 / days between d1 and d2)`. The UI must label that value as interpolated and, where practical, identify the surrounding observations. Interpolation is a mathematical convenience, not a scale measurement, prediction, physiological model, or trend-weight estimate. The app must not extrapolate before the first or after the final observation.
 
 Relative estimated 1RM is a calculated presentation of the existing absolute estimated range, divided by measured or interpolated body weight on the workout date. It uses `× BW` units, remains default-off and user-controlled, and must be unavailable rather than substituted or extrapolated when that date has no body-weight value. Normalization does not make e1RM measured or more accurate. Dumbbell relative e1RM remains per dumbbell.
+
+Strength progression preserves four calculated values for a representative RIR 0–3 working set: observed Brzycki and Epley estimates, plus both formulas using completed reps + reported RIR. Representative selection uses only the observed pair, ordered by its lower value and then its upper value. The four-value spread is an estimated model range, not a confidence interval or a measured true 1RM. The app does not add a literature-derived true-RIR uncertainty model: reported RIR remains the entered subjective observation. Stored RIR bucket `4` means open-ended `4+`, so it cannot provide a finite adjusted repetition count and is excluded from this primary graph.

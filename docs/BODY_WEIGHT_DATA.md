@@ -30,9 +30,8 @@ Settings provides CSV validation and preview, import/correction, measurement cou
 
 Relative e1RM is a default-off presentation preference. It is usable only while the owner has body-weight measurements. Importing measurements makes the control available but does not enable it; deleting the dataset resets it to off.
 
-For workout date `d`, each existing absolute range bound is transformed independently:
+For workout date `d`, each existing absolute e1RM formula value is transformed independently. For the four-value RIR progression model, that means completed-rep Brzycki, completed-rep Epley, reps-plus-RIR Brzycki, and reps-plus-RIR Epley are each divided by `body_weight(d)`:
 
-- `relative_e1RM_low = estimated_1rm_low ÷ body_weight(d)`
-- `relative_e1RM_high = estimated_1rm_high ÷ body_weight(d)`
+- `relative_e1RM_model = absolute_e1RM_model ÷ body_weight(d)`
 
-The result is a dimensionless multiple labelled `× BW`. It may use either a measured or transparently interpolated daily weight. It never uses nearest-neighbour filling or extrapolation, so a workout before the first or after the last measurement reports that relative e1RM is unavailable. Absolute e1RM remains the canonical generated database value; the relative range is calculated only for display. For dumbbell exercises, both absolute and relative e1RM retain the one-dumbbell convention and use `× BW per dumbbell` where needed.
+The result is a dimensionless multiple labelled `× BW`. It may use either a measured or transparently interpolated daily weight. It never uses nearest-neighbour filling or extrapolation, so a workout before the first or after the last measurement reports that relative e1RM is unavailable. Absolute e1RM remains the canonical generated database value; relative values are calculated only for display. For dumbbell exercises, both absolute and relative e1RM retain the one-dumbbell convention and use `× BW per dumbbell` where needed.

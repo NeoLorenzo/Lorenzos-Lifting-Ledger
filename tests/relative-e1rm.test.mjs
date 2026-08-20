@@ -4,8 +4,14 @@ import {
   calculateRelativeOneRepMaxRange,
   getEffectiveRelativeMode,
   getOneRepMaxMidpoint,
+  resolveOneRepMaxEstimates,
   resolveOneRepMaxRange,
 } from "../relative-e1rm.js";
+
+test("normalizes all four e1RM identities independently", () => {
+  const result = resolveOneRepMaxEstimates({ observedBrzycki: 120, observedEpley: 124, adjustedBrzycki: 128, adjustedEpley: 132 }, 80, { relativeEnabled: true });
+  assert.deepEqual(result.values, { observedBrzycki: 1.5, observedEpley: 1.55, adjustedBrzycki: 1.6, adjustedEpley: 1.65 });
+});
 
 test("converts both absolute e1RM bounds using body weight on the workout date", () => {
   assert.deepEqual(calculateRelativeOneRepMaxRange(120, 126, 80), { low: 1.5, high: 1.575 });

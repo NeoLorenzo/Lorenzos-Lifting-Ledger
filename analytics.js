@@ -1,3 +1,5 @@
+import { calculateBrzycki, calculateEpley, isAnalyticalWorkingSet } from "./set-model.js";
+
 export const DASHBOARD_RANGES = Object.freeze({
   "4w": { label: "4 weeks", weeks: 4, bucket: "week" },
   "8w": { label: "8 weeks", weeks: 8, bucket: "week" },
@@ -96,10 +98,7 @@ export function joinDashboardData(sessions, exercises, sets) {
 }
 
 export function workingSets(records) {
-  return records.filter((record) => (
-    record.is_warmup !== true
-    && !(record.weight === null && record.reps === null)
-  ));
+  return records.filter(isAnalyticalWorkingSet);
 }
 
 export function getGroupCatalogue(exerciseMuscleLookup) {
@@ -216,17 +215,20 @@ export function summarizeTraining(sessions, records, range) {
 }
 
 function comparePerformanceSets(a, b) {
-  const midpoint = (set) => {
-    const low = Number(set.estimated_1rm_low);
-    const high = Number(set.estimated_1rm_high);
-    return Number.isFinite(low) && Number.isFinite(high) && low > 0 && high >= low ? (low + high) / 2 : null;
+  const observedPair = (set) => {
+    const brzycki = calculateBrzycki(set.weight, set.reps);
+    const epley = calculateEpley(set.weight, set.reps);
+    return brzycki === null || epley === null
+      ? null
+      : { conservative: Math.min(brzycki, epley), optimistic: Math.max(brzycki, epley) };
   };
-  const aMid = midpoint(a);
-  const bMid = midpoint(b);
-  if (aMid !== null || bMid !== null) {
-    if (aMid === null) return -1;
-    if (bMid === null) return 1;
-    if (aMid !== bMid) return aMid - bMid;
+  const aPair = observedPair(a);
+  const bPair = observedPair(b);
+  if (aPair !== null || bPair !== null) {
+    if (aPair === null) return -1;
+    if (bPair === null) return 1;
+    if (aPair.conservative !== bPair.conservative) return aPair.conservative - bPair.conservative;
+    if (aPair.optimistic !== bPair.optimistic) return aPair.optimistic - bPair.optimistic;
   }
   const aLoad = Number(a.weight);
   const bLoad = Number(b.weight);
@@ -240,7 +242,7 @@ export function selectRepresentativeSets(records, exerciseId) {
   const bySession = new Map();
   for (const record of workingSets(records).filter((item) => String(item.exercise_id) === String(exerciseId))) {
     const selected = bySession.get(record.session_id);
-    // Prefer the highest valid e1RM midpoint; otherwise use load, then reps.
+    // Rank only observed completed performance: conservative formula, optimistic formula, load, then reps.
     if (!selected || comparePerformanceSets(record, selected) > 0) bySession.set(record.session_id, record);
   }
   return [...bySession.values()].sort((a, b) => a.performed_on.localeCompare(b.performed_on));
@@ -323,12 +325,6 @@ export function compareRecentPeriods(sessions, records, exerciseMuscleLookup, no
       delta: (currentExposure.get(group.code) ?? 0) - (previousExposure.get(group.code) ?? 0),
     })),
   };
-}
-
-export function getEstimatedOneRepMax(set) {
-  const low = Number(set.estimated_1rm_low);
-  const high = Number(set.estimated_1rm_high);
-  return Number.isFinite(low) && Number.isFinite(high) && low > 0 && high >= low ? (low + high) / 2 : null;
 }
 
 function niceStep(value) {

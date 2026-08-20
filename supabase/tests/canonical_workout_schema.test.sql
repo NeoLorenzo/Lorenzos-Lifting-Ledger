@@ -46,8 +46,8 @@ insert into public.session_exercises (owner_id, session_id, exercise_order, exer
 select '10000000-0000-0000-0000-000000000001', session.id, 1, exercise.id, 'Machine A'
 from public.workout_sessions session cross join lateral (select id from public.exercises order by id limit 1) exercise
 where session.owner_id = '10000000-0000-0000-0000-000000000001';
-insert into public.exercise_sets (owner_id, session_exercise_id, set_number, weight, reps)
-select '10000000-0000-0000-0000-000000000001', id, 1, 100, 8
+insert into public.exercise_sets (owner_id, session_exercise_id, set_number, weight, reps, reported_rir_bucket, rir_source)
+select '10000000-0000-0000-0000-000000000001', id, 1, 100, 8, 2, 'user_entered'
 from public.session_exercises where owner_id = '10000000-0000-0000-0000-000000000001';
 
 select is((select count(*) from public.workout_sessions), 1::bigint, 'an owner can see their workout session');

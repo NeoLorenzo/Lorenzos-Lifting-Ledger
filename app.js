@@ -4,6 +4,7 @@ import { LITERATURE_DOCUMENTS, renderMarkdown } from "./literature.js";
 import { createBodyWeightFeature } from "./features/body-weight.js";
 import { createPresetFeature } from "./features/presets.js";
 import { createDashboardFeature } from "./features/dashboard.js";
+import { formatSetClassification, isAnalyticalWorkingSet } from "./set-model.js";
 
 const loadingView = document.querySelector("#loading");
 const signedOutView = document.querySelector("#signed-out");
@@ -92,7 +93,6 @@ const dashboardFeature = createDashboardFeature({
   getBodyWeightState: () => bodyWeightFeature.getState(),
   renderBodyWeightChart: (values) => bodyWeightFeature.renderChart(values),
   clearBodyWeightChart: () => bodyWeightFeature.clearChart(),
-  resolveOneRepMaxRange: (args) => bodyWeightFeature.resolveOneRepMaxRange(args),
 });
 
 menuToggle.addEventListener("click", () => {
@@ -690,7 +690,7 @@ async function loadSessions(supabase) {
   let sessionRequest = supabase
     .from("workout_sessions")
     .select(
-      `id, performed_on, status, gyms(name), session_exercises${requestedSearch ? "!inner" : ""}(id, exercise_id, exercise_order, equipment_id, exercises${requestedSearch ? "!inner" : ""}(name), exercise_sets(id, set_number, weight, reps, rpe, is_warmup, is_drop_set, is_superset, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_low, estimated_1rm_high))`,
+      `id, performed_on, status, gyms(name), session_exercises${requestedSearch ? "!inner" : ""}(id, exercise_id, exercise_order, equipment_id, exercises${requestedSearch ? "!inner" : ""}(name), exercise_sets(id, set_number, weight, reps, is_warmup, reported_rir_bucket, rir_source, is_drop_set, is_superset, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_brzycki_rir_adjusted, estimated_1rm_epley_rir_adjusted))`,
       { count: "exact" },
     )
     .eq("owner_id", requestedUserId);
@@ -770,7 +770,7 @@ function appendSessionRows(rows) {
     );
     const workingSetCount = exercises.reduce(
       (count, exercise) => count + exercise.exercise_sets.filter((set) => (
-        !set.is_warmup && !(set.weight === null && set.reps === null)
+        isAnalyticalWorkingSet(set)
       )).length,
       0,
     );
@@ -858,7 +858,7 @@ function createMuscleViews(muscles, containerClass, scope) {
 
 function createSessionMuscleViews(exercises) {
   const muscles = exercises.flatMap((exercise) => (
-    exercise.exercise_sets.some((set) => !set.is_warmup)
+    exercise.exercise_sets.some(isAnalyticalWorkingSet)
       ? exerciseMuscleLookup.get(exercise.exercise_id) ?? []
       : []
   ));
@@ -866,7 +866,7 @@ function createSessionMuscleViews(exercises) {
 }
 
 function createExerciseMuscleViews(exercise) {
-  if (!exercise.exercise_sets.some((set) => !set.is_warmup)) return null;
+  if (!exercise.exercise_sets.some(isAnalyticalWorkingSet)) return null;
   return createMuscleViews(
     exerciseMuscleLookup.get(exercise.exercise_id) ?? [],
     "exercise-muscles",
@@ -978,11 +978,9 @@ function createExerciseItem(exercise, performedOn) {
     const weight = set.weight === null ? `— ${weightUnit}` : `${Number(set.weight).toLocaleString()} ${weightUnit}`;
     const reps = set.reps === null ? "— reps" : `${set.reps} reps`;
     const labels = [
-      formatOneRepMaxRange(set.estimated_1rm_low, set.estimated_1rm_high, exercise.exercises.name, performedOn),
-      set.is_warmup ? "Warm-up" : null,
+      formatSetClassification(set),
       set.is_drop_set ? "Drop set" : null,
       set.is_superset ? "Superset" : null,
-      set.rpe === null ? null : `RPE ${Number(set.rpe).toLocaleString()}`,
     ].filter(Boolean);
     setItem.textContent = `Set ${set.set_number}: ${weight} for ${reps}${labels.length ? ` · ${labels.join(" · ")}` : ""}`;
     sets.append(setItem);
@@ -1047,7 +1045,37 @@ function showExerciseEditor(item, exercise, performedOn) {
     repsInput.value = set.reps ?? "";
     repsLabel.append(repsInput);
 
-    row.append(number, weightLabel, repsLabel);
+    const warmupLabel = document.createElement("label");
+    const warmupInput = document.createElement("input");
+    warmupInput.type = "checkbox";
+    warmupInput.name = "is_warmup";
+    warmupInput.checked = set.is_warmup === true;
+    warmupLabel.append(warmupInput, " Warm-up set");
+
+    const rirLabel = document.createElement("label");
+    rirLabel.className = "exercise-edit-rir";
+    rirLabel.textContent = "Reps in reserve (RIR)";
+    const rirSelect = document.createElement("select");
+    rirSelect.name = "reported_rir_bucket";
+    rirSelect.required = !warmupInput.checked;
+    const choices = [["", "Choose RIR"], ["0", "0"], ["1", "1"], ["2", "2"], ["3", "3"], ["4", "4+ — not counted as a working set"]];
+    for (const [value, label] of choices) {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      option.selected = set.rir_source === "user_entered" && value !== "" && Number(value) === Number(set.reported_rir_bucket);
+      rirSelect.append(option);
+    }
+    const syncRir = () => {
+      rirLabel.hidden = warmupInput.checked;
+      rirSelect.required = !warmupInput.checked;
+      if (warmupInput.checked) rirSelect.value = "";
+    };
+    warmupInput.addEventListener("change", syncRir);
+    syncRir();
+    rirLabel.append(rirSelect);
+
+    row.append(number, weightLabel, repsLabel, warmupLabel, rirLabel);
     setFields.append(row);
   }
 
@@ -1081,11 +1109,15 @@ function showExerciseEditor(item, exercise, performedOn) {
       const row = setFields.querySelector(`[data-set-id="${set.id}"]`);
       const weightInput = row.querySelector('[name="weight"]');
       const repsInput = row.querySelector('[name="reps"]');
+      const warmupInput = row.querySelector('[name="is_warmup"]');
+      const rirSelect = row.querySelector('[name="reported_rir_bucket"]');
       weightInput.setCustomValidity("");
       repsInput.setCustomValidity("");
       const weight = weightInput.value === "" ? null : Number(weightInput.value);
       const reps = repsInput.value === "" ? null : Number(repsInput.value);
-      return { id: set.id, weight, reps };
+      const isWarmup = warmupInput.checked;
+      const reportedRirBucket = isWarmup || rirSelect.value === "" ? null : Number(rirSelect.value);
+      return { id: set.id, weight, reps, isWarmup, reportedRirBucket };
     });
 
     if (!form.reportValidity()) return;
@@ -1116,11 +1148,11 @@ async function saveExerciseChanges(exercise, equipmentId, setUpdates) {
 
   const setRequests = setUpdates.map((set) => supabaseClient
     .from("exercise_sets")
-    .update({ weight: set.weight, reps: set.reps })
+    .update({ weight: set.weight, reps: set.reps, is_warmup: set.isWarmup, reported_rir_bucket: set.reportedRirBucket, rir_source: set.isWarmup ? null : "user_entered" })
     .eq("id", set.id)
     .eq("session_exercise_id", exercise.id)
     .eq("owner_id", requestedUserId)
-    .select("id, weight, reps, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_low, estimated_1rm_high")
+    .select("id, weight, reps, is_warmup, reported_rir_bucket, rir_source, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_brzycki_rir_adjusted, estimated_1rm_epley_rir_adjusted")
     .single());
 
   const [equipmentResult, ...setResults] = await Promise.all([equipmentRequest, ...setRequests]);

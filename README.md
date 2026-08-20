@@ -37,15 +37,15 @@ All future user-owned tables must enable Row Level Security before the app write
 - `gyms` is the top-level owner-scoped gym list.
 - `workout_sessions` stores completed and in-progress workouts. A partial unique index allows only one in-progress session per owner; blank active sessions may not have a gym yet.
 - `session_exercises` stores ordered exercise occurrences by canonical `exercise_id` plus any equipment ID used in that session. `exercises.name` is the sole display label.
-- `exercise_sets` stores each numbered weight/reps pair, optional RPE, warm-up/drop-set/superset flags, and generated Brzycki/Epley estimated 1RM values with a low/high range.
+- `exercise_sets` stores each numbered weight/reps pair, warm-up/drop-set/superset flags, reported RIR and its provenance, legacy/deprecated RPE observations, and generated observed and RIR-adjusted Brzycki/Epley estimated 1RM values.
 - `workout_presets` stores each owner-scoped, uniquely named reusable exercise pool.
-- `workout_preset_exercises` stores unordered, deduplicated exercise references plus a reusable set count. Starting from a preset randomizes exercise order and creates blank set slots without copying load, reps, equipment, RPE, or warm-up state.
+- `workout_preset_exercises` stores unordered, deduplicated exercise references plus a reusable set count. Starting from a preset randomizes exercise order and creates blank set slots without copying load, reps, equipment, RIR, or warm-up state.
 - `body_weight_measurements` stores owner-scoped imported scale observations in kilograms, with one canonical measurement per owner per date and a link to `data_imports` provenance.
 - `user_settings` stores the owner-scoped, default-off `relative_e1rm_enabled` presentation preference.
 
 Body-weight CSV imports use column A as an exact `DD/MM/YYYY` date and column B as a positive kilogram value; optional headers and additional ignored columns are supported. The filename and export source are not part of the contract. My Data calculates a daily series only between measured observations using linear interpolation: `W(d) = W1 + (W2 - W1) × (days from d1 / days between d1 and d2)`. Interpolated values remain visibly labelled as calculated, are not persisted as scale observations, and are never extrapolated. Settings supports previewing, importing/correcting, inspecting, and deleting only the signed-in user's body-weight dataset.
 
-When explicitly enabled in Settings, existing absolute e1RM bounds are divided by the measured or interpolated body weight on each workout date and displayed as dimensionless `× BW` values. Absolute generated e1RM columns remain canonical and unchanged. Relative values are unavailable outside body-weight coverage because the app does not extrapolate. Dumbbell relative e1RM remains per dumbbell.
+When explicitly enabled in Settings, each absolute e1RM formula value is divided independently by the measured or interpolated body weight on each workout date and displayed as a dimensionless `× BW` value. Absolute generated e1RM columns remain canonical and unchanged. Relative values are unavailable outside body-weight coverage because the app does not extrapolate. Dumbbell relative e1RM remains per dumbbell.
 
 All dumbbell exercise weights use one product-wide convention: the stored value is always the weight of **one dumbbell**, for both unilateral and bilateral exercises. A set performed with two 30 kg dumbbells is therefore stored as `30 kg`, not `60 kg`; dumbbell e1RM values use and retain that same per-dumbbell unit.
 
@@ -59,7 +59,9 @@ The movement-pattern schema, access model, import guarantees, and current follow
 
 The app intentionally does not calculate or display weight × reps, tonnage, or volume load. The scientific and product rationale is documented in [Why the app does not track tonnage](docs/WHY_THE_APP_DOES_NOT_TRACK_TONNAGE.md).
 
-Estimated 1RM values are calculated by Postgres whenever weight or reps changes. Brzycki uses `weight × 36 ÷ (37 − reps)` and Epley uses `weight × (1 + reps ÷ 30)`. The range stores the lower and higher estimates, rounded to two decimal places. Ranges remain empty when a source set has no reps or falls outside Brzycki's valid 1–36 rep domain. Relative presentation uses `relative e1RM = absolute e1RM ÷ body weight on the workout date`; it does not store or replace those absolute estimates.
+RIR is the active proximity-to-failure input; RPE is retained only as a legacy historical observation. Warm-ups store no RIR. Non-warm-up sets with reported RIR 0–3 are analytical working sets, while the stored bucket `4` means open-ended `4+` RIR and remains visible only as high-RIR history. Historical non-warm-up sets were backfilled to RIR 0 with `historical_backfill` provenance; future saved entries use `user_entered` provenance. The 0–3 cutoff is an app analytical rule, not a biological claim that 4+ RIR produces zero hypertrophy.
+
+For each representative RIR 0–3 working set, strength progression preserves four calculated e1RM values: Brzycki and Epley using completed reps, plus both formulas using completed reps + reported RIR. The representative set is selected from observed completed performance only, before RIR adjustment. Values use Brzycki `weight × 36 ÷ (37 − reps)` and Epley `weight × (1 + reps ÷ 30)`, retain the formulas' existing validity limits, and are rounded to two decimal places. The four-value model spread is not averaged into one estimate, is not a confidence interval or a measured true 1RM, and does not introduce a literature-derived true-RIR uncertainty model. High-RIR `4+` sets are excluded because their open-ended RIR cannot provide a finite adjusted repetition count. Relative presentation divides each formula value independently by body weight on the workout date; it does not store or replace those absolute estimates.
 
 ## Live infrastructure
 

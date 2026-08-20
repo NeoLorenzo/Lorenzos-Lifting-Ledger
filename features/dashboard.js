@@ -16,7 +16,15 @@ import {
   summarizeTraining,
   workingSets,
 } from "../analytics.js";
-import { getOneRepMaxMidpoint } from "../relative-e1rm.js";
+import { calculateRirE1rmEstimates } from "../set-model.js";
+import { resolveOneRepMaxEstimates } from "../relative-e1rm.js";
+
+const E1RM_MODELS = Object.freeze([
+  { key: "observedBrzycki", label: "Brzycki (completed reps)", dash: "" },
+  { key: "observedEpley", label: "Epley (completed reps)", dash: "2 1" },
+  { key: "adjustedBrzycki", label: "Brzycki (reps + RIR)", dash: "5 2" },
+  { key: "adjustedEpley", label: "Epley (reps + RIR)", dash: "1 2" },
+]);
 
 const EXERCISE_SERIES_COLORS = Object.freeze([
   "#60a5fa", "#c084fc", "#f59e0b", "#22d3ee", "#f472b6",
@@ -33,7 +41,6 @@ export function createDashboardFeature(options) {
     getBodyWeightState,
     renderBodyWeightChart,
     clearBodyWeightChart,
-    resolveOneRepMaxRange,
   } = options;
 
   // DOM elements lookup
@@ -125,7 +132,7 @@ export function createDashboardFeature(options) {
         fetchOwnedRows(
           supabase,
           "exercise_sets",
-          "id, session_exercise_id, weight, reps, rpe, is_warmup, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_low, estimated_1rm_high",
+          "id, session_exercise_id, weight, reps, is_warmup, reported_rir_bucket, rir_source, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_brzycki_rir_adjusted, estimated_1rm_epley_rir_adjusted",
           requestedUserId,
         ),
         ensureExerciseMuscleLookup(supabase),
@@ -197,7 +204,7 @@ export function createDashboardFeature(options) {
     if (exposureWarning) {
       if (!periodWorkingSets.length) {
         exposureWarning.hidden = false;
-        exposureWarning.textContent = "This period contains sessions but no working sets. Warm-ups are excluded from these analytics.";
+        exposureWarning.textContent = "This period contains sessions but no working sets. Warm-ups and 4+ RIR sets are excluded from these analytics.";
       }
     }
     renderSelectedMuscle(groups, exposure, periodRecords, range, exerciseMuscleLookup);
@@ -387,15 +394,15 @@ export function createDashboardFeature(options) {
     const range = getDateRange(dashboardRange, new Date(), dashboardData.sessions);
     const representatives = selectRepresentativeSetsBySeries(filterByRange(dashboardData.records, range), selectedProgressionExercise);
     const selectedExerciseName = representatives[0]?.exercise_name ?? "Exercise";
-    const estimates = representatives.map((record) => {
-      const displayRange = resolveProgressionOneRepMax(record);
-      return { record, displayRange, value: getOneRepMaxMidpoint(displayRange) };
-    }).filter((item) => item.value !== null);
+    const estimates = representatives.flatMap((record) => {
+      const display = resolveProgressionOneRepMax(record);
+      if (!display?.available) return [];
+      return E1RM_MODELS.map((model) => ({ record, display, model, value: display.values[model.key] }));
+    });
     const bodyWeightState = getBodyWeightState();
     const uncoveredCount = bodyWeightState.effectiveRelativeEnabled
       ? representatives.filter((record) => {
-        const absoluteRange = resolveOneRepMaxRange({ low: record.estimated_1rm_low, high: record.estimated_1rm_high, exerciseName: record.exercise_name, performedOn: record.performed_on });
-        return absoluteRange?.available && !resolveProgressionOneRepMax(record)?.available;
+        return calculateRirE1rmEstimates(record) && !resolveProgressionOneRepMax(record)?.available;
       }).length
       : 0;
     const sessionCount = new Set(representatives.map((record) => record.session_id)).size;
@@ -426,12 +433,11 @@ export function createDashboardFeature(options) {
       const reps = record.reps === null ? "reps not recorded" : `${record.reps} ${record.reps === 1 ? "rep" : "reps"}`;
       performance.textContent = `${load} × ${reps}`;
       const context = document.createElement("span");
-      const displayRange = resolveProgressionOneRepMax(record);
-      const estimate = getOneRepMaxMidpoint(displayRange);
-      const estimateLabel = !displayRange ? null : displayRange.available
-        ? `e1RM ~${formatOneRepMaxValue(estimate, displayRange.relative)} ${displayRange.unit}`
-        : displayRange.reason;
-      context.textContent = [record.rpe === null ? "RPE not recorded" : `RPE ${formatDecimal(Number(record.rpe))}`, estimateLabel].filter(Boolean).join(" · ");
+      const display = resolveProgressionOneRepMax(record);
+      const estimateLabel = !display ? null : display.available
+        ? E1RM_MODELS.map((model) => `${model.label}: ${formatOneRepMaxValue(display.values[model.key], display.relative)} ${display.unit}`).join(" · ")
+        : display.reason;
+      context.textContent = [`Reported RIR ${record.reported_rir_bucket}`, estimateLabel].filter(Boolean).join(" · ");
       row.append(date, series, performance, context);
       fragment.append(row);
     }
@@ -463,6 +469,11 @@ export function createDashboardFeature(options) {
       const label = document.createElement("span");
       label.textContent = formatEquipmentLabel(sample?.equipment_id);
       item.append(swatch, label);
+      legend.append(item);
+    }
+    for (const model of E1RM_MODELS) {
+      const item = document.createElement("span");
+      item.textContent = model.label;
       legend.append(item);
     }
     const yAxis = document.createElement("div");
@@ -508,12 +519,15 @@ export function createDashboardFeature(options) {
     }));
     svg.append(grid);
     for (const seriesKey of plottedSeries) {
-      const seriesPoints = points.filter((point) => point.seriesKey === seriesKey).sort((a, b) => a.record.performed_on.localeCompare(b.record.performed_on));
-      const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
-      line.setAttribute("class", "progression-line");
-      line.setAttribute("points", seriesPoints.map((point) => `${point.x},${100 - point.y}`).join(" "));
-      line.style.stroke = seriesColors.get(seriesKey);
-      svg.append(line);
+      for (const model of E1RM_MODELS) {
+        const seriesPoints = points.filter((point) => point.seriesKey === seriesKey && point.model.key === model.key).sort((a, b) => a.record.performed_on.localeCompare(b.record.performed_on));
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "polyline");
+        line.setAttribute("class", "progression-line");
+        line.setAttribute("points", seriesPoints.map((point) => `${point.x},${100 - point.y}`).join(" "));
+        if (model.dash) line.setAttribute("stroke-dasharray", model.dash);
+        line.style.stroke = seriesColors.get(seriesKey);
+        svg.append(line);
+      }
     }
     plot.append(svg);
     for (const [index, point] of points.entries()) {
@@ -524,10 +538,10 @@ export function createDashboardFeature(options) {
       marker.style.bottom = `${point.y}%`;
       marker.style.setProperty("--series-color", seriesColors.get(point.seriesKey));
       marker.tabIndex = 0;
-      marker.setAttribute("aria-label", `${formatShortDate(point.record.performed_on)}: estimated 1RM approximately ${formatOneRepMaxValue(point.value, point.displayRange.relative)} ${unit}`);
+      marker.setAttribute("aria-label", `${formatShortDate(point.record.performed_on)}: ${point.model.label} estimated 1RM ${formatOneRepMaxValue(point.value, point.display.relative)} ${unit}`);
       const value = document.createElement("span");
       value.className = "progression-marker-value";
-      value.textContent = `~${formatOneRepMaxValue(point.value, point.displayRange.relative)}`;
+      value.textContent = formatOneRepMaxValue(point.value, point.display.relative);
       const dot = document.createElement("span");
       dot.className = "progression-marker-dot";
       const tooltip = document.createElement("span");
@@ -543,7 +557,7 @@ export function createDashboardFeature(options) {
       const reps = point.record.reps === null ? "reps not recorded" : `${point.record.reps} ${point.record.reps === 1 ? "rep" : "reps"}`;
       tooltipPerformance.textContent = `${load} × ${reps}`;
       const tooltipContext = document.createElement("span");
-      tooltipContext.textContent = `${point.record.rpe === null ? "RPE not recorded" : `RPE ${formatDecimal(Number(point.record.rpe))}`} · e1RM ~${formatOneRepMaxValue(point.value, point.displayRange.relative)} ${unit}`;
+      tooltipContext.textContent = `Reported RIR ${point.record.reported_rir_bucket} · ${point.model.label}: ${formatOneRepMaxValue(point.value, point.display.relative)} ${unit}`;
       tooltip.append(tooltipDate, tooltipSeries, tooltipPerformance, tooltipContext);
       marker.setAttribute("aria-describedby", tooltip.id);
       marker.append(value, dot, tooltip);
@@ -560,15 +574,14 @@ export function createDashboardFeature(options) {
     }
     chartBody.append(plot, xLabels);
     progressionChart.replaceChildren(legend, yAxis, chartBody);
-    progressionChart.setAttribute("aria-label", `Line chart of estimated one-rep max for ${estimates[0]?.record.exercise_name ?? "exercise"}, in ${unit}, with machine series identified by color and text keys.`);
+    progressionChart.setAttribute("aria-label", `Line chart of four estimated one-rep-max model values for ${estimates[0]?.record.exercise_name ?? "exercise"}, in ${unit}. This is a formula spread, not a confidence interval.`);
   }
 
   function resolveProgressionOneRepMax(record) {
-    return resolveOneRepMaxRange({
-      low: record.estimated_1rm_low,
-      high: record.estimated_1rm_high,
+    const state = getBodyWeightState();
+    return resolveOneRepMaxEstimates(calculateRirE1rmEstimates(record), state.weightByDate.get(record.performed_on), {
       exerciseName: record.exercise_name,
-      performedOn: record.performed_on,
+      relativeEnabled: state.effectiveRelativeEnabled,
     });
   }
 

@@ -100,8 +100,9 @@ test("uses Google OAuth without privileged credentials", async () => {
   assert.match(app, /is_superset/);
   assert.match(app, /estimated_1rm_brzycki/);
   assert.match(app, /estimated_1rm_epley/);
-  assert.match(app, /estimated_1rm_low/);
-  assert.match(app, /estimated_1rm_high/);
+  assert.match(app, /reported_rir_bucket/);
+  assert.match(app, /estimated_1rm_brzycki_rir_adjusted/);
+  assert.match(app, /estimated_1rm_epley_rir_adjusted/);
   assert.match(app, /supabase-js@\d+\.\d+\.\d+/);
   assert.doesNotMatch(app, /supabase-js@2(?:["/])/);
   assert.doesNotMatch(assignments, /service[_-]?role/i);
@@ -319,7 +320,7 @@ test("renders collapsed sessions with toggleable exercise-level muscle pills", a
   assert.match(app, /document\.createElement\("summary"\)/);
   assert.match(app, /disclosure\.append\(summary, exerciseList\)/);
   assert.doesNotMatch(app, /disclosure\.open\s*=|setAttribute\("open"/);
-  assert.match(app, /exercise\.exercise_sets\.some\(\(set\) => !set\.is_warmup\)/);
+  assert.match(app, /exercise\.exercise_sets\.some\(isAnalyticalWorkingSet\)/);
   assert.match(app, /className = `muscle-pill muscle-group-\$\{muscle\.uiGroup\.code\}`/);
   assert.match(app, /if \(muscleViews\) item\.append\(muscleViews\)/);
   assert.match(app, /summaryCopy\.append\(heading\)[\s\S]*summaryCopy\.append\(context\)/);
@@ -380,7 +381,7 @@ test("provides a modelled muscle-exposure dashboard without tonnage", async () =
   assert.match(dashboard, /"exercise_sets"/);
   assert.match(dashboard, /\.eq\("owner_id", ownerId\)/);
   assert.match(app, /\.select\("exercise_id, muscle_id, relevance"\)/);
-  assert.match(analytics, /record\.is_warmup !== true/);
+  assert.match(analytics, /isAnalyticalWorkingSet/);
   assert.match(analytics, /Math\.max\(perSetGroups\.get/);
   assert.doesNotMatch(`${app}\n${dashboard}\n${analytics}`, /setVolume|monthlyVolume|recordedVolume|weight\s*\*\s*reps/i);
   assert.doesNotMatch(`${app}\n${dashboard}`, /\$\{weight\}\s*×\s*\$\{reps\}/);
@@ -430,7 +431,7 @@ test("defines and applies one per-dumbbell weight convention", async () => {
 
   assert.doesNotMatch(html, /dumbbell/i);
   assert.match(app, /\? "kg per dumbbell" : "kg"/);
-  assert.match(app, /formatOneRepMaxRange\(set\.estimated_1rm_low, set\.estimated_1rm_high, exercise\.exercises\.name, performedOn\)/);
+  assert.match(app, /formatWeightUnit\(exercise\.exercises\.name\)/);
   assert.match(designRules, /Dumbbell weight is always per dumbbell/);
   assert.match(designRules, /never infer or display the combined weight/i);
   assert.match(readme, /stored value is always the weight of \*\*one dumbbell\*\*/);
@@ -540,9 +541,9 @@ test("searches session history by exercise and edits owned exercise sets", async
   assert.match(app, /exercise_sets\(id, set_number, weight, reps/);
   assert.match(app, /showExerciseEditor\(item, exercise, performedOn\)/);
   assert.match(app, /\.from\("session_exercises"\)[\s\S]+\.update\(\{ equipment_id: equipmentId \}\)/);
-  assert.match(app, /\.from\("exercise_sets"\)[\s\S]+\.update\(\{ weight: set\.weight, reps: set\.reps \}\)/);
+  assert.match(app, /\.from\("exercise_sets"\)[\s\S]+reported_rir_bucket: set\.reportedRirBucket/);
   assert.match(app, /\.eq\("owner_id", requestedUserId\)/);
-  assert.match(app, /estimated_1rm_low, estimated_1rm_high/);
+  assert.match(app, /estimated_1rm_brzycki_rir_adjusted, estimated_1rm_epley_rir_adjusted/);
   assert.match(oneRepMaxMigration, /generated always as/);
   assert.match(styles, /\.session-search/);
   assert.match(styles, /\.exercise-edit-set/);
@@ -645,7 +646,7 @@ test("creates, resumes, and concludes one persisted active workout session", asy
   assert.match(migration, /security invoker/);
   assert.match(migration, /set search_path = ''/);
   assert.match(migration, /revoke all on function public\.start_or_resume_workout_session\(\) from public, anon/);
-  assert.match(serviceWorker, /lifting-ledger-v39/);
+  assert.match(serviceWorker, /lifting-ledger-v40/);
   assert.match(presetsFeature, /async function openSessionPresetPicker\(\)/);
   assert.match(setCountMigration, /row_number\(\) over \(order by random\(\)\)/);
   assert.match(setCountMigration, /generate_series\(1, membership\.set_count\)/);
@@ -722,8 +723,29 @@ test("applies the persisted relative-e1RM preference across history and progress
   assert.match(migration, /grant select, insert, update on table public\.user_settings to authenticated/);
   assert.doesNotMatch(migration, /grant[^;]*truncate/i);
   assert.match(migration, /set relative_e1rm_enabled = false, updated_at = now\(\)/);
-  assert.match(readme, /relative e1RM = absolute e1RM ÷ body weight on the workout date/);
+  assert.match(readme, /each absolute e1RM formula value is divided independently/i);
   assert.match(bodyWeightDocs, /dimensionless multiple labelled `× BW`/);
   assert.match(designRules, /Normalization does not make e1RM measured or more accurate/);
   assert.match(serviceWorker, /relative-e1rm\.js/);
+});
+
+test("implements canonical RIR persistence, UI requirements, and four-value progression", async () => {
+  const [app, analytics, dashboard, setModel, migration, designRules] = await Promise.all([
+    read("app.js"), read("analytics.js"), read("features/dashboard.js"), read("set-model.js"),
+    read("supabase/migrations/20260820190518_implement_rir_set_model.sql"), read("docs/DESIGN_RULES.md"),
+  ]);
+  assert.match(setModel, /SET_CLASS[\s\S]*WARMUP[\s\S]*WORKING[\s\S]*HIGH_RIR/);
+  assert.match(analytics, /records\.filter\(isAnalyticalWorkingSet\)/);
+  assert.match(app, /rirSelect\.required = !warmupInput\.checked/);
+  assert.match(app, /if \(warmupInput\.checked\) rirSelect\.value = ""/);
+  assert.match(app, /4\+ — not counted as a working set/);
+  assert.match(app, /rir_source: set\.isWarmup \? null : "user_entered"/);
+  assert.doesNotMatch(`${app}\n${dashboard}`, /RPE \$\{|RPE not recorded/);
+  assert.match(dashboard, /E1RM_MODELS[\s\S]*observedBrzycki[\s\S]*adjustedEpley/);
+  assert.match(dashboard, /calculateRirE1rmEstimates\(record\)/);
+  assert.match(migration, /set reported_rir_bucket = case when is_warmup then null else 0 end/);
+  assert.match(migration, /rir_source = case when is_warmup then null else 'historical_backfill' end/);
+  assert.match(migration, /exercise_sets_rir_state_check/);
+  assert.match(migration, /reported_rir_bucket between 0 and 4/);
+  assert.match(designRules, /not a confidence interval/);
 });

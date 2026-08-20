@@ -41,6 +41,7 @@ const set = (overrides = {}) => ({
   exercise_id: 1,
   exercise_name: "Press",
   is_warmup: false,
+  reported_rir_bucket: 0,
   weight: 100,
   reps: 8,
   estimated_1rm_low: null,
@@ -48,13 +49,13 @@ const set = (overrides = {}) => ({
   ...overrides,
 });
 
-test("joins dashboard records and excludes warm-ups from working sets", () => {
+test("joins dashboard records and applies canonical RIR working-set classification", () => {
   const records = joinDashboardData(
     [{ id: 10, performed_on: "2026-08-10" }],
     [{ id: 20, session_id: 10, exercise_id: 1, exercises: { name: "Press" } }],
-    [{ id: 1, session_exercise_id: 20, is_warmup: true }, { id: 2, session_exercise_id: 20, is_warmup: false }, { id: 3, session_exercise_id: 20, is_warmup: false, weight: null, reps: null }],
+    [{ id: 1, session_exercise_id: 20, is_warmup: true, reported_rir_bucket: null }, { id: 2, session_exercise_id: 20, is_warmup: false, reported_rir_bucket: 3 }, { id: 3, session_exercise_id: 20, is_warmup: false, reported_rir_bucket: 0, weight: null, reps: null }, { id: 4, session_exercise_id: 20, is_warmup: false, reported_rir_bucket: 4 }],
   );
-  assert.equal(records.length, 3);
+  assert.equal(records.length, 4);
   assert.deepEqual(workingSets(records).map((record) => record.id), [2]);
 });
 
@@ -124,16 +125,16 @@ test("recent comparison reports insufficient history", () => {
   assert.deepEqual(result, { available: false });
 });
 
-test("representative set prefers e1RM midpoint, then load, then reps, and ignores warm-ups", () => {
+test("representative set uses observed conservative ordering and is not boosted by RIR", () => {
   const records = [
     set({ id: 1, weight: 120, reps: 4 }),
-    set({ id: 2, weight: 100, reps: 8, estimated_1rm_low: 130, estimated_1rm_high: 134 }),
-    set({ id: 3, weight: 105, reps: 6, estimated_1rm_low: 131, estimated_1rm_high: 135 }),
+    set({ id: 2, weight: 100, reps: 8, reported_rir_bucket: 3 }),
+    set({ id: 3, weight: 105, reps: 6, reported_rir_bucket: 0 }),
     set({ id: 4, weight: 150, reps: 2, estimated_1rm_low: 160, estimated_1rm_high: 165, is_warmup: true }),
     set({ id: 5, session_id: 11, performed_on: "2026-08-03", weight: 110, reps: 6 }),
     set({ id: 6, session_id: 11, performed_on: "2026-08-03", weight: 110, reps: 7 }),
   ];
-  assert.deepEqual(selectRepresentativeSets(records, 1).map((record) => record.id), [6, 3]);
+  assert.deepEqual(selectRepresentativeSets(records, 1).map((record) => record.id), [6, 1]);
 });
 
 test("progression eligibility requires working sets in at least two sessions", () => {
