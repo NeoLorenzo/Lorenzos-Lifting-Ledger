@@ -140,7 +140,7 @@ export function createDashboardFeature(options) {
     try {
       const [sessions, exercises, sets, exerciseMuscleLookup] = await Promise.all([
         fetchOwnedRows(supabase, "workout_sessions", "id, performed_on, status", requestedUserId),
-        fetchOwnedRows(supabase, "session_exercises", "id, session_id, exercise_id, equipment_id, exercises(name)", requestedUserId),
+        fetchOwnedRows(supabase, "session_exercises", "id, session_id, exercise_id, equipment_id, gym_equipment_id, equipment_name_snapshot, exercises(name)", requestedUserId),
         fetchOwnedRows(
           supabase,
           "exercise_sets",

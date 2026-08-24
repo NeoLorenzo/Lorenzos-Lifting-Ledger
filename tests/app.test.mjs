@@ -612,7 +612,7 @@ test("manages owner-scoped unordered workout presets", async () => {
 });
 
 test("creates, resumes, and concludes one persisted active workout session", async () => {
-  const [html, app, styles, migration, setCountMigration, serviceWorker, presetsFeature] = await Promise.all([
+  const [html, app, styles, migration, setCountMigration, serviceWorker, presetsFeature, sessionController] = await Promise.all([
     read("index.html"),
     read("app.js"),
     read("styles.css"),
@@ -620,6 +620,7 @@ test("creates, resumes, and concludes one persisted active workout session", asy
     read("supabase/migrations/20260811115349_add_preset_set_counts_and_session_population.sql"),
     read("service-worker.js"),
     read("features/presets.js"),
+    read("features/session/session-controller.js"),
   ]);
 
   assert.match(html, /id="start-session"[^>]*>Loading session/);
@@ -631,9 +632,9 @@ test("creates, resumes, and concludes one persisted active workout session", asy
   assert.match(html, /id="conclude-session"[^>]*>Conclude Session/);
   const home = html.slice(html.indexOf('id="home-page"'), html.indexOf('id="session-history-page"'));
   assert.doesNotMatch(home, /id="exercise-catalogue"|Exercise catalogue|Exercise library|Browse the global exercise catalogue/);
-  assert.match(app, /\.eq\("status", "in_progress"\)[\s\S]*\.maybeSingle\(\)/);
-  assert.match(app, /rpc\("start_or_resume_workout_session", \{ p_preset_id: Number\(presetId\) \}\)/);
-  assert.match(app, /\.update\(\{ status: "completed" \}\)/);
+  assert.match(sessionController, /\.eq\("status", "in_progress"\)[\s\S]*\.maybeSingle\(\)/);
+  assert.match(sessionController, /start_or_resume_workout_session/);
+  assert.match(sessionController, /conclude_workout_session/);
   assert.match(app, /activeWorkoutSession \? "Resume Session" : "Create Session"/);
   assert.match(app, /querySelector\("h1, \[data-page-heading-anchor\]"\)/);
   assert.match(app, /status\.textContent = "In progress"/);

@@ -7,15 +7,44 @@ import {
   calculateEpley,
   calculateRirE1rmEstimates,
   classifySet,
+  formatSetClassification,
   isAnalyticalWorkingSet,
+  isBlankSet,
+  isCompletedSet,
+  isDraftSet,
+  isWorkingSet,
 } from "../set-model.js";
 
+test("identifies blank set slots", () => {
+  assert.equal(isBlankSet({ weight: null, reps: null, reported_rir_bucket: null }), true);
+  assert.equal(isBlankSet({ weight: "", reps: "", reported_rir_bucket: "" }), true);
+  assert.equal(isBlankSet({ weight: 50, reps: null, reported_rir_bucket: null }), false);
+});
+
+test("identifies draft sets", () => {
+  assert.equal(isDraftSet({ weight: 50, reps: null, reported_rir_bucket: null }), true);
+  assert.equal(isDraftSet({ weight: 50, reps: 8, reported_rir_bucket: null, is_warmup: false }), true);
+  assert.equal(isDraftSet({ weight: null, reps: 8, reported_rir_bucket: 2, is_warmup: false }), true);
+  assert.equal(isDraftSet({ weight: null, reps: null, reported_rir_bucket: null }), false);
+  assert.equal(isDraftSet({ weight: 50, reps: 8, reported_rir_bucket: 2, is_warmup: false }), false);
+});
+
+test("identifies completed sets for warmup and working sets", () => {
+  assert.equal(isCompletedSet({ weight: 50, reps: 8, is_warmup: true, reported_rir_bucket: null }), true);
+  assert.equal(isCompletedSet({ weight: 50, reps: 8, is_warmup: true, reported_rir_bucket: 1 }), false);
+  assert.equal(isCompletedSet({ weight: 50, reps: 8, is_warmup: false, reported_rir_bucket: 2 }), true);
+  assert.equal(isCompletedSet({ weight: 50, reps: 8, is_warmup: false, reported_rir_bucket: 4 }), true);
+  assert.equal(isCompletedSet({ weight: 50, reps: 8, is_warmup: false, reported_rir_bucket: null }), false);
+});
+
 test("classifies warm-up, RIR 0-3 working, and 4+ high-RIR sets", () => {
-  assert.equal(classifySet({ is_warmup: true, reported_rir_bucket: null }), SET_CLASS.WARMUP);
+  assert.equal(classifySet({ is_warmup: true, reported_rir_bucket: null, weight: 50, reps: 8 }), SET_CLASS.WARMUP);
   for (const rir of [0, 1, 2, 3]) {
-    assert.equal(classifySet({ is_warmup: false, reported_rir_bucket: rir }), SET_CLASS.WORKING);
+    assert.equal(classifySet({ is_warmup: false, reported_rir_bucket: rir, weight: 100, reps: 8 }), SET_CLASS.WORKING);
   }
-  assert.equal(classifySet({ is_warmup: false, reported_rir_bucket: 4 }), SET_CLASS.HIGH_RIR);
+  assert.equal(classifySet({ is_warmup: false, reported_rir_bucket: 4, weight: 100, reps: 8 }), SET_CLASS.HIGH_RIR);
+  assert.equal(classifySet({ weight: null, reps: null, reported_rir_bucket: null }), SET_CLASS.BLANK);
+  assert.equal(classifySet({ weight: 80, reps: null, reported_rir_bucket: null }), SET_CLASS.DRAFT);
 });
 
 test("only completed RIR 0-3 sets qualify for analytics", () => {
@@ -23,6 +52,15 @@ test("only completed RIR 0-3 sets qualify for analytics", () => {
   assert.equal(isAnalyticalWorkingSet({ is_warmup: true, reported_rir_bucket: null, weight: 100, reps: 8 }), false);
   assert.equal(isAnalyticalWorkingSet({ is_warmup: false, reported_rir_bucket: 4, weight: 100, reps: 8 }), false);
   assert.equal(isAnalyticalWorkingSet({ is_warmup: false, reported_rir_bucket: 0, weight: null, reps: null }), false);
+  assert.equal(isAnalyticalWorkingSet({ is_warmup: false, reported_rir_bucket: 2, weight: 100, reps: null }), false);
+});
+
+test("formats classification labels correctly", () => {
+  assert.equal(formatSetClassification({ is_warmup: false, reported_rir_bucket: 1, weight: 80, reps: 8 }), "1 RIR · Working set");
+  assert.equal(formatSetClassification({ is_warmup: true, reported_rir_bucket: null, weight: 40, reps: 10 }), "Warm-up");
+  assert.equal(formatSetClassification({ is_warmup: false, reported_rir_bucket: 4, weight: 80, reps: 8 }), "4+ RIR — not counted as a working set");
+  assert.equal(formatSetClassification({ weight: null, reps: null, reported_rir_bucket: null }), "Blank set slot");
+  assert.equal(formatSetClassification({ weight: 80, reps: null, reported_rir_bucket: null }), "Draft set");
 });
 
 test("calculates four exact Brzycki and Epley values with RIR applied only to the adjusted pair", () => {

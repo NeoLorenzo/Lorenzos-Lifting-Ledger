@@ -92,7 +92,8 @@ export function joinDashboardData(sessions, exercises, sets) {
       performed_on: session.performed_on,
       exercise_id: exercise.exercise_id,
       exercise_name: exercise.exercises?.name ?? exercise.exercise_name,
-      equipment_id: exercise.equipment_id ?? null,
+      equipment_id: exercise.gym_equipment_id ?? exercise.equipment_id ?? null,
+      equipment_name: exercise.equipment_name_snapshot ?? exercise.equipment_id ?? null,
     }];
   });
 }

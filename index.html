@@ -293,6 +293,36 @@
           </dialog>
         </section>
 
+        <section id="live-session-page" class="page-panel live-session-page" data-page-panel="live-session" hidden>
+          <div id="live-session-container" class="live-session-container"></div>
+        </section>
+
+        <dialog id="session-wizard-modal" class="session-modal" aria-labelledby="session-wizard-title"></dialog>
+
+        <dialog id="add-exercise-modal" class="session-modal" aria-labelledby="add-exercise-title">
+          <div class="session-modal-card add-exercise-card">
+            <div class="modal-header">
+              <h2 id="add-exercise-title">Add Exercise</h2>
+              <button id="close-add-exercise-modal" class="text-button" type="button">Close</button>
+            </div>
+            <input id="add-exercise-search" class="live-input" type="search" placeholder="Search exercises…" autocomplete="off" />
+            <ul id="add-exercise-results" class="catalogue-exercise-list"></ul>
+          </div>
+        </dialog>
+
+        <dialog id="cancel-workout-modal" class="session-modal" aria-labelledby="cancel-workout-title">
+          <div class="session-modal-card cancel-workout-card">
+            <div class="modal-header">
+              <h2 id="cancel-workout-title">Cancel this workout?</h2>
+            </div>
+            <p class="cancel-workout-message">Your in-progress workout session and all logged set data will be discarded.</p>
+            <div class="modal-actions cancel-workout-actions">
+              <button id="keep-workout-button" class="secondary-button" type="button">Keep workout</button>
+              <button id="confirm-cancel-workout-button" class="danger-button" type="button">Cancel workout</button>
+            </div>
+          </div>
+        </dialog>
+
         <section id="session-history-page" class="page-panel" data-page-panel="session-history" hidden>
           <header class="data-header history-header">
             <div>
@@ -345,7 +375,6 @@
           </header>
           <p id="dashboard-status" class="dashboard-status" aria-live="polite">Loading your dashboard…</p>
           <div id="dashboard-empty" class="dashboard-empty" hidden></div>
-
           <div id="dashboard-content" hidden>
             <section class="overview-section" aria-labelledby="overview-title">
               <div class="section-heading compact-heading"><div><h2 id="overview-title">Training overview</h2></div></div>

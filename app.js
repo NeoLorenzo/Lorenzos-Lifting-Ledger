@@ -4,6 +4,7 @@ import { LITERATURE_DOCUMENTS, renderMarkdown } from "./literature.js";
 import { createBodyWeightFeature } from "./features/body-weight.js";
 import { createPresetFeature } from "./features/presets.js";
 import { createDashboardFeature } from "./features/dashboard.js";
+import { createSessionFeature } from "./features/session/session-controller.js";
 import { formatSetClassification, isAnalyticalWorkingSet } from "./set-model.js";
 
 const loadingView = document.querySelector("#loading");
@@ -71,6 +72,30 @@ let globalExerciseCataloguePromise = null;
 let activeWorkoutSession = null;
 let activeSessionLoadedForUser = null;
 let activeSessionLoadingForUser = null;
+const liveSessionFeature = createSessionFeature({
+  getClient: () => supabaseClient,
+  getUserId: () => activeUserId,
+  ensureExerciseCatalogue: () => ensureGlobalExerciseCatalogue(supabaseClient),
+  onNavigate: (page) => showPage(page),
+  onSessionConcluded: () => {
+    activeWorkoutSession = null;
+    activeSessionLoadedForUser = activeUserId;
+    updateSessionButton();
+    showPage("home");
+    dashboardFeature.invalidate();
+    if (activeUserId && supabaseClient) void loadSessions(supabaseClient);
+  },
+  onSessionCancelled: () => {
+    activeWorkoutSession = null;
+    activeSessionLoadedForUser = activeUserId;
+    updateSessionButton();
+    showPage("home");
+    dashboardFeature.invalidate();
+    if (activeUserId && supabaseClient) void loadSessions(supabaseClient);
+  },
+  liveContainer: typeof document !== "undefined" ? document.querySelector("#live-session-container") : null,
+  wizardModal: typeof document !== "undefined" ? (document.querySelector("#session-wizard-modal") || document.querySelector("#session-modal")) : null,
+});
 const bodyWeightFeature = createBodyWeightFeature({
   getClient: () => supabaseClient,
   getUserId: () => activeUserId,
@@ -81,7 +106,7 @@ const presetsFeature = createPresetFeature({
   getUserId: () => activeUserId,
   ensureExerciseCatalogue: () => ensureGlobalExerciseCatalogue(supabaseClient),
   onStartPreset: (presetId, presetName) => {
-    void createWorkoutSession(presetId, presetName);
+    liveSessionFeature.openStartWizard(presetId, presetName);
   },
 });
 const dashboardFeature = createDashboardFeature({
@@ -92,7 +117,6 @@ const dashboardFeature = createDashboardFeature({
   ensureBodyWeightState: () => bodyWeightFeature.ensureState(),
   getBodyWeightState: () => bodyWeightFeature.getState(),
 });
-
 menuToggle.addEventListener("click", () => {
   if (menuToggle.getAttribute("aria-expanded") === "true") {
     closeMenu();
@@ -292,6 +316,7 @@ function showSignedOut() {
   dashboardFeature.reset();
   presetsFeature.reset();
   bodyWeightFeature.reset();
+  liveSessionFeature.reset();
   const documentId = new URLSearchParams(window.location.search).get("literature");
   if (documentId && LITERATURE_DOCUMENTS[documentId]) {
     void openPublicLiteratureDocument(documentId, false);
@@ -339,6 +364,7 @@ function closeMenu() {
 
 const PAGE_TITLES = Object.freeze({
   home: "Home",
+  "live-session": "Live Workout",
   "session-history": "Session history",
   "my-data": "My data",
   "my-stuff": "My Stuff",
@@ -366,6 +392,9 @@ function showPage(pageName) {
   closeMenu();
   window.scrollTo({ top: 0, behavior: "smooth" });
   window.requestAnimationFrame(updateContextualNavTitle);
+  if (pageName === "live-session" && activeUserId && supabaseClient) {
+    void liveSessionFeature.load();
+  }
   if (pageName === "session-history" && activeUserId && supabaseClient) {
     void loadSessions(supabaseClient);
   }
@@ -473,8 +502,6 @@ function showPublicHome(updateHistory = true) {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-
-
 async function ensureGlobalExerciseCatalogue(supabase) {
   if (globalExerciseCatalogue.length) return globalExerciseCatalogue;
   if (globalExerciseCataloguePromise) return globalExerciseCataloguePromise;
@@ -529,32 +556,28 @@ async function loadActiveSession(supabase) {
   setSessionButtonLoading(true);
   clearSessionWorkflowStatus();
 
-  const { data, error } = await supabase
-    .from("workout_sessions")
-    .select("id, owner_id, performed_on, status")
-    .eq("owner_id", requestedUserId)
-    .eq("status", "in_progress")
-    .limit(1)
-    .maybeSingle();
-
-  if (requestedUserId !== activeUserId) return;
-  activeSessionLoadingForUser = null;
-  if (error) {
+  try {
+    const session = await liveSessionFeature.load();
+    if (requestedUserId !== activeUserId) return;
+    activeSessionLoadingForUser = null;
+    activeWorkoutSession = session;
+    activeSessionLoadedForUser = requestedUserId;
+    updateSessionButton();
+  } catch (error) {
+    if (requestedUserId !== activeUserId) return;
+    activeSessionLoadingForUser = null;
     showSessionWorkflowError(`Could not load your active session: ${error.message}`);
     startSessionButton.textContent = "Create Session";
     startSessionButton.disabled = false;
-    return;
   }
-
-  activeWorkoutSession = data;
-  activeSessionLoadedForUser = requestedUserId;
-  updateSessionButton();
 }
 
 function startOrResumeSession() {
-  openSessionModal();
-  if (activeWorkoutSession) showSessionInProgress();
-  else showSessionStartChoices();
+  if (activeWorkoutSession) {
+    showPage("live-session");
+  } else {
+    liveSessionFeature.openStartWizard();
+  }
 }
 
 function showSessionStartChoices() {
@@ -576,33 +599,7 @@ function showSessionInProgress() {
 }
 
 async function createWorkoutSession(presetId = null, presetName = null) {
-  if (!activeUserId || !supabaseClient) return;
-
-  setSessionCreationBusy(true);
-  setSessionButtonLoading(true, presetName ? `Creating ${presetName}…` : "Creating session…");
-  clearSessionWorkflowStatus();
-  const requestedUserId = activeUserId;
-  const request = presetId === null
-    ? supabaseClient.rpc("start_or_resume_workout_session")
-    : supabaseClient.rpc("start_or_resume_workout_session", { p_preset_id: Number(presetId) });
-  const { data, error } = await request.single();
-
-  if (requestedUserId !== activeUserId) return;
-  setSessionCreationBusy(false);
-  if (error) {
-    const message = `Could not create your session: ${error.message}`;
-    showSessionWorkflowError(message);
-    sessionModalStatus.textContent = message;
-    sessionModalStatus.hidden = false;
-    updateSessionButton();
-    return;
-  }
-
-  activeWorkoutSession = data;
-  activeSessionLoadedForUser = requestedUserId;
-  resetSessionResults();
-  updateSessionButton();
-  showSessionInProgress();
+  liveSessionFeature.openStartWizard(presetId, presetName);
 }
 
 function setSessionCreationBusy(busy) {
@@ -694,7 +691,7 @@ async function loadSessions(supabase) {
   let sessionRequest = supabase
     .from("workout_sessions")
     .select(
-      `id, performed_on, status, gyms(name), session_exercises${requestedSearch ? "!inner" : ""}(id, exercise_id, exercise_order, equipment_id, exercises${requestedSearch ? "!inner" : ""}(name), exercise_sets(id, set_number, weight, reps, is_warmup, reported_rir_bucket, rir_source, is_drop_set, is_superset, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_brzycki_rir_adjusted, estimated_1rm_epley_rir_adjusted))`,
+      `id, performed_on, status, gyms(name), session_exercises${requestedSearch ? "!inner" : ""}(id, exercise_id, exercise_order, equipment_id, exercises${requestedSearch ? "!inner" : ""}(name), gym_equipment_id, equipment_name_snapshot, gym_equipment(id, name), exercise_sets(id, set_number, weight, reps, is_warmup, reported_rir_bucket, rir_source, is_drop_set, is_superset, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_brzycki_rir_adjusted, estimated_1rm_epley_rir_adjusted))`,
       { count: "exact" },
     )
     .eq("owner_id", requestedUserId);
@@ -966,9 +963,10 @@ function createExerciseItem(exercise, performedOn) {
   const context = document.createElement("p");
   context.className = "exercise-context";
   const setCount = exercise.exercise_sets.length;
+  const equipmentName = exercise.equipment_name_snapshot || exercise.gym_equipment?.name || (exercise.equipment_id ? `Equipment ${exercise.equipment_id}` : null);
   context.textContent = [
     `${setCount} ${setCount === 1 ? "set" : "sets"}`,
-    exercise.equipment_id ? `Equipment ${exercise.equipment_id}` : null,
+    equipmentName,
   ].filter(Boolean).join(" · ");
 
   const sets = document.createElement("ul");

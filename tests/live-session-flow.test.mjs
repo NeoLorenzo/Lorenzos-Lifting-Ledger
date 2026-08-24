@@ -1,0 +1,693 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+
+// DOM mock for Node environment
+class MockElement {
+  constructor(tagName = "div") {
+    this.tagName = tagName.toUpperCase();
+    this.children = [];
+    this.attributes = new Map();
+    this.dataset = {};
+    this.classList = {
+      _classes: new Set(),
+      add: (...cls) => cls.forEach((c) => this.classList._classes.add(c)),
+      remove: (...cls) => cls.forEach((c) => this.classList._classes.remove(c)),
+      toggle: (c, force) => {
+        if (force === undefined) {
+          if (this.classList._classes.has(c)) this.classList._classes.delete(c);
+          else this.classList._classes.add(c);
+        } else if (force) this.classList._classes.add(c);
+        else this.classList._classes.delete(c);
+      },
+      contains: (c) => this.classList._classes.has(c),
+    };
+    this.listeners = new Map();
+    this._value = "";
+    this._checked = false;
+    this.hidden = false;
+    this.disabled = false;
+    this._textContent = "";
+    this.parentElement = null;
+  }
+
+  get className() {
+    return Array.from(this.classList._classes).join(" ");
+  }
+  set className(val) {
+    this.classList._classes.clear();
+    if (val) val.split(/\s+/).filter(Boolean).forEach((c) => this.classList._classes.add(c));
+  }
+
+  get textContent() {
+    return this._textContent;
+  }
+  set textContent(val) {
+    this._textContent = String(val ?? "");
+  }
+
+  get innerHTML() {
+    return "";
+  }
+  set innerHTML(val) {
+    // Basic innerHTML parsing for simple table thead markup
+    this.children = [];
+  }
+
+  get value() { return this._value; }
+  set value(val) { this._value = String(val ?? ""); }
+
+  get label() { return this._label || this.getAttribute("label") || ""; }
+  set label(val) { this._label = String(val ?? ""); this.setAttribute("label", this._label); }
+
+  get checked() { return this._checked; }
+  set checked(val) { this._checked = Boolean(val); }
+
+  setAttribute(name, val) {
+    this.attributes.set(name, String(val));
+    if (name.startsWith("data-")) {
+      const key = name.slice(5).replace(/-([a-z])/g, (_, l) => l.toUpperCase());
+      this.dataset[key] = String(val);
+    }
+  }
+  getAttribute(name) { return this.attributes.get(name) ?? null; }
+  hasAttribute(name) { return this.attributes.has(name); }
+  removeAttribute(name) { this.attributes.delete(name); }
+
+  append(...nodes) {
+    for (const n of nodes) {
+      if (typeof n === "string") {
+        const textNode = new MockElement("#text");
+        textNode.textContent = n;
+        this.children.push(textNode);
+      } else if (n) {
+        n.parentElement = this;
+        this.children.push(n);
+      }
+    }
+  }
+
+  replaceChildren(...nodes) {
+    this.children = [];
+    this.append(...nodes);
+  }
+
+  remove() {
+    if (this.parentElement) {
+      this.parentElement.children = this.parentElement.children.filter((c) => c !== this);
+      this.parentElement = null;
+    }
+  }
+
+  addEventListener(type, listener) {
+    const list = this.listeners.get(type) || [];
+    list.push(listener);
+    this.listeners.set(type, list);
+  }
+
+  dispatchEvent(event) {
+    const list = this.listeners.get(event.type) || [];
+    for (const l of list) {
+      l({ ...event, target: this, currentTarget: this });
+    }
+    return true;
+  }
+
+  querySelector(selector) {
+    return this.querySelectorAll(selector)[0] || null;
+  }
+
+  querySelectorAll(selector) {
+    const results = [];
+    const check = (el) => {
+      let matches = false;
+      if (selector.startsWith(".")) {
+        matches = el.classList.contains(selector.slice(1));
+      } else if (selector.startsWith("#")) {
+        matches = el.id === selector.slice(1);
+      } else if (selector.startsWith("[")) {
+        const m = selector.match(/\[([a-zA-Z0-9_-]+)(?:="([^"]*)")?\]/);
+        if (m) {
+          const attr = m[1];
+          const val = m[2];
+          if (attr.startsWith("data-")) {
+            const key = attr.slice(5).replace(/-([a-z])/g, (_, l) => l.toUpperCase());
+            matches = val !== undefined ? String(el.dataset[key]) === val : key in el.dataset;
+          } else {
+            matches = val !== undefined ? el.getAttribute(attr) === val : el.hasAttribute(attr);
+          }
+        }
+      } else if (selector.includes("[")) {
+        const tag = selector.split("[")[0];
+        const m = selector.match(/\[([a-zA-Z0-9_-]+)(?:="([^"]*)")?\]/);
+        if (el.tagName.toLowerCase() === tag.toLowerCase() && m) {
+          const attr = m[1];
+          const val = m[2];
+          matches = val !== undefined ? el.getAttribute(attr) === val : el.hasAttribute(attr);
+        }
+      } else {
+        matches = el.tagName.toLowerCase() === selector.toLowerCase();
+      }
+
+      if (matches && el !== this) results.push(el);
+      for (const child of el.children) {
+        check(child);
+      }
+    };
+    check(this);
+    return results;
+  }
+}
+
+globalThis.document = {
+  createElement(tag) {
+    return new MockElement(tag);
+  },
+  querySelector(sel) {
+    return null;
+  },
+  querySelectorAll() {
+    return [];
+  },
+};
+
+globalThis.Event = class Event {
+  constructor(type) {
+    this.type = type;
+  }
+};
+
+import {
+  createSessionStorage,
+} from "../features/session/session-storage.js";
+import {
+  createSessionHistoryContext,
+  formatPreviousPerformanceSummary,
+  formatPreviousSetBadge,
+} from "../features/session/session-history-context.js";
+import {
+  createSessionAutosave,
+  SYNC_STATE,
+  SYNC_LABELS,
+} from "../features/session/session-autosave.js";
+import {
+  createSessionRenderer,
+} from "../features/session/session-rendering.js";
+import {
+  createSessionFeature,
+} from "../features/session/session-controller.js";
+import {
+  isBlankSet,
+  isDraftSet,
+  isCompletedSet,
+  isAnalyticalWorkingSet,
+  classifySet,
+  formatSetClassification,
+  SET_CLASS,
+} from "../set-model.js";
+
+test("session-storage: stores, coalesces, and retrieves pending set edits", () => {
+  const storage = createSessionStorage();
+  storage.clearPendingSessionEdits(100);
+
+  // Field edits to the same set are coalesced
+  storage.savePendingSetEdit(100, 1, { weight: 80 });
+  storage.savePendingSetEdit(100, 1, { reps: 8 });
+  storage.savePendingSetEdit(100, 1, { reported_rir_bucket: 2, rir_source: "user_entered" });
+
+  let pending = storage.getPendingSetEdits(100);
+  assert.equal(pending.length, 1);
+  assert.equal(pending[0].setId, 1);
+  assert.deepEqual(pending[0].fields, {
+    weight: 80,
+    reps: 8,
+    reported_rir_bucket: 2,
+    rir_source: "user_entered",
+  });
+
+  // Multiple sets are tracked independently
+  storage.savePendingSetEdit(100, 2, { weight: 82.5, reps: 6 });
+  pending = storage.getPendingSetEdits(100);
+  assert.equal(pending.length, 2);
+
+  // Acknowledging committed edits removes them
+  storage.removePendingSetEdit(100, 1);
+  pending = storage.getPendingSetEdits(100);
+  assert.equal(pending.length, 1);
+  assert.equal(pending[0].setId, 2);
+
+  storage.clearPendingSessionEdits(100);
+  assert.equal(storage.getPendingSetEdits(100).length, 0);
+});
+
+test("session-history-context: formats prior performance summary and badge", () => {
+  const historyRecord = {
+    sessionId: 101,
+    performed_on: "2026-08-20",
+    gymEquipmentId: 5,
+    sets: [
+      { id: 1001, set_number: 1, weight: 80, reps: 10, is_warmup: false, reported_rir_bucket: 2 },
+      { id: 1002, set_number: 2, weight: 85, reps: 8, is_warmup: false, reported_rir_bucket: 1 },
+      { id: 1003, set_number: 3, weight: 50, reps: 15, is_warmup: true, reported_rir_bucket: null },
+    ],
+  };
+
+  const summary = formatPreviousPerformanceSummary(historyRecord, "Chest Press Machine");
+  assert.equal(summary.hasHistory, true);
+  assert.match(summary.heading, /Last time on this machine/);
+  assert.equal(summary.setList.length, 3);
+  assert.match(summary.setList[0], /80 kg × 10 · 2 RIR/);
+  assert.match(summary.setList[1], /85 kg × 8 · 1 RIR/);
+  assert.match(summary.setList[2], /Warm-up/);
+
+  assert.equal(formatPreviousSetBadge(historyRecord.sets[0]), "80 × 10");
+  assert.equal(formatPreviousSetBadge(historyRecord.sets[2]), "50 × 15 (W)");
+});
+
+test("BUG 1 REGRESSION: sync badge updates do not replace input nodes or interrupt typing", () => {
+  const container = document.createElement("div");
+  const fieldChanges = [];
+  const renderer = createSessionRenderer({
+    container,
+    onSetFieldChange: (sessionId, setId, fields) => fieldChanges.push({ sessionId, setId, fields }),
+    onSetFieldBlur: () => {},
+  });
+
+  const state = {
+    session: { id: 1, gym_id: 10, performed_on: "2026-08-24" },
+    exercises: [
+      {
+        id: 101,
+        exercise_id: 1,
+        exercise_order: 1,
+        exercises: { name: "Bench Press" },
+        exercise_sets: [{ id: 501, set_number: 1, weight: null, reps: null, is_warmup: false, reported_rir_bucket: null }],
+      },
+    ],
+    gyms: [{ id: 10, name: "Power Gym" }],
+    equipmentByGym: new Map(),
+    equipmentOptionsByExercise: new Map(),
+    historyContextByExercise: new Map(),
+    syncState: SYNC_STATE.SAVED,
+    syncLabel: "Saved ✓",
+  };
+
+  renderer.renderLiveSession(state);
+
+  const weightInput = container.querySelector(".weight-input");
+  assert.ok(weightInput, "Weight input must exist in DOM");
+
+  // User types '8'
+  weightInput.value = "8";
+  weightInput.dispatchEvent(new Event("input"));
+  assert.equal(fieldChanges.length, 1);
+  assert.equal(fieldChanges[0].fields.weight, 8);
+
+  // Sync state changes in background
+  renderer.updateSyncBadge(SYNC_STATE.SAVING, "Saving…");
+  assert.equal(container.querySelector(".live-sync-badge").textContent, "Saving…");
+  // Node identity is strictly preserved!
+  assert.equal(container.querySelector(".weight-input"), weightInput, "Input node must not be destroyed on sync transition");
+
+  // User types '0' -> '80'
+  weightInput.value = "80";
+  weightInput.dispatchEvent(new Event("input"));
+  assert.equal(fieldChanges.length, 2);
+  assert.equal(fieldChanges[1].fields.weight, 80);
+
+  // User types '.5' -> '80.5'
+  weightInput.value = "80.5";
+  weightInput.dispatchEvent(new Event("input"));
+  assert.equal(fieldChanges.length, 3);
+  assert.equal(fieldChanges[2].fields.weight, 80.5);
+  assert.equal(container.querySelector(".weight-input"), weightInput, "Input node preserved continuously throughout multi-digit typing");
+});
+
+test("BUG 2 REGRESSION: field edits are PATCH updates that never erase other existing fields", async () => {
+  const dbRows = new Map();
+  dbRows.set(1, { id: 1, weight: null, reps: null, is_warmup: false, reported_rir_bucket: null, rir_source: null });
+
+  const updateCalls = [];
+  const mockStorage = createSessionStorage();
+  const mockClient = {
+    from: (table) => ({
+      update: (payload) => ({
+        eq: (k1, setId) => ({
+          eq: (k2, userId) => {
+            updateCalls.push({ payload, setId, userId });
+            const existing = dbRows.get(setId) || {};
+            const updated = { ...existing, ...payload };
+            dbRows.set(setId, updated);
+            return Promise.resolve({ data: updated, error: null });
+          },
+        }),
+      }),
+    }),
+  };
+
+  const autosave = createSessionAutosave({
+    getClient: () => mockClient,
+    getUserId: () => "user-1",
+    storage: mockStorage,
+  });
+
+  // Scenario 1: Weight 80 -> save -> Reps 10 -> save -> result = 80 x 10
+  autosave.queueSetEdit(100, 1, { weight: 80 }, 10);
+  await autosave.flushPendingEdits(100);
+  assert.equal(dbRows.get(1).weight, 80);
+  assert.equal(dbRows.get(1).reps, null);
+
+  autosave.queueSetEdit(100, 1, { reps: 10 }, 10);
+  await autosave.flushPendingEdits(100);
+  assert.equal(dbRows.get(1).weight, 80, "Weight must NOT be erased when saving reps");
+  assert.equal(dbRows.get(1).reps, 10, "Reps must be saved");
+
+  // Scenario 2: Reps 12 -> save -> Weight 85 -> save on set 2
+  dbRows.set(2, { id: 2, weight: null, reps: null, is_warmup: false, reported_rir_bucket: null, rir_source: null });
+  autosave.queueSetEdit(100, 2, { reps: 12 }, 10);
+  await autosave.flushPendingEdits(100);
+  assert.equal(dbRows.get(2).reps, 12);
+  assert.equal(dbRows.get(2).weight, null);
+
+  autosave.queueSetEdit(100, 2, { weight: 85 }, 10);
+  await autosave.flushPendingEdits(100);
+  assert.equal(dbRows.get(2).weight, 85, "Weight must be saved");
+  assert.equal(dbRows.get(2).reps, 12, "Reps must NOT be erased when saving weight");
+
+  // Scenario 3: Weight 80 + Reps 10 + RIR 1 -> result keeps all three
+  dbRows.set(3, { id: 3, weight: null, reps: null, is_warmup: false, reported_rir_bucket: null, rir_source: null });
+  autosave.queueSetEdit(100, 3, { weight: 80 }, 10);
+  autosave.queueSetEdit(100, 3, { reps: 10 }, 10);
+  autosave.queueSetEdit(100, 3, { reported_rir_bucket: 1, rir_source: "user_entered" }, 10);
+  await autosave.flushPendingEdits(100);
+
+  const row3 = dbRows.get(3);
+  assert.equal(row3.weight, 80);
+  assert.equal(row3.reps, 10);
+  assert.equal(row3.reported_rir_bucket, 1);
+  assert.equal(row3.rir_source, "user_entered");
+
+  // Scenario 4: Debounce coalescing merges rapid edits before flush
+  dbRows.set(4, { id: 4, weight: null, reps: null, is_warmup: false, reported_rir_bucket: null, rir_source: null });
+  autosave.queueSetEdit(100, 4, { weight: 70 }, 200);
+  autosave.queueSetEdit(100, 4, { reps: 8 }, 200);
+  autosave.queueSetEdit(100, 4, { weight: 72.5 }, 200);
+  await autosave.flushPendingEdits(100);
+
+  const row4 = dbRows.get(4);
+  assert.equal(row4.weight, 72.5);
+  assert.equal(row4.reps, 8);
+});
+
+test("BUG 3 REGRESSION: warm-up set row completely omits RIR control", () => {
+  const container = document.createElement("div");
+  const fieldChanges = [];
+  const renderer = createSessionRenderer({
+    container,
+    onSetFieldChange: (sessionId, setId, fields) => fieldChanges.push(fields),
+    onSetFieldBlur: () => {},
+  });
+
+  const state = {
+    session: { id: 1, gym_id: 10, performed_on: "2026-08-24" },
+    exercises: [
+      {
+        id: 101,
+        exercise_id: 1,
+        exercise_order: 1,
+        exercises: { name: "Bench Press" },
+        exercise_sets: [
+          { id: 1, set_number: 1, weight: 60, reps: 10, is_warmup: false, reported_rir_bucket: 2, rir_source: "user_entered" },
+          { id: 2, set_number: 2, weight: 40, reps: 12, is_warmup: true, reported_rir_bucket: null, rir_source: null },
+        ],
+      },
+    ],
+    gyms: [{ id: 10, name: "Power Gym" }],
+    equipmentByGym: new Map(),
+    equipmentOptionsByExercise: new Map(),
+    historyContextByExercise: new Map(),
+    syncState: SYNC_STATE.SAVED,
+    syncLabel: "Saved ✓",
+  };
+
+  renderer.renderLiveSession(state);
+
+  // Set 1 (working set): RIR dropdown exists
+  const row1 = container.querySelector('[data-set-id="1"]');
+  assert.ok(row1.querySelector(".rir-select"), "Working set row must contain RIR dropdown");
+  assert.equal(row1.querySelector(".rir-warmup-blank"), null, "Working set row must not have warmup blank");
+
+  // Set 2 (warmup set): RIR dropdown is completely omitted
+  const row2 = container.querySelector('[data-set-id="2"]');
+  assert.equal(row2.querySelector(".rir-select"), null, "Warm-up set row must NOT contain RIR dropdown");
+  assert.ok(row2.querySelector(".rir-warmup-blank"), "Warm-up set row must have blank placeholder");
+
+  // Toggle Set 1 to warm-up
+  const warmupCheckbox1 = row1.querySelector(".warmup-checkbox");
+  warmupCheckbox1.checked = true;
+  warmupCheckbox1.dispatchEvent(new Event("change"));
+
+  assert.equal(row1.querySelector(".rir-select"), null, "RIR select removed immediately upon toggling to warm-up");
+  assert.ok(row1.querySelector(".rir-warmup-blank"), "Blank placeholder added");
+  assert.deepEqual(fieldChanges[0], {
+    is_warmup: true,
+    reported_rir_bucket: null,
+    rir_source: null,
+  });
+
+  // Toggle Set 1 back to working set
+  warmupCheckbox1.checked = false;
+  warmupCheckbox1.dispatchEvent(new Event("change"));
+
+  const reappearedSelect = row1.querySelector(".rir-select");
+  assert.ok(reappearedSelect, "RIR dropdown reappears when toggled back to working set");
+  assert.equal(reappearedSelect.value, "", "Reappeared RIR select must be blank (not 0)");
+  assert.deepEqual(fieldChanges[1], {
+    is_warmup: false,
+    reported_rir_bucket: null,
+    rir_source: null,
+  });
+});
+
+test("BUG 4 REGRESSION: equipment options list is exercise-specific", () => {
+  const container = document.createElement("div");
+  const renderer = createSessionRenderer({
+    container,
+    onEquipmentChange: () => {},
+  });
+
+  const equipmentOptionsByExercise = new Map();
+  // Exercise 1 (Chest Press) has used Machine A (#10) and Machine B (#20)
+  equipmentOptionsByExercise.set(1, [
+    { id: 10, name: "Chest Press Matrix #1", is_active: true },
+    { id: 20, name: "Chest Press Matrix #2", is_active: true },
+  ]);
+  // Exercise 2 (Leg Extension) has used Machine C (#30)
+  equipmentOptionsByExercise.set(2, [
+    { id: 30, name: "Leg Extension Hammer Strength", is_active: true },
+  ]);
+
+  const equipmentByGym = new Map();
+  equipmentByGym.set(100, [
+    { id: 10, name: "Chest Press Matrix #1", is_active: true },
+    { id: 20, name: "Chest Press Matrix #2", is_active: true },
+    { id: 30, name: "Leg Extension Hammer Strength", is_active: true },
+    { id: 40, name: "Lat Pulldown Dual Cable", is_active: true },
+  ]);
+
+  const state = {
+    session: { id: 1, gym_id: 100, performed_on: "2026-08-24" },
+    exercises: [
+      { id: 501, exercise_id: 1, exercise_order: 1, gym_equipment_id: 10, exercises: { name: "Chest Press" }, exercise_sets: [] },
+      { id: 502, exercise_id: 2, exercise_order: 2, gym_equipment_id: 30, exercises: { name: "Leg Extension" }, exercise_sets: [] },
+    ],
+    gyms: [{ id: 100, name: "Sussex Gym" }],
+    equipmentByGym,
+    equipmentOptionsByExercise,
+    historyContextByExercise: new Map(),
+    syncState: SYNC_STATE.SAVED,
+    syncLabel: "Saved ✓",
+  };
+
+  renderer.renderLiveSession(state);
+
+  const card1 = container.querySelector('[data-session-exercise-id="501"]');
+  const select1 = card1.querySelector(".live-equipment-select");
+  const optGroup1 = select1.querySelector('optgroup[label="Used with this exercise"]');
+  const optTexts1 = optGroup1.querySelectorAll("option").map((o) => o.textContent);
+  assert.deepEqual(optTexts1, ["Chest Press Matrix #1", "Chest Press Matrix #2"]);
+  assert.equal(optTexts1.includes("Leg Extension Hammer Strength"), false, "Chest Press must not list Leg Extension machine in primary exercise options");
+
+  const card2 = container.querySelector('[data-session-exercise-id="502"]');
+  const select2 = card2.querySelector(".live-equipment-select");
+  const optGroup2 = select2.querySelector('optgroup[label="Used with this exercise"]');
+  const optTexts2 = optGroup2.querySelectorAll("option").map((o) => o.textContent);
+  assert.deepEqual(optTexts2, ["Leg Extension Hammer Strength"]);
+  assert.equal(optTexts2.includes("Chest Press Matrix #1"), false, "Leg Extension must not list Chest Press machine in primary exercise options");
+});
+
+test("BUG 5 REGRESSION: cancel active workout aborts autosave, clears pending storage, and invokes cancel RPC", async () => {
+  let rpcCalls = [];
+  let navPages = [];
+  let cancelledSessionId = null;
+
+  const mockStorage = createSessionStorage();
+  mockStorage.savePendingSetEdit(999, 1, { weight: 100 });
+
+  function createQueryBuilder(table) {
+    const builder = {
+      _data: [],
+      select() { return builder; },
+      eq() { return builder; },
+      in() { return builder; },
+      not() { return builder; },
+      order() {
+        if (table === "gyms") {
+          return Promise.resolve({ data: [{ id: 10, name: "Gym A" }], error: null });
+        }
+        if (table === "gym_equipment") {
+          return Promise.resolve({ data: [], error: null });
+        }
+        if (table === "session_exercises") {
+          return Promise.resolve({ data: [], error: null });
+        }
+        return Promise.resolve({ data: [], error: null });
+      },
+      limit() { return builder; },
+      maybeSingle() {
+        if (table === "workout_sessions") {
+          return Promise.resolve({
+            data: { id: 999, gym_id: 10, status: "in_progress", performed_on: "2026-08-24" },
+            error: null,
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+      update() { return builder; },
+      delete() { return builder; },
+      insert() { return builder; },
+      single() { return Promise.resolve({ data: null, error: null }); },
+    };
+    return builder;
+  }
+
+  const mockClient = {
+    from: (table) => createQueryBuilder(table),
+    rpc: (fn, params) => {
+      rpcCalls.push({ fn, params });
+      return Promise.resolve({ data: true, error: null });
+    },
+  };
+
+  const feature = createSessionFeature({
+    getClient: () => mockClient,
+    getUserId: () => "user-test",
+    storage: mockStorage,
+    ensureExerciseCatalogue: () => Promise.resolve([]),
+    onNavigate: (page) => navPages.push(page),
+    onSessionCancelled: (sessionId) => {
+      cancelledSessionId = sessionId;
+    },
+  });
+
+  await feature.load();
+  assert.ok(feature.getActiveSession(), "Active session is loaded");
+
+  // Call cancel
+  await feature.cancelSession();
+
+  assert.equal(rpcCalls.length, 1);
+  assert.equal(rpcCalls[0].fn, "cancel_workout_session");
+  assert.deepEqual(rpcCalls[0].params, { p_session_id: 999 });
+
+  assert.equal(mockStorage.getPendingSetEdits(999).length, 0, "Pending local edits cleared on cancellation");
+  assert.equal(feature.getActiveSession(), null, "Active session cleared in-memory");
+  assert.equal(cancelledSessionId, 999, "onSessionCancelled callback received session id");
+  assert.equal(navPages.includes("home"), true, "Navigated home upon cancellation");
+});
+
+test("BUG 5 REGRESSION: cancellation failure preserves pending local mutations and keeps session active without navigating home", async () => {
+  let rpcCalls = [];
+  let navPages = [];
+  let cancelledSessionId = null;
+
+  const mockStorage = createSessionStorage();
+  mockStorage.savePendingSetEdit(999, 1, { weight: 100, reps: 8 });
+
+  function createQueryBuilder(table) {
+    const builder = {
+      _data: [],
+      select() { return builder; },
+      eq() { return builder; },
+      in() { return builder; },
+      not() { return builder; },
+      order() {
+        if (table === "gyms") {
+          return Promise.resolve({ data: [{ id: 10, name: "Gym A" }], error: null });
+        }
+        if (table === "gym_equipment") {
+          return Promise.resolve({ data: [], error: null });
+        }
+        if (table === "session_exercises") {
+          return Promise.resolve({ data: [], error: null });
+        }
+        return Promise.resolve({ data: [], error: null });
+      },
+      limit() { return builder; },
+      maybeSingle() {
+        if (table === "workout_sessions") {
+          return Promise.resolve({
+            data: { id: 999, gym_id: 10, status: "in_progress", performed_on: "2026-08-24" },
+            error: null,
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+      update() { return builder; },
+      delete() { return builder; },
+      insert() { return builder; },
+      single() { return Promise.resolve({ data: null, error: null }); },
+    };
+    return builder;
+  }
+
+  const mockClient = {
+    from: (table) => createQueryBuilder(table),
+    rpc: (fn, params) => {
+      rpcCalls.push({ fn, params });
+      return Promise.resolve({ data: null, error: new Error("Network connection dropped") });
+    },
+  };
+
+  const feature = createSessionFeature({
+    getClient: () => mockClient,
+    getUserId: () => "user-test",
+    storage: mockStorage,
+    ensureExerciseCatalogue: () => Promise.resolve([]),
+    onNavigate: (page) => navPages.push(page),
+    onSessionCancelled: (sessionId) => {
+      cancelledSessionId = sessionId;
+    },
+  });
+
+  await feature.load();
+  assert.ok(feature.getActiveSession(), "Active session is loaded");
+
+  // Attempt cancel (which fails on server)
+  await feature.cancelSession();
+
+  assert.equal(rpcCalls.length, 1);
+  assert.equal(rpcCalls[0].fn, "cancel_workout_session");
+
+  // 1. Pending mutations must still exist in local storage!
+  const pending = mockStorage.getPendingSetEdits(999);
+  assert.equal(pending.length, 1, "Pending local edits must NOT be cleared when cancellation RPC fails");
+  assert.deepEqual(pending[0].fields, { weight: 100, reps: 8 });
+
+  // 2. Active session remains open and usable in memory!
+  assert.ok(feature.getActiveSession(), "Active session must remain loaded when cancellation fails");
+  assert.equal(feature.getActiveSession().id, 999);
+
+  // 3. No callback or navigation to Home occurs!
+  assert.equal(cancelledSessionId, null, "onSessionCancelled callback must not be invoked on failure");
+  assert.equal(navPages.includes("home"), false, "Must not navigate home when cancellation fails");
+});

@@ -68,3 +68,16 @@ For a missing date strictly between two observations, the app may calculate a da
 Relative estimated 1RM is a calculated presentation of the existing absolute estimated range, divided by measured or interpolated body weight on the workout date. It uses `× BW` units, remains default-off and user-controlled, and must be unavailable rather than substituted or extrapolated when that date has no body-weight value. Normalization does not make e1RM measured or more accurate. Dumbbell relative e1RM remains per dumbbell.
 
 Strength progression preserves four calculated values for a representative RIR 0–3 working set: observed Brzycki and Epley estimates, plus both formulas using completed reps + reported RIR. Representative selection uses only the observed pair, ordered by its lower value and then its upper value. The four-value spread is an estimated model range, not a confidence interval or a measured true 1RM. The app does not add a literature-derived true-RIR uncertainty model: reported RIR remains the entered subjective observation. Stored RIR bucket `4` means open-ended `4+`, so it cannot provide a finite adjusted repetition count and is excluded from this primary graph.
+
+## 6. Live workout tracking, equipment entities, and durability semantics
+
+Live session tracking enables persistent logging during active training:
+
+- **Gym Equipment Provenance & Isolation**: Gym equipment entities (`gym_equipment`) are owner-isolated with database-level composite foreign keys (`ON DELETE RESTRICT`). Historical references are never cascaded or destroyed. When equipment changes or is renamed, `session_exercises` preserves an immutable `equipment_name_snapshot`. Inactive equipment is retired via `is_active = false`.
+- **Source Preset Provenance**: When starting a session from a preset, `source_preset_id` references the preset with composite foreign keys using `ON DELETE SET NULL (source_preset_id)` and a `source_preset_name` snapshot. Deleting a preset never deletes or nullifies owner isolation on historical workout sessions.
+- **Set State Transitions & Data Integrity**:
+  - *Blank Set Slot*: Weight, reps, and RIR are unpopulated. Used for live planning and automatically pruned upon session conclusion.
+  - *Draft Set*: Partially filled sets (e.g. weight entered without reps, or non-warmup set missing RIR). Draft sets block session conclusion until completed or discarded. The conclusion RPC strictly rejects uncompleted drafts.
+  - *Completed Set*: A warmup with weight and reps (RIR omitted), or a working/high-RIR set with weight, reps, and explicit RIR (0–4).
+  - *Analytical Working Set*: Completed non-warmup set with RIR 0–3.
+- **Offline Durability & Idempotent Autosave**: Field edits are coalesced locally in device storage with debounced background autosaving. Sync states (`saved`, `saving`, `offline`, `failed`) keep network status transparent. Structural operations (add/remove/reorder) enforce explicit idempotency and canonical refetching upon uncertain network results.
