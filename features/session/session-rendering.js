@@ -1,4 +1,9 @@
-import { formatPreviousPerformanceSummary, formatPreviousSetBadge } from "./session-history-context.js";
+import {
+  formatPreviousPerformanceSummary,
+  formatPreviousSetBadge,
+  formatInlinePreviousSet,
+} from "./session-history-context.js";
+import { isCompletedSet } from "../../set-model.js";
 
 function formatDateLong(isoDate) {
   if (!isoDate) return "";
@@ -11,9 +16,13 @@ function formatWeightUnit(exerciseName) {
 }
 
 function createRirSelect(sessionId, set, onSetFieldChange, onSetFieldBlur) {
+  const container = document.createElement("div");
+  container.className = "live-rir-control";
+
   const rirSelect = document.createElement("select");
   rirSelect.className = "live-select rir-select";
   rirSelect.setAttribute("aria-label", `Set ${set.set_number} RIR`);
+
   const rirChoices = [
     ["", "—"],
     ["0", "0"],
@@ -22,24 +31,109 @@ function createRirSelect(sessionId, set, onSetFieldChange, onSetFieldBlur) {
     ["3", "3"],
     ["4", "4+"],
   ];
+
   for (const [val, label] of rirChoices) {
     const opt = document.createElement("option");
     opt.value = val;
     opt.textContent = label;
-    if (val !== "" && set.reported_rir_bucket !== null && set.reported_rir_bucket !== undefined && Number(val) === Number(set.reported_rir_bucket)) {
+    if (
+      val !== "" &&
+      set.reported_rir_bucket !== null &&
+      set.reported_rir_bucket !== undefined &&
+      Number(val) === Number(set.reported_rir_bucket)
+    ) {
       opt.selected = true;
     }
     rirSelect.append(opt);
   }
+
+  const trigger = document.createElement("button");
+  trigger.type = "button";
+  trigger.className = "live-rir-trigger";
+  trigger.setAttribute("aria-haspopup", "menu");
+  trigger.setAttribute("aria-expanded", "false");
+  trigger.setAttribute("aria-label", `Set ${set.set_number} RIR`);
+
+  function updateTriggerDisplay() {
+    const bucket = set.reported_rir_bucket;
+    if (bucket === null || bucket === undefined || bucket === "") {
+      trigger.textContent = "—";
+      trigger.classList.remove("has-value");
+    } else {
+      trigger.textContent = Number(bucket) === 4 ? "4+" : String(bucket);
+      trigger.classList.add("has-value");
+    }
+  }
+  updateTriggerDisplay();
+
+  const menu = document.createElement("div");
+  menu.className = "live-rir-menu";
+  menu.setAttribute("role", "menu");
+  menu.hidden = true;
+
+  for (const [val, label] of rirChoices) {
+    const choiceBtn = document.createElement("button");
+    choiceBtn.type = "button";
+    choiceBtn.className = `live-rir-choice ${val === "" ? "is-clear" : ""}`;
+    choiceBtn.setAttribute("role", "menuitem");
+    choiceBtn.textContent = label;
+    if (
+      (val === "" && (set.reported_rir_bucket === null || set.reported_rir_bucket === undefined)) ||
+      (val !== "" && Number(val) === Number(set.reported_rir_bucket))
+    ) {
+      choiceBtn.classList.add("is-selected");
+    }
+
+    choiceBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const numVal = val === "" ? null : Number(val);
+      set.reported_rir_bucket = numVal;
+      set.rir_source = numVal !== null ? "user_entered" : null;
+      rirSelect.value = val;
+      updateTriggerDisplay();
+      menu.hidden = true;
+      trigger.setAttribute("aria-expanded", "false");
+
+      onSetFieldChange(sessionId, set.id, {
+        reported_rir_bucket: numVal,
+        rir_source: numVal !== null ? "user_entered" : null,
+      });
+      onSetFieldBlur(sessionId, set.id);
+    });
+
+    menu.append(choiceBtn);
+  }
+
+  trigger.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isExpanded = trigger.getAttribute("aria-expanded") === "true";
+    if (isExpanded) {
+      menu.hidden = true;
+      trigger.setAttribute("aria-expanded", "false");
+    } else {
+      document.querySelectorAll(".live-rir-menu:not([hidden])").forEach((m) => {
+        m.hidden = true;
+        m.parentElement?.querySelector(".live-rir-trigger")?.setAttribute("aria-expanded", "false");
+      });
+      menu.hidden = false;
+      trigger.setAttribute("aria-expanded", "true");
+    }
+  });
+
   rirSelect.addEventListener("change", () => {
     const val = rirSelect.value === "" ? null : Number(rirSelect.value);
+    set.reported_rir_bucket = val;
+    set.rir_source = val !== null ? "user_entered" : null;
+    updateTriggerDisplay();
     onSetFieldChange(sessionId, set.id, {
       reported_rir_bucket: val,
       rir_source: val !== null ? "user_entered" : null,
     });
     onSetFieldBlur(sessionId, set.id);
   });
-  return rirSelect;
+
+  container.append(trigger, menu, rirSelect);
+  return container;
 }
 
 export function createSessionRenderer(options) {
@@ -57,6 +151,36 @@ export function createSessionRenderer(options) {
     onConcludeSession,
     onCancelSession,
   } = options;
+
+  // Global dismiss for menus
+  if (typeof document !== "undefined" && !document._sessionMenuDismissBound && typeof document.addEventListener === "function") {
+    document.addEventListener("click", (e) => {
+      const openRir = document.querySelectorAll(".live-rir-menu:not([hidden])");
+      for (const m of openRir) {
+        if (!m.parentElement?.contains(e.target)) {
+          m.hidden = true;
+          m.parentElement?.querySelector(".live-rir-trigger")?.setAttribute("aria-expanded", "false");
+        }
+      }
+      const openExMenus = document.querySelectorAll(".live-exercise-menu:not([hidden])");
+      for (const m of openExMenus) {
+        if (!m.parentElement?.contains(e.target)) {
+          m.hidden = true;
+          m.parentElement?.querySelector(".live-exercise-menu-button")?.setAttribute("aria-expanded", "false");
+        }
+      }
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        const openMenus = document.querySelectorAll(".live-rir-menu:not([hidden]), .live-exercise-menu:not([hidden])");
+        for (const m of openMenus) {
+          m.hidden = true;
+          m.parentElement?.querySelector("button[aria-expanded='true']")?.setAttribute("aria-expanded", "false");
+        }
+      }
+    });
+    document._sessionMenuDismissBound = true;
+  }
 
   return {
     updateSyncBadge(syncState, syncLabel) {
@@ -111,7 +235,7 @@ export function createSessionRenderer(options) {
       const gymName = currentGym ? currentGym.name : "Gym";
       const sessionTitle = session.source_preset_name || "Live Workout";
 
-      // Top header
+      // Top in-page header
       const header = document.createElement("header");
       header.className = "live-session-header";
 
@@ -119,9 +243,12 @@ export function createSessionRenderer(options) {
       titleRow.className = "live-session-title-row";
 
       const titleLockup = document.createElement("div");
+      titleLockup.className = "live-session-title-lockup";
+
       const title = document.createElement("h1");
       title.className = "live-session-title";
       title.textContent = sessionTitle;
+      title.setAttribute("data-page-heading-anchor", "");
 
       const meta = document.createElement("p");
       meta.className = "live-session-meta";
@@ -148,330 +275,471 @@ export function createSessionRenderer(options) {
 
       container.append(header);
 
-      // Exercise cards list
-      const exerciseList = document.createElement("div");
-      exerciseList.className = "live-exercise-list";
-
       const sortedExercises = [...exercises].sort((a, b) => a.exercise_order - b.exercise_order);
 
-      sortedExercises.forEach((exercise, index) => {
-        const exerciseCard = document.createElement("section");
-        exerciseCard.className = "live-exercise-card";
-        exerciseCard.dataset.sessionExerciseId = exercise.id;
+      // Check if session is completely empty
+      if (sortedExercises.length === 0) {
+        const emptyState = document.createElement("div");
+        emptyState.className = "live-session-empty";
 
-        const cardHeader = document.createElement("div");
-        cardHeader.className = "live-exercise-card-header";
+        const emptyIcon = document.createElement("div");
+        emptyIcon.className = "live-empty-icon";
+        emptyIcon.setAttribute("aria-hidden", "true");
+        emptyIcon.textContent = "🏋️";
 
-        const exerciseHeading = document.createElement("h2");
-        exerciseHeading.className = "live-exercise-name";
-        exerciseHeading.textContent = exercise.exercises?.name || exercise.exercise_name || "Exercise";
+        const emptyTitle = document.createElement("h2");
+        emptyTitle.className = "live-empty-title";
+        emptyTitle.textContent = "No exercises yet";
 
-        const headerActions = document.createElement("div");
-        headerActions.className = "live-exercise-header-actions";
+        const emptyDesc = document.createElement("p");
+        emptyDesc.className = "live-empty-desc";
+        emptyDesc.textContent = "Add an exercise to start logging this workout.";
 
-        const upButton = document.createElement("button");
-        upButton.type = "button";
-        upButton.className = "icon-button live-order-up";
-        upButton.textContent = "↑";
-        upButton.title = "Move exercise up";
-        upButton.setAttribute("aria-label", `Move ${exerciseHeading.textContent} up`);
-        upButton.disabled = index === 0;
-        upButton.addEventListener("click", () => onReorderExercise(exercise.id, "up"));
+        const emptyAddBtn = document.createElement("button");
+        emptyAddBtn.type = "button";
+        emptyAddBtn.className = "primary-button add-exercise-button";
+        emptyAddBtn.textContent = "+ Add exercise";
+        emptyAddBtn.addEventListener("click", onAddExercise);
 
-        const downButton = document.createElement("button");
-        downButton.type = "button";
-        downButton.className = "icon-button live-order-down";
-        downButton.textContent = "↓";
-        downButton.title = "Move exercise down";
-        downButton.setAttribute("aria-label", `Move ${exerciseHeading.textContent} down`);
-        downButton.disabled = index === sortedExercises.length - 1;
-        downButton.addEventListener("click", () => onReorderExercise(exercise.id, "down"));
+        emptyState.append(emptyIcon, emptyTitle, emptyDesc, emptyAddBtn);
+        container.append(emptyState);
+      } else {
+        // Exercise cards list
+        const exerciseList = document.createElement("div");
+        exerciseList.className = "live-exercise-list";
 
-        const removeButton = document.createElement("button");
-        removeButton.type = "button";
-        removeButton.className = "text-button danger-link live-exercise-remove";
-        removeButton.textContent = "Remove";
-        removeButton.setAttribute("aria-label", `Remove ${exerciseHeading.textContent}`);
-        removeButton.addEventListener("click", () => onRemoveExercise(exercise.id));
+        sortedExercises.forEach((exercise, index) => {
+          const exerciseCard = document.createElement("section");
+          exerciseCard.className = "live-exercise-card";
+          exerciseCard.dataset.sessionExerciseId = exercise.id;
 
-        headerActions.append(upButton, downButton, removeButton);
-        cardHeader.append(exerciseHeading, headerActions);
-        exerciseCard.append(cardHeader);
+          const cardHeader = document.createElement("div");
+          cardHeader.className = "live-exercise-card-header";
 
-        // Equipment Selector (Exercise-specific)
-        const equipmentRow = document.createElement("div");
-        equipmentRow.className = "live-equipment-picker-row";
+          const exerciseHeading = document.createElement("h2");
+          exerciseHeading.className = "live-exercise-name";
+          exerciseHeading.textContent = exercise.exercises?.name || exercise.exercise_name || "Exercise";
 
-        const equipmentLabel = document.createElement("label");
-        equipmentLabel.className = "live-equipment-label";
-        equipmentLabel.textContent = "Machine / Equipment";
+          // Overflow menu for exercise actions
+          const menuWrapper = document.createElement("div");
+          menuWrapper.className = "live-exercise-menu-wrapper";
 
-        const equipmentSelect = document.createElement("select");
-        equipmentSelect.className = "live-equipment-select";
-        equipmentSelect.setAttribute("aria-label", `Equipment for ${exerciseHeading.textContent}`);
+          const menuBtn = document.createElement("button");
+          menuBtn.type = "button";
+          menuBtn.className = "icon-button live-exercise-menu-button";
+          menuBtn.textContent = "•••";
+          menuBtn.title = `Options for ${exerciseHeading.textContent}`;
+          menuBtn.setAttribute("aria-label", `Exercise options for ${exerciseHeading.textContent}`);
+          menuBtn.setAttribute("aria-haspopup", "menu");
+          menuBtn.setAttribute("aria-expanded", "false");
 
-        const noneOption = document.createElement("option");
-        noneOption.value = "";
-        noneOption.textContent = "— Select machine / equipment —";
-        equipmentSelect.append(noneOption);
+          const menuDropdown = document.createElement("div");
+          menuDropdown.className = "live-exercise-menu";
+          menuDropdown.setAttribute("role", "menu");
+          menuDropdown.hidden = true;
 
-        const exerciseEquip = equipmentOptionsByExercise?.get(exercise.exercise_id) || [];
-        const historicalEquipList = exerciseEquip.filter((eq) => eq.is_active !== false);
-        const historicalIds = new Set(historicalEquipList.map((eq) => String(eq.id)));
+          const upButton = document.createElement("button");
+          upButton.type = "button";
+          upButton.className = "live-menu-item live-order-up";
+          upButton.setAttribute("role", "menuitem");
+          upButton.textContent = "↑ Move up";
+          upButton.setAttribute("aria-label", `Move ${exerciseHeading.textContent} up`);
+          upButton.disabled = index === 0;
+          upButton.addEventListener("click", () => {
+            menuDropdown.hidden = true;
+            menuBtn.setAttribute("aria-expanded", "false");
+            onReorderExercise(exercise.id, "up");
+          });
 
-        const otherGymEquip = (equipmentByGym.get(session.gym_id) || [])
-          .filter((eq) => eq.is_active && !historicalIds.has(String(eq.id)));
+          const downButton = document.createElement("button");
+          downButton.type = "button";
+          downButton.className = "live-menu-item live-order-down";
+          downButton.setAttribute("role", "menuitem");
+          downButton.textContent = "↓ Move down";
+          downButton.setAttribute("aria-label", `Move ${exerciseHeading.textContent} down`);
+          downButton.disabled = index === sortedExercises.length - 1;
+          downButton.addEventListener("click", () => {
+            menuDropdown.hidden = true;
+            menuBtn.setAttribute("aria-expanded", "false");
+            onReorderExercise(exercise.id, "down");
+          });
 
-        if (historicalEquipList.length > 0) {
-          const optGroupHistorical = document.createElement("optgroup");
-          optGroupHistorical.label = "Used with this exercise";
-          for (const eq of historicalEquipList) {
-            const option = document.createElement("option");
-            option.value = String(eq.id);
-            option.textContent = eq.name;
-            if (String(exercise.gym_equipment_id) === String(eq.id)) {
-              option.selected = true;
-            }
-            optGroupHistorical.append(option);
-          }
-          equipmentSelect.append(optGroupHistorical);
-        }
+          const removeButton = document.createElement("button");
+          removeButton.type = "button";
+          removeButton.className = "live-menu-item live-exercise-remove danger-item";
+          removeButton.setAttribute("role", "menuitem");
+          removeButton.textContent = "Remove exercise";
+          removeButton.setAttribute("aria-label", `Remove ${exerciseHeading.textContent}`);
+          removeButton.addEventListener("click", () => {
+            menuDropdown.hidden = true;
+            menuBtn.setAttribute("aria-expanded", "false");
+            onRemoveExercise(exercise.id);
+          });
 
-        if (otherGymEquip.length > 0) {
-          const optGroupOther = document.createElement("optgroup");
-          optGroupOther.label = historicalEquipList.length > 0 ? "Other machines at this gym" : "Machines at this gym";
-          for (const eq of otherGymEquip) {
-            const option = document.createElement("option");
-            option.value = String(eq.id);
-            option.textContent = eq.name;
-            if (String(exercise.gym_equipment_id) === String(eq.id)) {
-              option.selected = true;
-            }
-            optGroupOther.append(option);
-          }
-          equipmentSelect.append(optGroupOther);
-        }
-
-        if (exercise.gym_equipment_id && !historicalIds.has(String(exercise.gym_equipment_id)) && !otherGymEquip.some((eq) => String(eq.id) === String(exercise.gym_equipment_id))) {
-          const option = document.createElement("option");
-          option.value = String(exercise.gym_equipment_id);
-          option.textContent = exercise.equipment_name_snapshot || "Current machine";
-          option.selected = true;
-          equipmentSelect.append(option);
-        }
-
-        const addOption = document.createElement("option");
-        addOption.value = "__ADD_NEW__";
-        addOption.textContent = "+ Add new machine…";
-        equipmentSelect.append(addOption);
-
-        equipmentSelect.addEventListener("change", (e) => {
-          if (e.target.value === "__ADD_NEW__") {
-            const newName = window.prompt("Enter new machine or equipment name for this gym:");
-            if (newName && newName.trim()) {
-              onCreateEquipment(exercise.id, session.gym_id, newName.trim());
+          menuBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const isExpanded = menuBtn.getAttribute("aria-expanded") === "true";
+            if (isExpanded) {
+              menuDropdown.hidden = true;
+              menuBtn.setAttribute("aria-expanded", "false");
             } else {
-              equipmentSelect.value = exercise.gym_equipment_id ? String(exercise.gym_equipment_id) : "";
+              const allMenus = document.querySelectorAll(".live-exercise-menu:not([hidden])");
+              for (const m of allMenus) {
+                m.hidden = true;
+                m.parentElement?.querySelector(".live-exercise-menu-button")?.setAttribute("aria-expanded", "false");
+              }
+              menuDropdown.hidden = false;
+              menuBtn.setAttribute("aria-expanded", "true");
+            }
+          });
+
+          menuDropdown.append(upButton, downButton, removeButton);
+          menuWrapper.append(menuBtn, menuDropdown);
+          cardHeader.append(exerciseHeading, menuWrapper);
+          exerciseCard.append(cardHeader);
+
+          // Equipment Selector
+          const equipmentRow = document.createElement("div");
+          equipmentRow.className = "live-equipment-picker-row";
+
+          const equipmentLabel = document.createElement("label");
+          equipmentLabel.className = "live-equipment-label";
+          equipmentLabel.textContent = "Machine / Equipment";
+
+          const equipmentSelect = document.createElement("select");
+          equipmentSelect.className = "live-equipment-select";
+          equipmentSelect.setAttribute("aria-label", `Equipment for ${exerciseHeading.textContent}`);
+
+          const noneOption = document.createElement("option");
+          noneOption.value = "";
+          noneOption.textContent = "— Select machine / equipment —";
+          equipmentSelect.append(noneOption);
+
+          const exerciseEquip = equipmentOptionsByExercise?.get(exercise.exercise_id) || [];
+          const historicalEquipList = exerciseEquip.filter((eq) => eq.is_active !== false);
+          const historicalIds = new Set(historicalEquipList.map((eq) => String(eq.id)));
+
+          const otherGymEquip = (equipmentByGym.get(session.gym_id) || [])
+            .filter((eq) => eq.is_active && !historicalIds.has(String(eq.id)));
+
+          if (historicalEquipList.length > 0) {
+            const optGroupHistorical = document.createElement("optgroup");
+            optGroupHistorical.label = "Used with this exercise";
+            for (const eq of historicalEquipList) {
+              const option = document.createElement("option");
+              option.value = String(eq.id);
+              option.textContent = eq.name;
+              if (String(exercise.gym_equipment_id) === String(eq.id)) {
+                option.selected = true;
+              }
+              optGroupHistorical.append(option);
+            }
+            equipmentSelect.append(optGroupHistorical);
+          }
+
+          if (otherGymEquip.length > 0) {
+            const optGroupOther = document.createElement("optgroup");
+            optGroupOther.label = historicalEquipList.length > 0 ? "Other machines at this gym" : "Machines at this gym";
+            for (const eq of otherGymEquip) {
+              const option = document.createElement("option");
+              option.value = String(eq.id);
+              option.textContent = eq.name;
+              if (String(exercise.gym_equipment_id) === String(eq.id)) {
+                option.selected = true;
+              }
+              optGroupOther.append(option);
+            }
+            equipmentSelect.append(optGroupOther);
+          }
+
+          if (
+            exercise.gym_equipment_id &&
+            !historicalIds.has(String(exercise.gym_equipment_id)) &&
+            !otherGymEquip.some((eq) => String(eq.id) === String(exercise.gym_equipment_id))
+          ) {
+            const option = document.createElement("option");
+            option.value = String(exercise.gym_equipment_id);
+            option.textContent = exercise.equipment_name_snapshot || "Current machine";
+            option.selected = true;
+            equipmentSelect.append(option);
+          }
+
+          const addOption = document.createElement("option");
+          addOption.value = "__ADD_NEW__";
+          addOption.textContent = "+ Add new machine…";
+          equipmentSelect.append(addOption);
+
+          equipmentSelect.addEventListener("change", (e) => {
+            if (e.target.value === "__ADD_NEW__") {
+              const newName = window.prompt("Enter new machine or equipment name for this gym:");
+              if (newName && newName.trim()) {
+                onCreateEquipment(exercise.id, session.gym_id, newName.trim());
+              } else {
+                equipmentSelect.value = exercise.gym_equipment_id ? String(exercise.gym_equipment_id) : "";
+              }
+            } else {
+              const selectedId = e.target.value ? Number(e.target.value) : null;
+              onEquipmentChange(exercise.id, selectedId);
+            }
+          });
+
+          equipmentLabel.append(equipmentSelect);
+          equipmentRow.append(equipmentLabel);
+          exerciseCard.append(equipmentRow);
+
+          // Collapsible Previous Performance Summary
+          const historyInfo = historyContextByExercise.get(exercise.id);
+          const historySummary = formatPreviousPerformanceSummary(historyInfo, exerciseHeading.textContent);
+
+          const historyCard = document.createElement("div");
+          historyCard.className = `live-history-callout ${historySummary.hasHistory ? "has-history" : "no-history"}`;
+
+          if (historySummary.hasHistory) {
+            const historyToggle = document.createElement("button");
+            historyToggle.type = "button";
+            historyToggle.className = "live-history-toggle";
+            historyToggle.setAttribute("aria-expanded", "false");
+
+            const historyHeading = document.createElement("strong");
+            historyHeading.className = "live-history-heading";
+            historyHeading.textContent = historySummary.heading;
+
+            const arrowIcon = document.createElement("span");
+            arrowIcon.className = "live-history-arrow";
+            arrowIcon.setAttribute("aria-hidden", "true");
+            arrowIcon.textContent = "›";
+
+            historyToggle.append(historyHeading, arrowIcon);
+            historyCard.append(historyToggle);
+
+            if (historySummary.setList.length > 0) {
+              const historySetList = document.createElement("ul");
+              historySetList.className = "live-history-sets";
+              historySetList.hidden = true;
+              for (const setText of historySummary.setList) {
+                const li = document.createElement("li");
+                li.textContent = setText;
+                historySetList.append(li);
+              }
+              historyCard.append(historySetList);
+
+              historyToggle.addEventListener("click", () => {
+                const expanded = historyToggle.getAttribute("aria-expanded") === "true";
+                historyToggle.setAttribute("aria-expanded", String(!expanded));
+                historySetList.hidden = expanded;
+              });
             }
           } else {
-            const selectedId = e.target.value ? Number(e.target.value) : null;
-            onEquipmentChange(exercise.id, selectedId);
+            const historyHeading = document.createElement("span");
+            historyHeading.className = "live-history-heading";
+            historyHeading.textContent = historySummary.heading;
+            historyCard.append(historyHeading);
           }
-        });
+          exerciseCard.append(historyCard);
 
-        equipmentLabel.append(equipmentSelect);
-        equipmentRow.append(equipmentLabel);
-        exerciseCard.append(equipmentRow);
+          // Sets Container (Mobile-first card/grid layout)
+          const setsContainer = document.createElement("div");
+          setsContainer.className = "live-sets-container";
 
-        // Previous Performance Card
-        const historyInfo = historyContextByExercise.get(exercise.id);
-        const historySummary = formatPreviousPerformanceSummary(historyInfo, exerciseHeading.textContent);
+          const setsList = document.createElement("div");
+          setsList.className = "live-sets-list";
 
-        const historyCard = document.createElement("div");
-        historyCard.className = `live-history-callout ${historySummary.hasHistory ? "has-history" : "no-history"}`;
+          const sortedSets = [...(exercise.exercise_sets || [])].sort((a, b) => a.set_number - b.set_number);
 
-        const historyHeading = document.createElement("strong");
-        historyHeading.className = "live-history-heading";
-        historyHeading.textContent = historySummary.heading;
-        historyCard.append(historyHeading);
+          sortedSets.forEach((set, setIdx) => {
+            const row = document.createElement("div");
+            row.className = `live-set-row ${set.is_warmup ? "is-warmup-set" : ""}`;
+            row.dataset.setId = set.id;
 
-        if (historySummary.hasHistory && historySummary.setList.length > 0) {
-          const historySetList = document.createElement("ul");
-          historySetList.className = "live-history-sets";
-          for (const setText of historySummary.setList) {
-            const li = document.createElement("li");
-            li.textContent = setText;
-            historySetList.append(li);
-          }
-          historyCard.append(historySetList);
-        }
-        exerciseCard.append(historyCard);
+            // Set Top Bar: Set number + Warm-up toggle + Delete button
+            const setHeader = document.createElement("div");
+            setHeader.className = "live-set-header";
 
-        // Sets Table
-        const setsContainer = document.createElement("div");
-        setsContainer.className = "live-sets-container";
+            const setNum = document.createElement("span");
+            setNum.className = "cell-set-num live-set-num";
+            setNum.textContent = `Set ${set.set_number}`;
 
-        const table = document.createElement("table");
-        table.className = "live-sets-table";
+            const setHeaderActions = document.createElement("div");
+            setHeaderActions.className = "live-set-header-actions";
 
-        const thead = document.createElement("thead");
-        thead.innerHTML = `
-          <tr>
-            <th scope="col" class="col-set">Set</th>
-            <th scope="col" class="col-prev">Previous</th>
-            <th scope="col" class="col-weight">Weight (${formatWeightUnit(exerciseHeading.textContent)})</th>
-            <th scope="col" class="col-reps">Reps</th>
-            <th scope="col" class="col-rir">RIR</th>
-            <th scope="col" class="col-warmup">Warmup</th>
-            <th scope="col" class="col-action"></th>
-          </tr>
-        `;
-        table.append(thead);
+            // Warm-up toggle
+            const warmupLabel = document.createElement("label");
+            warmupLabel.className = `live-warmup-toggle ${set.is_warmup ? "is-active" : ""}`;
 
-        const tbody = document.createElement("tbody");
-        const sortedSets = [...(exercise.exercise_sets || [])].sort((a, b) => a.set_number - b.set_number);
+            const warmupCheckbox = document.createElement("input");
+            warmupCheckbox.type = "checkbox";
+            warmupCheckbox.className = "live-checkbox warmup-checkbox";
+            warmupCheckbox.setAttribute("aria-label", `Set ${set.set_number} warm-up`);
+            warmupCheckbox.checked = set.is_warmup === true;
 
-        sortedSets.forEach((set, setIdx) => {
-          const row = document.createElement("tr");
-          row.className = `live-set-row ${set.is_warmup ? "is-warmup-set" : ""}`;
-          row.dataset.setId = set.id;
+            const warmupText = document.createElement("span");
+            warmupText.textContent = "Warm-up";
 
-          // Set number
-          const tdNum = document.createElement("td");
-          tdNum.className = "col-set cell-set-num";
-          tdNum.textContent = String(set.set_number);
+            warmupLabel.append(warmupCheckbox, warmupText);
 
-          // Previous performance badge
-          const tdPrev = document.createElement("td");
-          tdPrev.className = "col-prev cell-prev";
-          const prevSet = historyInfo?.sets?.[setIdx] || null;
-          tdPrev.textContent = formatPreviousSetBadge(prevSet);
+            // Delete set action
+            const removeSetBtn = document.createElement("button");
+            removeSetBtn.type = "button";
+            removeSetBtn.className = "icon-button delete-set-btn";
+            removeSetBtn.textContent = "×";
+            removeSetBtn.title = `Delete Set ${set.set_number}`;
+            removeSetBtn.setAttribute("aria-label", `Delete Set ${set.set_number}`);
+            removeSetBtn.addEventListener("click", () => onRemoveSet(exercise.id, set.id));
 
-          // Weight input
-          const tdWeight = document.createElement("td");
-          tdWeight.className = "col-weight";
-          const weightInput = document.createElement("input");
-          weightInput.type = "number";
-          weightInput.inputMode = "decimal";
-          weightInput.step = "any";
-          weightInput.min = "0";
-          weightInput.placeholder = "—";
-          weightInput.className = "live-input weight-input";
-          weightInput.setAttribute("aria-label", `Set ${set.set_number} weight`);
-          weightInput.value = set.weight !== null && set.weight !== undefined ? set.weight : "";
-          weightInput.addEventListener("input", () => {
-            const val = weightInput.value === "" ? null : Number(weightInput.value);
-            set.weight = val;
-            onSetFieldChange(session.id, set.id, { weight: val });
-          });
-          weightInput.addEventListener("blur", () => {
-            onSetFieldBlur(session.id, set.id);
-          });
-          tdWeight.append(weightInput);
+            setHeaderActions.append(warmupLabel, removeSetBtn);
+            setHeader.append(setNum, setHeaderActions);
+            row.append(setHeader);
 
-          // Reps input
-          const tdReps = document.createElement("td");
-          tdReps.className = "col-reps";
-          const repsInput = document.createElement("input");
-          repsInput.type = "number";
-          repsInput.inputMode = "numeric";
-          repsInput.step = "1";
-          repsInput.min = "0";
-          repsInput.placeholder = "—";
-          repsInput.className = "live-input reps-input";
-          repsInput.setAttribute("aria-label", `Set ${set.set_number} reps`);
-          repsInput.value = set.reps !== null && set.reps !== undefined ? set.reps : "";
-          repsInput.addEventListener("input", () => {
-            const val = repsInput.value === "" ? null : Number(repsInput.value);
-            set.reps = val;
-            onSetFieldChange(session.id, set.id, { reps: val });
-          });
-          repsInput.addEventListener("blur", () => {
-            onSetFieldBlur(session.id, set.id);
-          });
-          tdReps.append(repsInput);
+            // 3-Column Inputs Grid
+            const inputGrid = document.createElement("div");
+            inputGrid.className = "live-set-inputs-grid";
 
-          // RIR cell
-          const tdRir = document.createElement("td");
-          tdRir.className = "col-rir";
-          if (!set.is_warmup) {
-            tdRir.append(createRirSelect(session.id, set, onSetFieldChange, onSetFieldBlur));
-          } else {
-            const blankSpan = document.createElement("span");
-            blankSpan.className = "rir-warmup-blank";
-            blankSpan.setAttribute("aria-hidden", "true");
-            tdRir.append(blankSpan);
-          }
+            // Weight input
+            const weightCol = document.createElement("div");
+            weightCol.className = "live-set-field col-weight";
 
-          // Warmup checkbox
-          const tdWarmup = document.createElement("td");
-          tdWarmup.className = "col-warmup";
-          const warmupCheckbox = document.createElement("input");
-          warmupCheckbox.type = "checkbox";
-          warmupCheckbox.className = "live-checkbox warmup-checkbox";
-          warmupCheckbox.setAttribute("aria-label", `Set ${set.set_number} warm-up`);
-          warmupCheckbox.checked = set.is_warmup === true;
-          warmupCheckbox.addEventListener("change", () => {
-            const isWarmup = warmupCheckbox.checked;
-            set.is_warmup = isWarmup;
-            set.reported_rir_bucket = null;
-            set.rir_source = null;
-            row.classList.toggle("is-warmup-set", isWarmup);
-            tdRir.replaceChildren();
+            const weightLabel = document.createElement("label");
+            weightLabel.className = "live-field-label";
+            weightLabel.textContent = `Weight (${formatWeightUnit(exerciseHeading.textContent)})`;
 
-            if (isWarmup) {
-              const blankSpan = document.createElement("span");
-              blankSpan.className = "rir-warmup-blank";
-              blankSpan.setAttribute("aria-hidden", "true");
-              tdRir.append(blankSpan);
+            const weightInput = document.createElement("input");
+            weightInput.type = "number";
+            weightInput.inputMode = "decimal";
+            weightInput.step = "any";
+            weightInput.min = "0";
+            weightInput.placeholder = "—";
+            weightInput.className = "live-input weight-input";
+            weightInput.setAttribute("aria-label", `Set ${set.set_number} weight`);
+            weightInput.value = set.weight !== null && set.weight !== undefined ? set.weight : "";
+            weightInput.addEventListener("input", () => {
+              const val = weightInput.value === "" ? null : Number(weightInput.value);
+              set.weight = val;
+              onSetFieldChange(session.id, set.id, { weight: val });
+            });
+            weightInput.addEventListener("blur", () => {
+              onSetFieldBlur(session.id, set.id);
+            });
+
+            weightCol.append(weightLabel, weightInput);
+
+            // Reps input
+            const repsCol = document.createElement("div");
+            repsCol.className = "live-set-field col-reps";
+
+            const repsLabel = document.createElement("label");
+            repsLabel.className = "live-field-label";
+            repsLabel.textContent = "Reps";
+
+            const repsInput = document.createElement("input");
+            repsInput.type = "number";
+            repsInput.inputMode = "numeric";
+            repsInput.step = "1";
+            repsInput.min = "0";
+            repsInput.placeholder = "—";
+            repsInput.className = "live-input reps-input";
+            repsInput.setAttribute("aria-label", `Set ${set.set_number} reps`);
+            repsInput.value = set.reps !== null && set.reps !== undefined ? set.reps : "";
+            repsInput.addEventListener("input", () => {
+              const val = repsInput.value === "" ? null : Number(repsInput.value);
+              set.reps = val;
+              onSetFieldChange(session.id, set.id, { reps: val });
+            });
+            repsInput.addEventListener("blur", () => {
+              onSetFieldBlur(session.id, set.id);
+            });
+
+            repsCol.append(repsLabel, repsInput);
+
+            // RIR input
+            const rirCol = document.createElement("div");
+            rirCol.className = "live-set-field col-rir";
+
+            const rirLabel = document.createElement("label");
+            rirLabel.className = "live-field-label";
+            rirLabel.textContent = "RIR";
+
+            const rirSlot = document.createElement("div");
+            rirSlot.className = "live-rir-slot";
+
+            function renderRirSlot() {
+              rirSlot.replaceChildren();
+              if (!set.is_warmup) {
+                rirSlot.append(createRirSelect(session.id, set, onSetFieldChange, onSetFieldBlur));
+              } else {
+                const blankSpan = document.createElement("span");
+                blankSpan.className = "rir-warmup-blank";
+                blankSpan.textContent = "—";
+                blankSpan.setAttribute("aria-label", "RIR not applicable for warm-up");
+                rirSlot.append(blankSpan);
+              }
+            }
+            renderRirSlot();
+
+            rirCol.append(rirLabel, rirSlot);
+            inputGrid.append(weightCol, repsCol, rirCol);
+            row.append(inputGrid);
+
+            // Warmup change handler
+            warmupCheckbox.addEventListener("change", () => {
+              const isWarmup = warmupCheckbox.checked;
+              set.is_warmup = isWarmup;
+              set.reported_rir_bucket = null;
+              set.rir_source = null;
+              row.classList.toggle("is-warmup-set", isWarmup);
+              warmupLabel.classList.toggle("is-active", isWarmup);
+
+              renderRirSlot();
+
               onSetFieldChange(session.id, set.id, {
-                is_warmup: true,
+                is_warmup: isWarmup,
                 reported_rir_bucket: null,
                 rir_source: null,
               });
+              onSetFieldBlur(session.id, set.id);
+            });
+
+            // Inline previous performance display
+            const prevSet = historyInfo?.sets?.[setIdx] || null;
+            const inlinePrevText = formatInlinePreviousSet(prevSet, exerciseHeading.textContent);
+
+            const prevRow = document.createElement("div");
+            prevRow.className = `live-set-previous cell-prev col-prev ${inlinePrevText ? "has-previous" : "no-previous"}`;
+            if (inlinePrevText) {
+              const prevLabelSpan = document.createElement("span");
+              prevLabelSpan.className = "live-prev-tag";
+              prevLabelSpan.textContent = "Last:";
+              const prevValueSpan = document.createElement("span");
+              prevValueSpan.className = "live-prev-val";
+              prevValueSpan.textContent = inlinePrevText;
+              prevRow.append(prevLabelSpan, " ", prevValueSpan);
             } else {
-              tdRir.append(createRirSelect(session.id, set, onSetFieldChange, onSetFieldBlur));
-              onSetFieldChange(session.id, set.id, {
-                is_warmup: false,
-                reported_rir_bucket: null,
-                rir_source: null,
-              });
+              prevRow.textContent = "No previous set";
             }
-            onSetFieldBlur(session.id, set.id);
+            row.append(prevRow);
+
+            setsList.append(row);
           });
-          tdWarmup.append(warmupCheckbox);
 
-          // Delete set action
-          const tdAction = document.createElement("td");
-          tdAction.className = "col-action";
-          const removeSetBtn = document.createElement("button");
-          removeSetBtn.type = "button";
-          removeSetBtn.className = "icon-button delete-set-btn";
-          removeSetBtn.textContent = "×";
-          removeSetBtn.title = `Delete Set ${set.set_number}`;
-          removeSetBtn.setAttribute("aria-label", `Delete Set ${set.set_number}`);
-          removeSetBtn.addEventListener("click", () => onRemoveSet(exercise.id, set.id));
-          tdAction.append(removeSetBtn);
+          setsContainer.append(setsList);
 
-          row.append(tdNum, tdPrev, tdWeight, tdReps, tdRir, tdWarmup, tdAction);
-          tbody.append(row);
+          const addSetBtn = document.createElement("button");
+          addSetBtn.type = "button";
+          addSetBtn.className = "secondary-button add-set-button";
+          addSetBtn.textContent = "+ Add set";
+          addSetBtn.addEventListener("click", () => onAddSet(exercise.id));
+          setsContainer.append(addSetBtn);
+
+          exerciseCard.append(setsContainer);
+          exerciseList.append(exerciseCard);
         });
 
-        table.append(tbody);
-        setsContainer.append(table);
+        container.append(exerciseList);
+      }
 
-        const addSetBtn = document.createElement("button");
-        addSetBtn.type = "button";
-        addSetBtn.className = "text-button add-set-button";
-        addSetBtn.textContent = "+ Add set";
-        addSetBtn.addEventListener("click", () => onAddSet(exercise.id));
-        setsContainer.append(addSetBtn);
-
-        exerciseCard.append(setsContainer);
-        exerciseList.append(exerciseCard);
-      });
-
-      container.append(exerciseList);
+      // Check if at least 1 completed set exists in the session to enable Finish workout
+      const hasCompletedSet = sortedExercises.some((ex) =>
+        (ex.exercise_sets || []).some(isCompletedSet)
+      );
 
       // Bottom footer actions
       const footerActions = document.createElement("footer");
@@ -499,8 +767,11 @@ export function createSessionRenderer(options) {
       const concludeBtn = document.createElement("button");
       concludeBtn.type = "button";
       concludeBtn.className = "primary-button conclude-session-button";
-      concludeBtn.textContent = isConcluding ? "Concluding…" : "Conclude workout";
-      concludeBtn.disabled = isConcluding;
+      concludeBtn.textContent = isConcluding ? "Finishing…" : "Finish workout";
+      concludeBtn.disabled = isConcluding || !hasCompletedSet;
+      if (!hasCompletedSet) {
+        concludeBtn.title = "Log at least one completed set to finish this workout.";
+      }
       concludeBtn.addEventListener("click", onConcludeSession);
 
       rightActions.append(addExerciseBtn, concludeBtn);

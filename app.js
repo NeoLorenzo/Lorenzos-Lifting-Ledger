@@ -93,6 +93,13 @@ const liveSessionFeature = createSessionFeature({
     dashboardFeature.invalidate();
     if (activeUserId && supabaseClient) void loadSessions(supabaseClient);
   },
+  onSyncStateChange: (state, label) => {
+    const topBarSyncBadge = document.querySelector("#top-bar-sync-badge");
+    if (topBarSyncBadge) {
+      topBarSyncBadge.className = `live-sync-badge sync-state-${state || "saved"}`;
+      topBarSyncBadge.textContent = label || "Saved ✓";
+    }
+  },
   liveContainer: typeof document !== "undefined" ? document.querySelector("#live-session-container") : null,
   wizardModal: typeof document !== "undefined" ? (document.querySelector("#session-wizard-modal") || document.querySelector("#session-modal")) : null,
 });
@@ -242,6 +249,7 @@ if (!configured) {
   });
 
   signOutButton.addEventListener("click", async () => {
+    closeMenu();
     signOutButton.disabled = true;
     const { error } = await supabase.auth.signOut();
 
@@ -413,22 +421,45 @@ function updateContextualNavTitle() {
   if (!topBar) return;
   const activePanel = pagePanels.find((panel) => panel.dataset.pagePanel === activePageName);
   const heading = activePanel?.querySelector("h1, [data-page-heading-anchor]");
-  const pageTitle = activePageName === "document"
+  let pageTitle = activePageName === "document"
     ? documentTitle.textContent || PAGE_TITLES.document
     : PAGE_TITLES[activePageName] ?? "Home";
+
+  if (activePageName === "live-session") {
+    const activeSession = liveSessionFeature.getActiveSession();
+    pageTitle = activeSession?.source_preset_name || "Live Workout";
+  }
+
+  const topBarSyncBadge = document.querySelector("#top-bar-sync-badge");
+
   if (!heading) {
     currentPageTitle.textContent = pageTitle;
+    if (topBarSyncBadge) topBarSyncBadge.hidden = true;
     return;
   }
   const headingBottom = heading.getBoundingClientRect().bottom;
   const topBarBottom = topBar.getBoundingClientRect().bottom;
   const isContextual = headingBottom <= topBarBottom;
   currentPageTitle.textContent = isContextual ? pageTitle : "";
+
   const contextualDashboardRange = document.querySelector("#contextual-dashboard-range");
   const dashboardPageRange = document.querySelector("#dashboard-page-range");
   const isDashboardRangeContextual = activePageName === "my-data" && isContextual;
   if (contextualDashboardRange) contextualDashboardRange.hidden = !isDashboardRangeContextual;
   if (dashboardPageRange) dashboardPageRange.hidden = isDashboardRangeContextual;
+
+  if (topBarSyncBadge) {
+    if (activePageName === "live-session" && isContextual) {
+      topBarSyncBadge.hidden = false;
+      const inPageBadge = document.querySelector("#live-session-container .live-sync-badge");
+      if (inPageBadge) {
+        topBarSyncBadge.className = inPageBadge.className;
+        topBarSyncBadge.textContent = inPageBadge.textContent;
+      }
+    } else {
+      topBarSyncBadge.hidden = true;
+    }
+  }
 }
 async function openLiteratureDocument(documentId) {
   const documentDefinition = LITERATURE_DOCUMENTS[documentId];

@@ -54,6 +54,25 @@ export function formatPreviousSetBadge(previousSet) {
   return `${weight} × ${reps}`;
 }
 
+export function formatInlinePreviousSet(previousSet, exerciseName) {
+  if (!previousSet || !isCompletedSet(previousSet)) return null;
+  const unit = formatWeightUnit(exerciseName);
+
+  if (previousSet.is_warmup) {
+    const load = previousSet.weight !== null && previousSet.weight !== undefined ? `${previousSet.weight} ${unit}` : "";
+    const reps = previousSet.reps !== null && previousSet.reps !== undefined ? `${previousSet.reps}` : "";
+    const core = load && reps ? `${load} × ${reps}` : (load || (reps ? `${reps} reps` : ""));
+    return core ? `${core} (Warm-up)` : "Warm-up";
+  }
+
+  const load = previousSet.weight !== null && previousSet.weight !== undefined ? `${previousSet.weight} ${unit}` : "—";
+  const reps = previousSet.reps !== null && previousSet.reps !== undefined ? `${previousSet.reps}` : "—";
+  const rir = previousSet.reported_rir_bucket !== null && previousSet.reported_rir_bucket !== undefined
+    ? ` @ ${Number(previousSet.reported_rir_bucket) === 4 ? "4+ RIR" : `${previousSet.reported_rir_bucket} RIR`}`
+    : "";
+  return `${load} × ${reps}${rir}`;
+}
+
 export function createSessionHistoryContext(options) {
   const { getClient, getUserId } = options;
   const historyCache = new Map();

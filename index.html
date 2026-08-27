@@ -229,7 +229,7 @@
               <button type="button" data-dashboard-range="all" aria-pressed="false">All time</button>
             </fieldset>
           </div>
-          <button id="sign-out" class="link-button" type="button">Sign out</button>
+          <span id="top-bar-sync-badge" class="live-sync-badge sync-state-saved" role="status" aria-live="polite" hidden>Saved ✓</span>
         </header>
 
         <div id="menu-backdrop" class="menu-backdrop" hidden></div>
@@ -259,6 +259,10 @@
             <button class="menu-item" type="button" data-page="settings">
               <span class="menu-icon" aria-hidden="true">⚙</span>
               Settings
+            </button>
+            <button id="sign-out" class="menu-item menu-sign-out" type="button">
+              <span class="menu-icon" aria-hidden="true">↪</span>
+              Sign out
             </button>
           </nav>
         </aside>
@@ -303,7 +307,7 @@
           <div class="session-modal-card add-exercise-card">
             <div class="modal-header">
               <h2 id="add-exercise-title">Add Exercise</h2>
-              <button id="close-add-exercise-modal" class="text-button" type="button">Close</button>
+              <button id="close-add-exercise-modal" class="icon-button close-modal-btn" type="button" aria-label="Close exercise picker">×</button>
             </div>
             <input id="add-exercise-search" class="live-input" type="search" placeholder="Search exercises…" autocomplete="off" />
             <ul id="add-exercise-results" class="catalogue-exercise-list"></ul>

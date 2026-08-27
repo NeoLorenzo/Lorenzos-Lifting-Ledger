@@ -2,6 +2,7 @@ import { createSessionStorage } from "./session-storage.js";
 import { createSessionAutosave, SYNC_STATE, SYNC_LABELS } from "./session-autosave.js";
 import { createSessionHistoryContext } from "./session-history-context.js";
 import { createSessionRenderer } from "./session-rendering.js";
+import { fetchRecentExerciseIds, fetchRecentGymIds } from "./session-recents.js";
 import { isDraftSet } from "../../set-model.js";
 
 export function createSessionFeature(options) {
@@ -705,7 +706,7 @@ export function createSessionFeature(options) {
     }
   }
 
-  function openAddExercisePicker() {
+  async function openAddExercisePicker() {
     const modal = document.querySelector("#add-exercise-modal");
     const searchInput = document.querySelector("#add-exercise-search");
     const resultsList = document.querySelector("#add-exercise-results");
@@ -713,40 +714,97 @@ export function createSessionFeature(options) {
 
     if (!modal || !resultsList) return;
 
-    void ensureExerciseCatalogue().then((catalogue) => {
-      function renderList(query = "") {
-        const matches = catalogue.filter((ex) => ex.name.toLowerCase().includes(query.toLowerCase()));
-        const frag = document.createDocumentFragment();
-        for (const ex of matches) {
-          const li = document.createElement("li");
-          li.className = "catalogue-exercise-item";
-          const span = document.createElement("span");
-          span.textContent = ex.name;
-          const addBtn = document.createElement("button");
-          addBtn.type = "button";
-          addBtn.className = "primary-button compact";
-          addBtn.textContent = "Add";
-          addBtn.addEventListener("click", () => {
-            modal.close();
-            void addExerciseToActiveSession(ex.id);
-          });
-          li.append(span, addBtn);
-          frag.append(li);
+    const supabase = getClient();
+    const userId = getUserId();
+
+    const [catalogue, recentExerciseIds] = await Promise.all([
+      ensureExerciseCatalogue(),
+      fetchRecentExerciseIds(supabase, userId, 8),
+    ]);
+
+    function createExerciseItem(ex) {
+      const li = document.createElement("li");
+      li.className = "catalogue-exercise-item";
+
+      const span = document.createElement("span");
+      span.className = "catalogue-exercise-name";
+      span.textContent = ex.name;
+
+      const addBtn = document.createElement("button");
+      addBtn.type = "button";
+      addBtn.className = "secondary-button compact catalogue-add-btn";
+      addBtn.textContent = "+ Add";
+      addBtn.setAttribute("aria-label", `Add ${ex.name}`);
+
+      addBtn.addEventListener("click", () => {
+        addBtn.textContent = "Added ✓";
+        addBtn.classList.add("is-added");
+        void addExerciseToActiveSession(ex.id);
+        window.setTimeout(() => {
+          addBtn.textContent = "+ Add";
+          addBtn.classList.remove("is-added");
+        }, 1500);
+      });
+
+      li.append(span, addBtn);
+      return li;
+    }
+
+    function renderList(query = "") {
+      const frag = document.createDocumentFragment();
+      const trimmed = query.trim().toLowerCase();
+
+      if (trimmed) {
+        const matches = catalogue.filter((ex) => ex.name.toLowerCase().includes(trimmed));
+        if (matches.length === 0) {
+          const noRes = document.createElement("li");
+          noRes.className = "catalogue-no-results";
+          noRes.textContent = `No exercises match “${query}”`;
+          frag.append(noRes);
+        } else {
+          for (const ex of matches) {
+            frag.append(createExerciseItem(ex));
+          }
         }
-        resultsList.replaceChildren(frag);
+      } else {
+        const recentExercises = (recentExerciseIds || [])
+          .map((id) => catalogue.find((ex) => ex.id === id))
+          .filter(Boolean);
+
+        if (recentExercises.length > 0) {
+          const recentHeader = document.createElement("li");
+          recentHeader.className = "catalogue-section-header";
+          recentHeader.textContent = "Recent";
+          frag.append(recentHeader);
+
+          for (const ex of recentExercises) {
+            frag.append(createExerciseItem(ex));
+          }
+
+          const allHeader = document.createElement("li");
+          allHeader.className = "catalogue-section-header";
+          allHeader.textContent = "All exercises";
+          frag.append(allHeader);
+        }
+
+        for (const ex of catalogue) {
+          frag.append(createExerciseItem(ex));
+        }
       }
 
-      renderList();
-      if (searchInput) {
-        searchInput.value = "";
-        searchInput.oninput = () => renderList(searchInput.value.trim());
-      }
-      if (closeBtn) {
-        closeBtn.onclick = () => modal.close();
-      }
-      modal.showModal();
-      searchInput?.focus();
-    });
+      resultsList.replaceChildren(frag);
+    }
+
+    renderList();
+    if (searchInput) {
+      searchInput.value = "";
+      searchInput.oninput = () => renderList(searchInput.value);
+    }
+    if (closeBtn) {
+      closeBtn.onclick = () => modal.close();
+    }
+    modal.showModal();
+    searchInput?.focus();
   }
 
   // Wizard Methods
@@ -754,15 +812,19 @@ export function createSessionFeature(options) {
     selectedGymId = null;
     selectedPresetId = null;
     await loadGyms(true);
-    showWizardGymStep();
+    await showWizardGymStep();
   }
 
-  function showWizardGymStep() {
+  async function showWizardGymStep() {
     if (!wizardModal) return;
     wizardModal.replaceChildren();
 
+    const supabase = getClient();
+    const userId = getUserId();
+    const recentGymIds = await fetchRecentGymIds(supabase, userId, 3);
+
     const container = document.createElement("div");
-    container.className = "session-wizard-card";
+    container.className = "session-wizard-card wizard-gym-card";
 
     const title = document.createElement("h2");
     title.textContent = "Select Gym";
@@ -771,40 +833,111 @@ export function createSessionFeature(options) {
     desc.className = "wizard-desc";
     desc.textContent = "Choose your gym context to automatically match machines and track gym-specific history.";
 
-    const gymList = document.createElement("ul");
-    gymList.className = "wizard-gym-list";
+    container.append(title, desc);
 
-    for (const gym of gyms) {
+    function createGymButton(gym) {
       const li = document.createElement("li");
       const btn = document.createElement("button");
       btn.type = "button";
       btn.className = "wizard-gym-button";
-      btn.textContent = gym.name;
+
+      const nameSpan = document.createElement("span");
+      nameSpan.textContent = gym.name;
+
+      const arrowSpan = document.createElement("span");
+      arrowSpan.className = "wizard-gym-arrow";
+      arrowSpan.setAttribute("aria-hidden", "true");
+      arrowSpan.textContent = "›";
+
+      btn.append(nameSpan, arrowSpan);
       btn.addEventListener("click", () => {
         selectedGymId = gym.id;
         showWizardPresetStep();
       });
       li.append(btn);
-      gymList.append(li);
+      return li;
     }
+
+    const recentGyms = (recentGymIds || [])
+      .map((id) => gyms.find((g) => g.id === id))
+      .filter(Boolean);
+
+    if (recentGyms.length > 0 && gyms.length > 1) {
+      const recentHeading = document.createElement("h3");
+      recentHeading.className = "wizard-section-title";
+      recentHeading.textContent = "Recent";
+      container.append(recentHeading);
+
+      const recentList = document.createElement("ul");
+      recentList.className = "wizard-gym-list";
+      for (const gym of recentGyms) {
+        recentList.append(createGymButton(gym));
+      }
+      container.append(recentList);
+
+      const allHeading = document.createElement("h3");
+      allHeading.className = "wizard-section-title";
+      allHeading.textContent = "All Gyms";
+      container.append(allHeading);
+    }
+
+    const gymList = document.createElement("ul");
+    gymList.className = "wizard-gym-list";
+    for (const gym of gyms) {
+      gymList.append(createGymButton(gym));
+    }
+    container.append(gymList);
+
+    // De-emphasized Add New Gym section
+    const addGymSection = document.createElement("div");
+    addGymSection.className = "wizard-add-gym-section";
+
+    const toggleNewGymBtn = document.createElement("button");
+    toggleNewGymBtn.type = "button";
+    toggleNewGymBtn.className = "text-button wizard-toggle-add-gym";
+    toggleNewGymBtn.textContent = "+ Add new gym";
 
     const newGymForm = document.createElement("form");
     newGymForm.className = "wizard-new-gym-form";
+    newGymForm.hidden = true;
+
     const input = document.createElement("input");
     input.type = "text";
-    input.placeholder = "Or enter a new gym name…";
+    input.placeholder = "Enter gym name…";
     input.required = true;
+    input.className = "live-input";
+
+    const formActions = document.createElement("div");
+    formActions.className = "wizard-form-actions";
+
     const addGymBtn = document.createElement("button");
     addGymBtn.type = "submit";
+    addGymBtn.className = "primary-button compact";
     addGymBtn.textContent = "Add Gym";
 
-    newGymForm.append(input, addGymBtn);
+    const cancelAddGymBtn = document.createElement("button");
+    cancelAddGymBtn.type = "button";
+    cancelAddGymBtn.className = "text-button";
+    cancelAddGymBtn.textContent = "Cancel";
+    cancelAddGymBtn.addEventListener("click", () => {
+      newGymForm.hidden = true;
+      newGymForm.reset();
+      toggleNewGymBtn.hidden = false;
+    });
+
+    toggleNewGymBtn.addEventListener("click", () => {
+      toggleNewGymBtn.hidden = true;
+      newGymForm.hidden = false;
+      input.focus();
+    });
+
+    formActions.append(addGymBtn, cancelAddGymBtn);
+    newGymForm.append(input, formActions);
+
     newGymForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const val = input.value.trim();
       if (!val) return;
-      const supabase = getClient();
-      const userId = getUserId();
       const { data, error } = await supabase
         .from("gyms")
         .insert({ owner_id: userId, name: val })
@@ -817,13 +950,15 @@ export function createSessionFeature(options) {
       }
     });
 
+    addGymSection.append(toggleNewGymBtn, newGymForm);
+
     const closeBtn = document.createElement("button");
     closeBtn.type = "button";
     closeBtn.className = "text-button wizard-close-btn";
-    closeBtn.textContent = "Cancel";
+    closeBtn.textContent = "Close";
     closeBtn.addEventListener("click", () => wizardModal.close());
 
-    container.append(title, desc, gymList, newGymForm, closeBtn);
+    container.append(addGymSection, closeBtn);
     wizardModal.replaceChildren(container);
     if (!wizardModal.open) wizardModal.showModal();
   }
@@ -833,7 +968,7 @@ export function createSessionFeature(options) {
     wizardModal.replaceChildren();
 
     const container = document.createElement("div");
-    container.className = "session-wizard-card";
+    container.className = "session-wizard-card wizard-preset-card";
 
     const title = document.createElement("h2");
     title.textContent = "Select Workout";
@@ -859,13 +994,26 @@ export function createSessionFeature(options) {
       btn.type = "button";
       btn.className = "wizard-preset-button";
 
+      const infoDiv = document.createElement("div");
+      infoDiv.className = "wizard-preset-info";
+
       const name = document.createElement("strong");
+      name.className = "wizard-preset-name";
       name.textContent = preset.name;
+
       const count = document.createElement("span");
+      count.className = "wizard-preset-count";
       const exCount = (preset.workout_preset_exercises || []).length;
       count.textContent = `${exCount} ${exCount === 1 ? "exercise" : "exercises"}`;
 
-      btn.append(name, count);
+      infoDiv.append(name, count);
+
+      const arrowSpan = document.createElement("span");
+      arrowSpan.className = "wizard-preset-arrow";
+      arrowSpan.setAttribute("aria-hidden", "true");
+      arrowSpan.textContent = "›";
+
+      btn.append(infoDiv, arrowSpan);
       btn.addEventListener("click", () => {
         selectedPresetId = preset.id;
         void createSessionAndLaunch(selectedGymId, selectedPresetId);
@@ -886,7 +1034,7 @@ export function createSessionFeature(options) {
     backBtn.type = "button";
     backBtn.className = "text-button wizard-back-btn";
     backBtn.textContent = "← Back to Gyms";
-    backBtn.addEventListener("click", showWizardGymStep);
+    backBtn.addEventListener("click", () => void showWizardGymStep());
 
     container.append(title, desc, presetList, scratchBtn, backBtn);
     wizardModal.replaceChildren(container);

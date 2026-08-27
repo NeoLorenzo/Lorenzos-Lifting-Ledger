@@ -11,7 +11,7 @@ class MockElement {
     this.classList = {
       _classes: new Set(),
       add: (...cls) => cls.forEach((c) => this.classList._classes.add(c)),
-      remove: (...cls) => cls.forEach((c) => this.classList._classes.remove(c)),
+      remove: (...cls) => cls.forEach((c) => this.classList._classes.delete(c)),
       toggle: (c, force) => {
         if (force === undefined) {
           if (this.classList._classes.has(c)) this.classList._classes.delete(c);
@@ -690,4 +690,191 @@ test("BUG 5 REGRESSION: cancellation failure preserves pending local mutations a
   // 3. No callback or navigation to Home occurs!
   assert.equal(cancelledSessionId, null, "onSessionCancelled callback must not be invoked on failure");
   assert.equal(navPages.includes("home"), false, "Must not navigate home when cancellation fails");
+});
+
+test("session-recents: resolves deterministic recent exercise and gym IDs from completed sessions", async () => {
+  const { fetchRecentExerciseIds, fetchRecentGymIds } = await import("../features/session/session-recents.js");
+
+  const mockSessionExercises = [
+    { exercise_id: "ex-1", workout_sessions: { id: 3, performed_on: "2026-08-25" } },
+    { exercise_id: "ex-2", workout_sessions: { id: 3, performed_on: "2026-08-25" } },
+    { exercise_id: "ex-3", workout_sessions: { id: 2, performed_on: "2026-08-20" } },
+    { exercise_id: "ex-1", workout_sessions: { id: 2, performed_on: "2026-08-20" } },
+    { exercise_id: "ex-4", workout_sessions: { id: 1, performed_on: "2026-08-15" } },
+    { exercise_id: "ex-5", workout_sessions: { id: 1, performed_on: "2026-08-15" } },
+  ];
+
+  const mockWorkoutSessions = [
+    { id: 3, gym_id: "gym-b", performed_on: "2026-08-25", status: "completed" },
+    { id: 2, gym_id: "gym-a", performed_on: "2026-08-20", status: "completed" },
+    { id: 1, gym_id: "gym-c", performed_on: "2026-08-15", status: "completed" },
+  ];
+
+  const mockClient = {
+    from: (table) => {
+      let limitCount = 50;
+      const builder = {
+        select: () => builder,
+        eq: () => builder,
+        not: () => builder,
+        order: () => builder,
+        limit: (n) => {
+          limitCount = n;
+          return builder;
+        },
+        then: (resolve) => {
+          if (table === "session_exercises") {
+            return resolve({ data: mockSessionExercises, error: null });
+          }
+          if (table === "workout_sessions") {
+            return resolve({ data: mockWorkoutSessions, error: null });
+          }
+          return resolve({ data: [], error: null });
+        },
+      };
+      return builder;
+    },
+  };
+
+  const exerciseIds = await fetchRecentExerciseIds(mockClient, "user-1", 8);
+  // ex-1 and ex-2 from session 3, ex-3 from session 2 (ex-1 skipped as duplicate), ex-4 and ex-5 from session 1
+  assert.deepEqual(exerciseIds, ["ex-1", "ex-2", "ex-3", "ex-4", "ex-5"]);
+
+  const gymIds = await fetchRecentGymIds(mockClient, "user-1", 3);
+  assert.deepEqual(gymIds, ["gym-b", "gym-a", "gym-c"]);
+});
+
+test("session-history-context: formatInlinePreviousSet formats barbell, dumbbell, and warmup sets", async () => {
+  const { formatInlinePreviousSet } = await import("../features/session/session-history-context.js");
+
+  // Barbell working set
+  assert.equal(
+    formatInlinePreviousSet({ weight: 100, reps: 8, reported_rir_bucket: 1, is_warmup: false }, "Bench Press"),
+    "100 kg × 8 @ 1 RIR"
+  );
+
+  // Dumbbell working set (per dumbbell notation)
+  assert.equal(
+    formatInlinePreviousSet({ weight: 22.5, reps: 12, reported_rir_bucket: 0, is_warmup: false }, "Lateral Raise (Dumbbell)"),
+    "22.5 kg per dumbbell × 12 @ 0 RIR"
+  );
+
+  // 4+ RIR working set
+  assert.equal(
+    formatInlinePreviousSet({ weight: 50, reps: 15, reported_rir_bucket: 4, is_warmup: false }, "Leg Extension"),
+    "50 kg × 15 @ 4+ RIR"
+  );
+
+  // Warmup set
+  assert.equal(
+    formatInlinePreviousSet({ weight: 60, reps: 5, is_warmup: true }, "Squat"),
+    "60 kg × 5 (Warm-up)"
+  );
+
+  // Null/missing previous set
+  assert.equal(formatInlinePreviousSet(null, "Bench Press"), null);
+});
+
+test("session-rendering: renders empty state when session has no exercises", async () => {
+  const { createSessionRenderer } = await import("../features/session/session-rendering.js");
+
+  const container = new MockElement("div");
+  const renderer = createSessionRenderer({
+    container,
+    onSetFieldChange: () => {},
+    onSetFieldBlur: () => {},
+    onAddSet: () => {},
+    onRemoveSet: () => {},
+    onAddExercise: () => {},
+    onRemoveExercise: () => {},
+    onReorderExercise: () => {},
+    onEquipmentChange: () => {},
+    onCreateEquipment: () => {},
+    onConcludeSession: () => {},
+    onCancelSession: () => {},
+  });
+
+  renderer.renderLiveSession({
+    session: { id: 1, gym_id: 1, source_preset_name: "Empty Session", performed_on: "2026-08-27" },
+    exercises: [],
+    gyms: [{ id: 1, name: "Iron Gym" }],
+    equipmentByGym: new Map(),
+    equipmentOptionsByExercise: new Map(),
+    historyContextByExercise: new Map(),
+    syncLabel: "Saved ✓",
+    syncState: "saved",
+    errorMessage: null,
+    isConcluding: false,
+  });
+
+  const emptyCard = container.querySelector(".live-session-empty");
+  assert.ok(emptyCard, "Empty workout state must be rendered when there are no exercises");
+  const concludeBtn = container.querySelector(".conclude-session-button");
+  assert.equal(concludeBtn.disabled, true, "Finish workout button must be disabled when no completed sets exist");
+});
+
+test("session-rendering: Finish workout button is disabled until at least one set is completed", async () => {
+  const { createSessionRenderer } = await import("../features/session/session-rendering.js");
+
+  const container = new MockElement("div");
+  const renderer = createSessionRenderer({
+    container,
+    onSetFieldChange: () => {},
+    onSetFieldBlur: () => {},
+    onAddSet: () => {},
+    onRemoveSet: () => {},
+    onAddExercise: () => {},
+    onRemoveExercise: () => {},
+    onReorderExercise: () => {},
+    onEquipmentChange: () => {},
+    onCreateEquipment: () => {},
+    onConcludeSession: () => {},
+    onCancelSession: () => {},
+  });
+
+  // State with blank / incomplete set
+  const stateWithBlankSet = {
+    session: { id: 1, gym_id: 1, source_preset_name: "Test Workout", performed_on: "2026-08-27" },
+    exercises: [
+      {
+        id: 10,
+        exercise_id: "ex-1",
+        exercise_order: 1,
+        exercise_name: "Overhead Press",
+        exercise_sets: [
+          { id: 100, set_number: 1, weight: null, reps: null, reported_rir_bucket: null, is_warmup: false },
+        ],
+      },
+    ],
+    gyms: [{ id: 1, name: "Iron Gym" }],
+    equipmentByGym: new Map(),
+    equipmentOptionsByExercise: new Map(),
+    historyContextByExercise: new Map(),
+    syncLabel: "Saved ✓",
+    syncState: "saved",
+    errorMessage: null,
+    isConcluding: false,
+  };
+
+  renderer.renderLiveSession(stateWithBlankSet);
+  let concludeBtn = container.querySelector(".conclude-session-button");
+  assert.equal(concludeBtn.disabled, true, "Finish button must be disabled when all sets are incomplete");
+
+  // State with a completed working set (weight, reps, RIR)
+  const stateWithCompletedSet = {
+    ...stateWithBlankSet,
+    exercises: [
+      {
+        ...stateWithBlankSet.exercises[0],
+        exercise_sets: [
+          { id: 100, set_number: 1, weight: 60, reps: 8, reported_rir_bucket: 2, is_warmup: false },
+        ],
+      },
+    ],
+  };
+
+  renderer.renderLiveSession(stateWithCompletedSet);
+  concludeBtn = container.querySelector(".conclude-session-button");
+  assert.equal(concludeBtn.disabled, false, "Finish button must be enabled when at least one set is completed");
+  assert.equal(concludeBtn.textContent, "Finish workout");
 });
