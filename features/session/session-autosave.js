@@ -18,6 +18,7 @@ export function createSessionAutosave(options) {
   let currentSyncState = SYNC_STATE.SAVED;
   const pendingTimers = new Map();
   const pendingRequests = new Map();
+  const discardedSetIds = new Set();
 
   function setSyncState(state) {
     currentSyncState = state;
@@ -30,18 +31,40 @@ export function createSessionAutosave(options) {
     return typeof navigator !== "undefined" && "onLine" in navigator ? navigator.onLine : true;
   }
 
-  async function persistSet(sessionId, setId, fields) {
-    const supabase = getClient();
-    const userId = getUserId();
-    if (!supabase || !userId) {
+  function evaluateSyncState(sessionId) {
+    if (!getOnlineStatus()) {
+      setSyncState(SYNC_STATE.OFFLINE);
+      return;
+    }
+    if (pendingTimers.size > 0 || pendingRequests.size > 0) {
+      setSyncState(SYNC_STATE.SAVING);
+      return;
+    }
+    const pendingEdits = storage.getPendingSetEdits(sessionId);
+    if (pendingEdits.length > 0) {
       setSyncState(SYNC_STATE.FAILED);
       return;
     }
+    setSyncState(SYNC_STATE.SAVED);
+  }
+
+  async function persistSet(sessionId, setId, fields, version = null) {
+    const supabase = getClient();
+    const userId = getUserId();
+    if (!supabase || !userId) {
+      if (!discardedSetIds.has(setId)) {
+        storage.savePendingSetEdit(sessionId, setId, fields);
+        setSyncState(SYNC_STATE.FAILED);
+      }
+      return false;
+    }
 
     if (!getOnlineStatus()) {
-      storage.savePendingSetEdit(sessionId, setId, fields);
-      setSyncState(SYNC_STATE.OFFLINE);
-      return;
+      if (!discardedSetIds.has(setId)) {
+        storage.savePendingSetEdit(sessionId, setId, fields);
+        setSyncState(SYNC_STATE.OFFLINE);
+      }
+      return false;
     }
 
     setSyncState(SYNC_STATE.SAVING);
@@ -72,8 +95,10 @@ export function createSessionAutosave(options) {
       }
 
       if (Object.keys(updatePayload).length === 0) {
-        storage.removePendingSetEdit(sessionId, setId);
-        return;
+        if (!discardedSetIds.has(setId)) {
+          storage.removePendingSetEdit(sessionId, setId, version);
+        }
+        return true;
       }
 
       const { error } = await supabase
@@ -84,13 +109,16 @@ export function createSessionAutosave(options) {
 
       if (error) throw error;
 
-      storage.removePendingSetEdit(sessionId, setId);
-      if (pendingTimers.size === 0 && pendingRequests.size === 0) {
-        setSyncState(SYNC_STATE.SAVED);
+      if (!discardedSetIds.has(setId)) {
+        storage.removePendingSetEdit(sessionId, setId, version);
       }
+      return true;
     } catch {
-      storage.savePendingSetEdit(sessionId, setId, fields);
-      setSyncState(getOnlineStatus() ? SYNC_STATE.FAILED : SYNC_STATE.OFFLINE);
+      if (!discardedSetIds.has(setId)) {
+        storage.savePendingSetEdit(sessionId, setId, fields);
+        return false;
+      }
+      return true;
     }
   }
 
@@ -101,7 +129,18 @@ export function createSessionAutosave(options) {
       }
       pendingTimers.clear();
       pendingRequests.clear();
+      discardedSetIds.clear();
       setSyncState(SYNC_STATE.SAVED);
+    },
+
+    discardPendingSet(sessionId, setId) {
+      if (pendingTimers.has(setId)) {
+        clearTimeout(pendingTimers.get(setId));
+        pendingTimers.delete(setId);
+      }
+      discardedSetIds.add(setId);
+      storage.removePendingSetEdit(sessionId, setId);
+      evaluateSyncState(sessionId);
     },
 
     getSyncState() {
@@ -109,9 +148,12 @@ export function createSessionAutosave(options) {
     },
 
     queueSetEdit(sessionId, setId, fields, debounceMs = 350) {
+      // Re-enable if previously discarded
+      discardedSetIds.delete(setId);
+
       // Coalesce locally immediately
       storage.savePendingSetEdit(sessionId, setId, fields);
-      setSyncState(SYNC_STATE.SAVING);
+      setSyncState(getOnlineStatus() ? SYNC_STATE.SAVING : SYNC_STATE.OFFLINE);
 
       if (pendingTimers.has(setId)) {
         clearTimeout(pendingTimers.get(setId));
@@ -119,12 +161,26 @@ export function createSessionAutosave(options) {
 
       const timer = setTimeout(async () => {
         pendingTimers.delete(setId);
+        if (discardedSetIds.has(setId)) {
+          discardedSetIds.delete(setId);
+          evaluateSyncState(sessionId);
+          return;
+        }
         const latest = storage.getPendingSetEdit(sessionId, setId);
         if (latest) {
-          const req = persistSet(sessionId, setId, latest.fields);
+          const req = persistSet(sessionId, setId, latest.fields, latest.version);
           pendingRequests.set(setId, req);
-          await req;
-          pendingRequests.delete(setId);
+          try {
+            await req;
+          } finally {
+            pendingRequests.delete(setId);
+            if (discardedSetIds.has(setId)) {
+              discardedSetIds.delete(setId);
+            }
+            evaluateSyncState(sessionId);
+          }
+        } else {
+          evaluateSyncState(sessionId);
         }
       }, debounceMs);
 
@@ -133,28 +189,50 @@ export function createSessionAutosave(options) {
 
     async flushPendingEdits(sessionId) {
       // Cancel all debounce timers and trigger immediate persist
-      for (const [setId, timer] of pendingTimers) {
+      for (const [, timer] of pendingTimers) {
         clearTimeout(timer);
       }
       pendingTimers.clear();
 
+      // Wait for any existing pending requests to complete first
+      if (pendingRequests.size > 0) {
+        await Promise.allSettled([...pendingRequests.values()]);
+      }
+
       const pendingEdits = storage.getPendingSetEdits(sessionId);
       if (pendingEdits.length === 0) {
-        setSyncState(SYNC_STATE.SAVED);
-        return;
+        evaluateSyncState(sessionId);
+        return true;
+      }
+
+      if (!getOnlineStatus()) {
+        setSyncState(SYNC_STATE.OFFLINE);
+        return false;
       }
 
       setSyncState(SYNC_STATE.SAVING);
-      const promises = pendingEdits.map((item) => persistSet(sessionId, item.setId, item.fields));
-      await Promise.all(promises);
+      const promises = pendingEdits.map(async (item) => {
+        const req = persistSet(sessionId, item.setId, item.fields, item.version);
+        pendingRequests.set(item.setId, req);
+        try {
+          return await req;
+        } finally {
+          pendingRequests.delete(item.setId);
+        }
+      });
+
+      const results = await Promise.all(promises);
+      const allSuccess = results.every(Boolean);
+      evaluateSyncState(sessionId);
+      return allSuccess && storage.getPendingSetEdits(sessionId).length === 0;
     },
 
     async retryPendingWrites(sessionId) {
       if (!getOnlineStatus()) {
         setSyncState(SYNC_STATE.OFFLINE);
-        return;
+        return false;
       }
-      await this.flushPendingEdits(sessionId);
+      return await this.flushPendingEdits(sessionId);
     },
   };
 }

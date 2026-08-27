@@ -878,3 +878,991 @@ test("session-rendering: Finish workout button is disabled until at least one se
   assert.equal(concludeBtn.disabled, false, "Finish button must be enabled when at least one set is completed");
   assert.equal(concludeBtn.textContent, "Finish workout");
 });
+
+// =========================================================================
+// ISSUE 1 REGRESSION TESTS: Prevent session conclusion on failed autosave
+// =========================================================================
+
+test("ISSUE 1 REGRESSION: failed autosave prevents session conclusion, keeps pending local edits intact, and does NOT call conclude_workout_session RPC", async () => {
+  let rpcCalls = [];
+  let concludedSessionId = null;
+
+  const mockStorage = createSessionStorage();
+  mockStorage.savePendingSetEdit(999, 100, { weight: 85, reps: 8, reported_rir_bucket: 2 });
+
+  function createQueryBuilder(table) {
+    const builder = {
+      _data: [],
+      select() { return builder; },
+      eq() { return builder; },
+      neq() { return builder; },
+      in() { return builder; },
+      not() { return builder; },
+      order() { return builder; },
+      limit() { return builder; },
+      maybeSingle() {
+        if (table === "workout_sessions") {
+          return Promise.resolve({
+            data: { id: 999, gym_id: 10, status: "in_progress", performed_on: "2026-08-27" },
+            error: null,
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+      update(payload) {
+        return {
+          eq: () => ({
+            eq: () => Promise.resolve({ data: null, error: new Error("Network connection dropped during autosave") }),
+          }),
+        };
+      },
+      delete() { return builder; },
+      insert() { return builder; },
+      single() { return Promise.resolve({ data: null, error: null }); },
+      then(resolve) {
+        if (table === "gyms") return resolve({ data: [{ id: 10, name: "Gym A" }], error: null });
+        if (table === "gym_equipment") return resolve({ data: [], error: null });
+        if (table === "session_exercises") {
+          return resolve({
+            data: [
+              {
+                id: 50,
+                session_id: 999,
+                exercise_order: 1,
+                exercise_id: 1,
+                gym_equipment_id: null,
+                exercises: { id: 1, name: "Bench Press" },
+                workout_sessions: { id: 999, performed_on: "2026-08-27" },
+                exercise_sets: [
+                  { id: 100, set_number: 1, weight: 80, reps: 8, is_warmup: false, reported_rir_bucket: 2, rir_source: "user_entered" },
+                ],
+              },
+            ],
+            error: null,
+          });
+        }
+        return resolve({ data: [], error: null });
+      },
+    };
+    return builder;
+  }
+
+  const mockClient = {
+    from: (table) => createQueryBuilder(table),
+    rpc: (fn, params) => {
+      rpcCalls.push({ fn, params });
+      return Promise.resolve({ data: { id: 999, status: "completed" }, error: null });
+    },
+  };
+
+  const feature = createSessionFeature({
+    getClient: () => mockClient,
+    getUserId: () => "user-test",
+    storage: mockStorage,
+    ensureExerciseCatalogue: () => Promise.resolve([]),
+    onSessionConcluded: (id) => {
+      concludedSessionId = id;
+    },
+  });
+
+  await feature.load();
+  assert.ok(feature.getActiveSession(), "Active session is loaded");
+
+  // Attempt to conclude session while pending write fails to sync
+  await feature.concludeSession();
+
+  // 1. Server-side conclusion RPC must NOT be called!
+  const calledConcludeRpc = rpcCalls.some((c) => c.fn === "conclude_workout_session");
+  assert.equal(calledConcludeRpc, false, "conclude_workout_session RPC must NOT be called when flush fails");
+
+  // 2. Pending local edits must remain intact in storage!
+  const pendingEdits = mockStorage.getPendingSetEdits(999);
+  assert.equal(pendingEdits.length, 1, "Pending local edits must remain intact in storage");
+  assert.deepEqual(pendingEdits[0].fields, { weight: 85, reps: 8, reported_rir_bucket: 2 });
+
+  // 3. Active session remains active in memory
+  assert.ok(feature.getActiveSession(), "Active session must remain active in memory");
+  assert.equal(concludedSessionId, null, "onSessionConcluded must not be fired on failure");
+});
+
+test("ISSUE 1 REGRESSION: successful flush allows session conclusion, calls conclude_workout_session RPC, and clears pending local edits", async () => {
+  let rpcCalls = [];
+  let concludedSessionId = null;
+
+  const mockStorage = createSessionStorage();
+  mockStorage.savePendingSetEdit(999, 100, { weight: 85, reps: 8, reported_rir_bucket: 2 });
+
+  function createQueryBuilder(table) {
+    const builder = {
+      _data: [],
+      select() { return builder; },
+      eq() { return builder; },
+      neq() { return builder; },
+      in() { return builder; },
+      not() { return builder; },
+      order() { return builder; },
+      limit() { return builder; },
+      maybeSingle() {
+        if (table === "workout_sessions") {
+          return Promise.resolve({
+            data: { id: 999, gym_id: 10, status: "in_progress", performed_on: "2026-08-27" },
+            error: null,
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+      update(payload) {
+        return {
+          eq: () => ({
+            eq: () => Promise.resolve({ data: { id: 100, ...payload }, error: null }),
+          }),
+        };
+      },
+      delete() { return builder; },
+      insert() { return builder; },
+      single() { return Promise.resolve({ data: null, error: null }); },
+      then(resolve) {
+        if (table === "gyms") return resolve({ data: [{ id: 10, name: "Gym A" }], error: null });
+        if (table === "gym_equipment") return resolve({ data: [], error: null });
+        if (table === "session_exercises") {
+          return resolve({
+            data: [
+              {
+                id: 50,
+                session_id: 999,
+                exercise_order: 1,
+                exercise_id: 1,
+                gym_equipment_id: null,
+                exercises: { id: 1, name: "Bench Press" },
+                workout_sessions: { id: 999, performed_on: "2026-08-27" },
+                exercise_sets: [
+                  { id: 100, set_number: 1, weight: 80, reps: 8, is_warmup: false, reported_rir_bucket: 2, rir_source: "user_entered" },
+                ],
+              },
+            ],
+            error: null,
+          });
+        }
+        return resolve({ data: [], error: null });
+      },
+    };
+    return builder;
+  }
+
+  const mockClient = {
+    from: (table) => createQueryBuilder(table),
+    rpc: (fn, params) => {
+      rpcCalls.push({ fn, params });
+      return Promise.resolve({ data: { id: 999, status: "completed" }, error: null });
+    },
+  };
+
+  const feature = createSessionFeature({
+    getClient: () => mockClient,
+    getUserId: () => "user-test",
+    storage: mockStorage,
+    ensureExerciseCatalogue: () => Promise.resolve([]),
+    onSessionConcluded: (id) => {
+      concludedSessionId = id;
+    },
+  });
+
+  await feature.load();
+  await feature.concludeSession();
+
+  // 1. Conclusion RPC was called
+  const calledConcludeRpc = rpcCalls.some((c) => c.fn === "conclude_workout_session");
+  assert.equal(calledConcludeRpc, true, "conclude_workout_session RPC must be called on successful flush");
+
+  // 2. Pending storage is cleared
+  assert.equal(mockStorage.getPendingSetEdits(999).length, 0, "Pending edits cleared after conclusion confirmation");
+
+  // 3. Active session cleared in memory and callback invoked
+  assert.equal(feature.getActiveSession(), null, "Active session cleared after conclusion");
+  assert.equal(concludedSessionId, 999, "onSessionConcluded callback invoked with session ID");
+});
+
+// =========================================================================
+// ISSUE 2 REGRESSION TESTS: Autosave debounce state machine & generation races
+// =========================================================================
+
+test("ISSUE 2 REGRESSION: natural debounce fires without calling flushPendingEdits and transitions cleanly to SAVED", async () => {
+  const dbRows = new Map();
+  const mockStorage = createSessionStorage();
+  const mockClient = {
+    from: () => ({
+      update: (payload) => ({
+        eq: (k1, setId) => ({
+          eq: (k2, userId) => {
+            dbRows.set(setId, { ...(dbRows.get(setId) || {}), ...payload });
+            return Promise.resolve({ data: dbRows.get(setId), error: null });
+          },
+        }),
+      }),
+    }),
+  };
+
+  const autosave = createSessionAutosave({
+    getClient: () => mockClient,
+    getUserId: () => "user-1",
+    storage: mockStorage,
+  });
+
+  assert.equal(autosave.getSyncState(), SYNC_STATE.SAVED);
+
+  // Queue edit with small debounce
+  autosave.queueSetEdit(100, 1, { weight: 90 }, 15);
+  assert.equal(autosave.getSyncState(), SYNC_STATE.SAVING, "Sync state immediately enters SAVING on edit");
+
+  // Wait for natural debounce timer to fire and complete WITHOUT calling flushPendingEdits
+  await new Promise((resolve) => setTimeout(resolve, 35));
+
+  assert.equal(autosave.getSyncState(), SYNC_STATE.SAVED, "Natural debounce completion transitions sync state to SAVED");
+  assert.equal(mockStorage.getPendingSetEdits(100).length, 0, "Pending local storage is clean");
+  assert.equal(dbRows.get(1).weight, 90, "Database row updated correctly");
+});
+
+test("ISSUE 2 REGRESSION: multiple overlapping edits to different sets do not emit SAVED prematurely", async () => {
+  const dbRows = new Map();
+  const mockStorage = createSessionStorage();
+  const mockClient = {
+    from: () => ({
+      update: (payload) => ({
+        eq: (k1, setId) => ({
+          eq: (k2, userId) => {
+            dbRows.set(setId, { ...(dbRows.get(setId) || {}), ...payload });
+            return Promise.resolve({ data: dbRows.get(setId), error: null });
+          },
+        }),
+      }),
+    }),
+  };
+
+  const autosave = createSessionAutosave({
+    getClient: () => mockClient,
+    getUserId: () => "user-1",
+    storage: mockStorage,
+  });
+
+  // Set 1 debounce is 15ms, Set 2 debounce is 60ms
+  autosave.queueSetEdit(100, 1, { weight: 80 }, 15);
+  autosave.queueSetEdit(100, 2, { weight: 90 }, 60);
+
+  // After 30ms, Set 1 has completed, but Set 2 is still pending
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(autosave.getSyncState(), SYNC_STATE.SAVING, "State remains SAVING while Set 2 is still pending");
+
+  // After 80ms total, Set 2 has completed as well
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(autosave.getSyncState(), SYNC_STATE.SAVED, "State transitions to SAVED only when all sets are clean");
+  assert.equal(mockStorage.getPendingSetEdits(100).length, 0);
+});
+
+test("ISSUE 2 REGRESSION (GENERATIONS/RACES): newer edit to same set while earlier edit is in flight preserves newer edit and does not emit SAVED prematurely", async () => {
+  let resolveFirstUpdate;
+  const firstUpdateDeferred = new Promise((resolve) => {
+    resolveFirstUpdate = resolve;
+  });
+
+  let updateCallCount = 0;
+  const mockStorage = createSessionStorage();
+  const mockClient = {
+    from: () => ({
+      update: (payload) => ({
+        eq: (k1, setId) => ({
+          eq: async (k2, userId) => {
+            updateCallCount++;
+            if (updateCallCount === 1) {
+              // Pause first request in flight
+              await firstUpdateDeferred;
+            }
+            return { data: { id: setId, ...payload }, error: null };
+          },
+        }),
+      }),
+    }),
+  };
+
+  const autosave = createSessionAutosave({
+    getClient: () => mockClient,
+    getUserId: () => "user-1",
+    storage: mockStorage,
+  });
+
+  // 1. User types edit A: weight 80 (debounce 10ms)
+  autosave.queueSetEdit(100, 1, { weight: 80 }, 10);
+
+  // Wait 18ms for debounce timer to fire and start request A (now suspended in flight)
+  await new Promise((resolve) => setTimeout(resolve, 18));
+  assert.equal(updateCallCount, 1, "First update request is now in flight");
+
+  // 2. Before request A resolves, user types edit B to same set: reps 10
+  autosave.queueSetEdit(100, 1, { reps: 10 }, 40);
+
+  // 3. Now let request A complete on the server
+  resolveFirstUpdate();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  // Request A succeeded, BUT stored edit B has a newer generation/version!
+  const pendingAfterA = mockStorage.getPendingSetEdits(100);
+  assert.equal(pendingAfterA.length, 1, "Newer edit B must NOT be erased from storage when older request A finishes");
+  assert.equal(pendingAfterA[0].fields.reps, 10, "Edit B reps remain pending in storage");
+  assert.equal(autosave.getSyncState(), SYNC_STATE.SAVING, "Sync state must NOT become SAVED while newer edit B is pending");
+
+  // 4. Wait for edit B debounce and persist to finish
+  await new Promise((resolve) => setTimeout(resolve, 60));
+
+  assert.equal(mockStorage.getPendingSetEdits(100).length, 0, "All edits successfully cleared after B persists");
+  assert.equal(autosave.getSyncState(), SYNC_STATE.SAVED, "State transitions to SAVED after newest generation finishes");
+});
+
+test("ISSUE 2 REGRESSION: network failure during debounce transitions to FAILED and retains local edit", async () => {
+  const mockStorage = createSessionStorage();
+  const mockClient = {
+    from: () => ({
+      update: () => ({
+        eq: () => ({
+          eq: () => Promise.resolve({ data: null, error: new Error("500 Internal Server Error") }),
+        }),
+      }),
+    }),
+  };
+
+  const autosave = createSessionAutosave({
+    getClient: () => mockClient,
+    getUserId: () => "user-1",
+    storage: mockStorage,
+  });
+
+  autosave.queueSetEdit(100, 1, { weight: 80 }, 10);
+  await new Promise((resolve) => setTimeout(resolve, 30));
+
+  assert.equal(autosave.getSyncState(), SYNC_STATE.FAILED, "State transitions to FAILED on network failure");
+  assert.equal(mockStorage.getPendingSetEdits(100).length, 1, "Failed edit is retained in pending storage");
+});
+
+// =========================================================================
+// ISSUE 3 REGRESSION TESTS: Atomic structural live-workout mutations
+// =========================================================================
+
+test("ISSUE 3 REGRESSION: addExerciseToActiveSession calls atomic add_session_exercise RPC and reloads canonical state", async () => {
+  let rpcCalls = [];
+  const mockStorage = createSessionStorage();
+
+  function createQueryBuilder(table) {
+    const builder = {
+      _data: [],
+      select() { return builder; },
+      eq() { return builder; },
+      neq() { return builder; },
+      in() { return builder; },
+      not() { return builder; },
+      order() { return builder; },
+      limit() { return builder; },
+      maybeSingle() {
+        if (table === "workout_sessions") {
+          return Promise.resolve({
+            data: { id: 999, gym_id: 10, status: "in_progress", performed_on: "2026-08-27" },
+            error: null,
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+      update(payload) {
+        return {
+          eq: () => ({
+            eq: () => Promise.resolve({ data: { id: 100, ...payload }, error: null }),
+          }),
+        };
+      },
+      delete() { return builder; },
+      insert() { return builder; },
+      single() { return Promise.resolve({ data: null, error: null }); },
+      then(resolve) {
+        if (table === "gyms") return resolve({ data: [{ id: 10, name: "Gym A" }], error: null });
+        if (table === "gym_equipment") return resolve({ data: [], error: null });
+        if (table === "session_exercises") {
+          return resolve({
+            data: [
+              {
+                id: 101,
+                session_id: 999,
+                exercise_order: 1,
+                exercise_id: 5,
+                gym_equipment_id: null,
+                exercises: { id: 5, name: "Incline Press" },
+                workout_sessions: { id: 999, performed_on: "2026-08-27" },
+                exercise_sets: [
+                  { id: 201, set_number: 1, weight: 70, reps: 8, is_warmup: false, reported_rir_bucket: 2 },
+                ],
+              },
+            ],
+            error: null,
+          });
+        }
+        return resolve({ data: [], error: null });
+      },
+    };
+    return builder;
+  }
+
+  const mockClient = {
+    from: (table) => createQueryBuilder(table),
+    rpc: (fn, params) => {
+      rpcCalls.push({ fn, params });
+      if (fn === "add_session_exercise") {
+        return Promise.resolve({
+          data: { id: 101, session_id: 999, exercise_order: 1, exercise_id: 5, initial_set_id: 201 },
+          error: null,
+        });
+      }
+      return Promise.resolve({ data: true, error: null });
+    },
+  };
+
+  const feature = createSessionFeature({
+    getClient: () => mockClient,
+    getUserId: () => "user-test",
+    storage: mockStorage,
+    ensureExerciseCatalogue: () => Promise.resolve([]),
+  });
+
+  await feature.load();
+  await feature.addExercise(5);
+
+  const addCall = rpcCalls.find((c) => c.fn === "add_session_exercise");
+  assert.ok(addCall, "add_session_exercise RPC was called");
+  assert.deepEqual(addCall.params, {
+    p_session_id: 999,
+    p_exercise_id: 5,
+    p_gym_equipment_id: null,
+  });
+});
+
+test("ISSUE 3 REGRESSION: removeExercise calls remove_session_exercise RPC; preserves pending edits on failure and clears on success", async () => {
+  let rpcCalls = [];
+  let shouldRpcFail = true;
+  const mockStorage = createSessionStorage();
+  mockStorage.savePendingSetEdit(999, 201, { weight: 70 });
+
+  function createQueryBuilder(table) {
+    const builder = {
+      _data: [],
+      select() { return builder; },
+      eq() { return builder; },
+      neq() { return builder; },
+      in() { return builder; },
+      not() { return builder; },
+      order() { return builder; },
+      limit() { return builder; },
+      maybeSingle() {
+        if (table === "workout_sessions") {
+          return Promise.resolve({
+            data: { id: 999, gym_id: 10, status: "in_progress", performed_on: "2026-08-27" },
+            error: null,
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+      update(payload) {
+        return {
+          eq: () => ({
+            eq: () => Promise.resolve({ data: { id: 100, ...payload }, error: null }),
+          }),
+        };
+      },
+      delete() { return builder; },
+      insert() { return builder; },
+      single() { return Promise.resolve({ data: null, error: null }); },
+      then(resolve) {
+        if (table === "gyms") return resolve({ data: [{ id: 10, name: "Gym A" }], error: null });
+        if (table === "gym_equipment") return resolve({ data: [], error: null });
+        if (table === "session_exercises") {
+          return resolve({
+            data: [
+              {
+                id: 101,
+                session_id: 999,
+                exercise_order: 1,
+                exercise_id: 5,
+                gym_equipment_id: null,
+                exercises: { id: 5, name: "Incline Press" },
+                workout_sessions: { id: 999, performed_on: "2026-08-27" },
+                exercise_sets: [
+                  { id: 201, set_number: 1, weight: 70, reps: 8, is_warmup: false, reported_rir_bucket: 2 },
+                ],
+              },
+            ],
+            error: null,
+          });
+        }
+        return resolve({ data: [], error: null });
+      },
+    };
+    return builder;
+  }
+
+  const mockClient = {
+    from: (table) => createQueryBuilder(table),
+    rpc: (fn, params) => {
+      rpcCalls.push({ fn, params });
+      if (fn === "remove_session_exercise") {
+        if (shouldRpcFail) {
+          return Promise.resolve({ data: null, error: new Error("RPC execution failed") });
+        }
+        return Promise.resolve({ data: true, error: null });
+      }
+      return Promise.resolve({ data: true, error: null });
+    },
+  };
+
+  const feature = createSessionFeature({
+    getClient: () => mockClient,
+    getUserId: () => "user-test",
+    storage: mockStorage,
+    ensureExerciseCatalogue: () => Promise.resolve([]),
+  });
+
+  await feature.load();
+
+  // 1. Remove fails: pending edits must be preserved
+  await feature.removeExercise(101);
+  assert.equal(mockStorage.getPendingSetEdits(999).length, 1, "Pending edits preserved when removeExercise RPC fails");
+
+  // 2. Remove succeeds: pending edits cleared
+  shouldRpcFail = false;
+  await feature.removeExercise(101);
+  assert.equal(mockStorage.getPendingSetEdits(999).length, 0, "Pending edits cleared when removeExercise RPC succeeds");
+});
+
+test("ISSUE 3 REGRESSION: removeSet calls remove_exercise_set RPC; preserves pending edits on failure and clears on success", async () => {
+  let rpcCalls = [];
+  let shouldRpcFail = true;
+  const mockStorage = createSessionStorage();
+  mockStorage.savePendingSetEdit(999, 201, { weight: 70 });
+
+  function createQueryBuilder(table) {
+    const builder = {
+      _data: [],
+      select() { return builder; },
+      eq() { return builder; },
+      neq() { return builder; },
+      in() { return builder; },
+      not() { return builder; },
+      order() { return builder; },
+      limit() { return builder; },
+      maybeSingle() {
+        if (table === "workout_sessions") {
+          return Promise.resolve({
+            data: { id: 999, gym_id: 10, status: "in_progress", performed_on: "2026-08-27" },
+            error: null,
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+      update(payload) {
+        return {
+          eq: () => ({
+            eq: () => Promise.resolve({ data: { id: 100, ...payload }, error: null }),
+          }),
+        };
+      },
+      delete() { return builder; },
+      insert() { return builder; },
+      single() { return Promise.resolve({ data: null, error: null }); },
+      then(resolve) {
+        if (table === "gyms") return resolve({ data: [{ id: 10, name: "Gym A" }], error: null });
+        if (table === "gym_equipment") return resolve({ data: [], error: null });
+        if (table === "session_exercises") {
+          return resolve({
+            data: [
+              {
+                id: 101,
+                session_id: 999,
+                exercise_order: 1,
+                exercise_id: 5,
+                gym_equipment_id: null,
+                exercises: { id: 5, name: "Incline Press" },
+                workout_sessions: { id: 999, performed_on: "2026-08-27" },
+                exercise_sets: [
+                  { id: 201, set_number: 1, weight: 70, reps: 8, is_warmup: false, reported_rir_bucket: 2 },
+                ],
+              },
+            ],
+            error: null,
+          });
+        }
+        return resolve({ data: [], error: null });
+      },
+    };
+    return builder;
+  }
+
+  const mockClient = {
+    from: (table) => createQueryBuilder(table),
+    rpc: (fn, params) => {
+      rpcCalls.push({ fn, params });
+      if (fn === "remove_exercise_set") {
+        if (shouldRpcFail) {
+          return Promise.resolve({ data: null, error: new Error("RPC execution failed") });
+        }
+        return Promise.resolve({ data: true, error: null });
+      }
+      return Promise.resolve({ data: true, error: null });
+    },
+  };
+
+  const feature = createSessionFeature({
+    getClient: () => mockClient,
+    getUserId: () => "user-test",
+    storage: mockStorage,
+    ensureExerciseCatalogue: () => Promise.resolve([]),
+  });
+
+  await feature.load();
+
+  // 1. Remove set fails: pending edits preserved
+  await feature.removeSet(101, 201);
+  assert.equal(mockStorage.getPendingSetEdits(999).length, 1, "Pending set edit preserved when remove_exercise_set fails");
+
+  // 2. Remove set succeeds: pending edits cleared
+  shouldRpcFail = false;
+  await feature.removeSet(101, 201);
+  assert.equal(mockStorage.getPendingSetEdits(999).length, 0, "Pending set edit cleared when remove_exercise_set succeeds");
+});
+
+test("ISSUE 1 REGRESSION: starting concludeActiveSession() locks out concurrent mutations while RPC is in flight", async () => {
+  let rpcCalls = [];
+  let resolveConcludeRpc;
+  const concludeDeferred = new Promise((resolve) => {
+    resolveConcludeRpc = resolve;
+  });
+
+  const mockStorage = createSessionStorage();
+
+  function createQueryBuilder(table) {
+    const builder = {
+      _data: [],
+      select() { return builder; },
+      eq() { return builder; },
+      neq() { return builder; },
+      in() { return builder; },
+      not() { return builder; },
+      order() { return builder; },
+      limit() { return builder; },
+      maybeSingle() {
+        if (table === "workout_sessions") {
+          return Promise.resolve({
+            data: { id: 999, gym_id: 10, status: "in_progress", performed_on: "2026-08-27" },
+            error: null,
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+      update(payload) {
+        return {
+          eq: () => ({
+            eq: () => Promise.resolve({ data: { id: 100, ...payload }, error: null }),
+          }),
+        };
+      },
+      delete() { return builder; },
+      insert() { return builder; },
+      single() { return Promise.resolve({ data: null, error: null }); },
+      then(resolve) {
+        if (table === "gyms") return resolve({ data: [{ id: 10, name: "Gym A" }], error: null });
+        if (table === "gym_equipment") return resolve({ data: [], error: null });
+        if (table === "session_exercises") {
+          return resolve({
+            data: [
+              {
+                id: 50,
+                session_id: 999,
+                exercise_order: 1,
+                exercise_id: 1,
+                gym_equipment_id: null,
+                exercises: { id: 1, name: "Bench Press" },
+                workout_sessions: { id: 999, performed_on: "2026-08-27" },
+                exercise_sets: [
+                  { id: 100, set_number: 1, weight: 80, reps: 8, is_warmup: false, reported_rir_bucket: 2, rir_source: "user_entered" },
+                ],
+              },
+            ],
+            error: null,
+          });
+        }
+        return resolve({ data: [], error: null });
+      },
+    };
+    return builder;
+  }
+
+  const mockClient = {
+    from: (table) => createQueryBuilder(table),
+    rpc: async (fn, params) => {
+      rpcCalls.push({ fn, params });
+      if (fn === "conclude_workout_session") {
+        await concludeDeferred;
+        return { data: { id: 999, status: "completed" }, error: null };
+      }
+      return { data: true, error: null };
+    },
+  };
+
+  const feature = createSessionFeature({
+    getClient: () => mockClient,
+    getUserId: () => "user-test",
+    storage: mockStorage,
+    ensureExerciseCatalogue: () => Promise.resolve([]),
+  });
+
+  await feature.load();
+
+  // Start conclusion asynchronously (will block in RPC)
+  const conclusionPromise = feature.concludeSession();
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  // Verify conclusion RPC is in flight
+  assert.ok(rpcCalls.some((c) => c.fn === "conclude_workout_session"), "conclude_workout_session RPC is in flight");
+
+  // Attempt concurrent mutations while conclusion is in progress
+  await feature.addExercise(5);
+  await feature.removeSet(50, 100);
+  await feature.addSet(50);
+  await feature.removeExercise(50);
+
+  // Storage must not have any new edits queued
+  assert.equal(mockStorage.getPendingSetEdits(999).length, 0, "No pending edits allowed while conclusion is in progress");
+
+  // Now resolve conclusion RPC
+  resolveConcludeRpc();
+  await conclusionPromise;
+
+  // Verify conclusion finalized cleanly
+  assert.equal(feature.getActiveSession(), null, "Session concluded");
+  assert.equal(mockStorage.getPendingSetEdits(999).length, 0, "Storage is clean");
+});
+
+test("ISSUE 3 REGRESSION: structural deletion of set while autosave is in flight discards late completion/failure without recreating pending state", async () => {
+  let resolveInFlightAutosave;
+  const inFlightDeferred = new Promise((resolve) => {
+    resolveInFlightAutosave = resolve;
+  });
+
+  let rpcCalls = [];
+  const mockStorage = createSessionStorage();
+
+  function createQueryBuilder(table) {
+    const builder = {
+      _data: [],
+      select() { return builder; },
+      eq() { return builder; },
+      neq() { return builder; },
+      in() { return builder; },
+      not() { return builder; },
+      order() { return builder; },
+      limit() { return builder; },
+      maybeSingle() {
+        if (table === "workout_sessions") {
+          return Promise.resolve({
+            data: { id: 999, gym_id: 10, status: "in_progress", performed_on: "2026-08-27" },
+            error: null,
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+      update(payload) {
+        return {
+          eq: () => ({
+            eq: async () => {
+              // Pause update in flight
+              await inFlightDeferred;
+              // Simulate server rejecting update because row was deleted
+              return { data: null, error: new Error("Row not found") };
+            },
+          }),
+        };
+      },
+      delete() { return builder; },
+      insert() { return builder; },
+      single() { return Promise.resolve({ data: null, error: null }); },
+      then(resolve) {
+        if (table === "gyms") return resolve({ data: [{ id: 10, name: "Gym A" }], error: null });
+        if (table === "gym_equipment") return resolve({ data: [], error: null });
+        if (table === "session_exercises") {
+          return resolve({
+            data: [
+              {
+                id: 50,
+                session_id: 999,
+                exercise_order: 1,
+                exercise_id: 1,
+                gym_equipment_id: null,
+                exercises: { id: 1, name: "Bench Press" },
+                workout_sessions: { id: 999, performed_on: "2026-08-27" },
+                exercise_sets: [
+                  { id: 100, set_number: 1, weight: 80, reps: 8, is_warmup: false, reported_rir_bucket: 2 },
+                ],
+              },
+            ],
+            error: null,
+          });
+        }
+        return resolve({ data: [], error: null });
+      },
+    };
+    return builder;
+  }
+
+  const mockClient = {
+    from: (table) => createQueryBuilder(table),
+    rpc: (fn, params) => {
+      rpcCalls.push({ fn, params });
+      return Promise.resolve({ data: true, error: null });
+    },
+  };
+
+  const feature = createSessionFeature({
+    getClient: () => mockClient,
+    getUserId: () => "user-test",
+    storage: mockStorage,
+    ensureExerciseCatalogue: () => Promise.resolve([]),
+  });
+
+  await feature.load();
+
+  // 1. Queue set edit with small debounce to initiate autosave
+  mockStorage.savePendingSetEdit(999, 100, { weight: 85 });
+  const autosave = createSessionAutosave({
+    getClient: () => mockClient,
+    getUserId: () => "user-test",
+    storage: mockStorage,
+  });
+
+  autosave.queueSetEdit(999, 100, { weight: 85 }, 10);
+  await new Promise((resolve) => setTimeout(resolve, 20)); // autosave request is now in flight
+
+  // 2. While autosave is in flight, delete the set
+  autosave.discardPendingSet(999, 100);
+  await feature.removeSet(50, 100);
+
+  // 3. Now let the in-flight autosave fail on the server
+  resolveInFlightAutosave();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  // 4. Verify that the failed obsolete autosave did NOT recreate pending storage or leave sync state failed
+  assert.equal(mockStorage.getPendingSetEdits(999).length, 0, "Obsolete edit must not be recreated in storage");
+  assert.equal(autosave.getSyncState(), SYNC_STATE.SAVED, "Sync state must remain SAVED and not transition to FAILED");
+});
+
+test("ISSUE 3 REGRESSION: structural deletion of exercise with in-flight set autosaves discards late completion without recreating pending state", async () => {
+  let resolveInFlightAutosave;
+  const inFlightDeferred = new Promise((resolve) => {
+    resolveInFlightAutosave = resolve;
+  });
+
+  let rpcCalls = [];
+  const mockStorage = createSessionStorage();
+
+  function createQueryBuilder(table) {
+    const builder = {
+      _data: [],
+      select() { return builder; },
+      eq() { return builder; },
+      neq() { return builder; },
+      in() { return builder; },
+      not() { return builder; },
+      order() { return builder; },
+      limit() { return builder; },
+      maybeSingle() {
+        if (table === "workout_sessions") {
+          return Promise.resolve({
+            data: { id: 999, gym_id: 10, status: "in_progress", performed_on: "2026-08-27" },
+            error: null,
+          });
+        }
+        return Promise.resolve({ data: null, error: null });
+      },
+      update(payload) {
+        return {
+          eq: () => ({
+            eq: async () => {
+              await inFlightDeferred;
+              return { data: null, error: new Error("Row not found / Cascade deleted") };
+            },
+          }),
+        };
+      },
+      delete() { return builder; },
+      insert() { return builder; },
+      single() { return Promise.resolve({ data: null, error: null }); },
+      then(resolve) {
+        if (table === "gyms") return resolve({ data: [{ id: 10, name: "Gym A" }], error: null });
+        if (table === "gym_equipment") return resolve({ data: [], error: null });
+        if (table === "session_exercises") {
+          return resolve({
+            data: [
+              {
+                id: 50,
+                session_id: 999,
+                exercise_order: 1,
+                exercise_id: 1,
+                gym_equipment_id: null,
+                exercises: { id: 1, name: "Bench Press" },
+                workout_sessions: { id: 999, performed_on: "2026-08-27" },
+                exercise_sets: [
+                  { id: 100, set_number: 1, weight: 80, reps: 8, is_warmup: false, reported_rir_bucket: 2 },
+                  { id: 101, set_number: 2, weight: 85, reps: 6, is_warmup: false, reported_rir_bucket: 1 },
+                ],
+              },
+            ],
+            error: null,
+          });
+        }
+        return resolve({ data: [], error: null });
+      },
+    };
+    return builder;
+  }
+
+  const mockClient = {
+    from: (table) => createQueryBuilder(table),
+    rpc: (fn, params) => {
+      rpcCalls.push({ fn, params });
+      return Promise.resolve({ data: true, error: null });
+    },
+  };
+
+  const feature = createSessionFeature({
+    getClient: () => mockClient,
+    getUserId: () => "user-test",
+    storage: mockStorage,
+    ensureExerciseCatalogue: () => Promise.resolve([]),
+  });
+
+  await feature.load();
+
+  const autosave = createSessionAutosave({
+    getClient: () => mockClient,
+    getUserId: () => "user-test",
+    storage: mockStorage,
+  });
+
+  // 1. Queue autosaves for Set 100 and Set 101
+  autosave.queueSetEdit(999, 100, { weight: 90 }, 10);
+  autosave.queueSetEdit(999, 101, { weight: 95 }, 10);
+  await new Promise((resolve) => setTimeout(resolve, 20)); // Both in flight
+
+  // 2. Delete the entire exercise while autosaves are in flight
+  autosave.discardPendingSet(999, 100);
+  autosave.discardPendingSet(999, 101);
+  await feature.removeExercise(50);
+
+  // 3. Resolve in-flight updates with server failures
+  resolveInFlightAutosave();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+
+  // 4. Verify clean storage and SAVED state
+  assert.equal(mockStorage.getPendingSetEdits(999).length, 0, "No pending edits recreated for deleted exercise sets");
+  assert.equal(autosave.getSyncState(), SYNC_STATE.SAVED, "Sync state remains SAVED");
+});

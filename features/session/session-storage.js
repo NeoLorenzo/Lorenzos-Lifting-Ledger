@@ -19,23 +19,25 @@ export function createSessionStorage() {
     savePendingSetEdit(sessionId, setId, fields) {
       if (!sessionId || !setId) return;
       const key = getStorageKey(sessionId, setId);
-      const existing = this.getPendingSetEdit(sessionId, setId) || { sessionId, setId, fields: {} };
+      const existing = this.getPendingSetEdit(sessionId, setId) || { sessionId, setId, fields: {}, version: 0 };
       const merged = {
         sessionId,
         setId,
         fields: { ...existing.fields, ...fields },
+        version: (existing.version || 0) + 1,
         updatedAt: Date.now(),
       };
 
       if (isLocalStorageAvailable()) {
         try {
           window.localStorage.setItem(key, JSON.stringify(merged));
-          return;
+          return merged;
         } catch {
           // fall back to in-memory
         }
       }
       inMemoryFallback.set(key, merged);
+      return merged;
     },
 
     getPendingSetEdit(sessionId, setId) {
@@ -76,8 +78,17 @@ export function createSessionStorage() {
       return results;
     },
 
-    removePendingSetEdit(sessionId, setId) {
+    removePendingSetEdit(sessionId, setId, version = null) {
       const key = getStorageKey(sessionId, setId);
+      if (version !== null && version !== undefined) {
+        const existing = this.getPendingSetEdit(sessionId, setId);
+        if (!existing) return;
+        if ((existing.version || 0) > version) {
+          // A newer edit arrived; do not remove
+          return;
+        }
+      }
+
       if (isLocalStorageAvailable()) {
         try {
           window.localStorage.removeItem(key);

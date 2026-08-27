@@ -72,6 +72,7 @@ export function createSessionFeature(options) {
   renderer = createSessionRenderer({
     container: liveContainer,
     onSetFieldChange: (sessionId, setId, fields) => {
+      if (isConcluding) return;
       errorMessage = "";
       if (renderer) {
         renderer.updateErrorMessage("");
@@ -87,33 +88,43 @@ export function createSessionFeature(options) {
       autosave.queueSetEdit(sessionId, setId, fields);
     },
     onSetFieldBlur: (sessionId, setId) => {
+      if (isConcluding) return;
       void autosave.flushPendingEdits(sessionId);
     },
     onAddSet: async (sessionExerciseId) => {
+      if (isConcluding) return;
       await addSet(sessionExerciseId);
     },
     onRemoveSet: async (sessionExerciseId, setId) => {
+      if (isConcluding) return;
       await removeSet(sessionExerciseId, setId);
     },
     onAddExercise: () => {
+      if (isConcluding) return;
       openAddExercisePicker();
     },
     onRemoveExercise: async (sessionExerciseId) => {
+      if (isConcluding) return;
       await removeExercise(sessionExerciseId);
     },
     onReorderExercise: async (sessionExerciseId, direction) => {
+      if (isConcluding) return;
       await reorderExercise(sessionExerciseId, direction);
     },
     onEquipmentChange: async (sessionExerciseId, gymEquipmentId) => {
+      if (isConcluding) return;
       await changeEquipment(sessionExerciseId, gymEquipmentId);
     },
     onCreateEquipment: async (sessionExerciseId, gymId, name) => {
+      if (isConcluding) return;
       await createEquipment(sessionExerciseId, gymId, name);
     },
     onConcludeSession: async () => {
+      if (isConcluding) return;
       await concludeActiveSession();
     },
     onCancelSession: () => {
+      if (isConcluding) return;
       openCancelConfirmation();
     },
   });
@@ -290,6 +301,7 @@ export function createSessionFeature(options) {
   }
 
   async function addSet(sessionExerciseId) {
+    if (isConcluding) return;
     const supabase = getClient();
     const userId = getUserId();
     if (!supabase || !userId || !activeSession) return;
@@ -327,128 +339,64 @@ export function createSessionFeature(options) {
   }
 
   async function removeSet(sessionExerciseId, setId) {
+    if (isConcluding) return;
     const supabase = getClient();
     const userId = getUserId();
     if (!supabase || !userId || !activeSession) return;
 
-    const exercise = activeExercises.find((e) => e.id === sessionExerciseId);
-    if (!exercise) return;
-
     try {
-      const { error: delError } = await supabase
-        .from("exercise_sets")
-        .delete()
-        .eq("id", setId)
-        .eq("owner_id", userId);
+      const { error: rpcError } = await supabase.rpc("remove_exercise_set", {
+        p_set_id: setId,
+      });
 
-      if (delError) throw delError;
+      if (rpcError) throw rpcError;
 
-      storage.removePendingSetEdit(activeSession.id, setId);
-
-      // Remaining sets renumbering
-      exercise.exercise_sets = (exercise.exercise_sets || []).filter((s) => s.id !== setId);
-      exercise.exercise_sets.sort((a, b) => a.set_number - b.set_number);
-
-      for (let i = 0; i < exercise.exercise_sets.length; i++) {
-        const newNum = i + 1;
-        if (exercise.exercise_sets[i].set_number !== newNum) {
-          exercise.exercise_sets[i].set_number = newNum;
-          await supabase
-            .from("exercise_sets")
-            .update({ set_number: newNum })
-            .eq("id", exercise.exercise_sets[i].id)
-            .eq("owner_id", userId);
-        }
-      }
-      renderCurrent();
+      // Discard pending edits from autosave and storage after RPC succeeds
+      autosave.discardPendingSet(activeSession.id, setId);
     } catch (error) {
       errorMessage = `Could not delete set: ${error.message}`;
+      renderCurrent();
+      return;
+    }
+
+    try {
       await loadActiveSession();
+    } catch (error) {
+      errorMessage = `Set deleted, but could not refresh workout: ${error.message}`;
       renderCurrent();
     }
   }
 
   async function addExerciseToActiveSession(exerciseId) {
+    if (isConcluding) return;
     const supabase = getClient();
     const userId = getUserId();
     if (!supabase || !userId || !activeSession) return;
 
-    const nextOrder = activeExercises.length + 1;
-
     try {
-      // Resolve default equipment from history
-      const history = await historyContext.fetchPreviousPerformance(
-        activeSession.gym_id,
-        exerciseId,
-        null,
-        activeSession.id
-      );
-      const defaultEquipmentId = history?.gymEquipmentId || null;
-      let equipSnapshot = null;
-      if (defaultEquipmentId) {
-        const gymEquips = equipmentByGym.get(activeSession.gym_id) || [];
-        const found = gymEquips.find((e) => e.id === defaultEquipmentId);
-        equipSnapshot = found ? found.name : null;
-      }
+      const { data, error: rpcError } = await supabase.rpc("add_session_exercise", {
+        p_session_id: activeSession.id,
+        p_exercise_id: exerciseId,
+        p_gym_equipment_id: null,
+      });
 
-      const { data: exData, error: exError } = await supabase
-        .from("session_exercises")
-        .insert({
-          owner_id: userId,
-          session_id: activeSession.id,
-          exercise_order: nextOrder,
-          exercise_id: exerciseId,
-          gym_equipment_id: defaultEquipmentId,
-          equipment_name_snapshot: equipSnapshot,
-        })
-        .select(`
-          id,
-          session_id,
-          exercise_order,
-          exercise_id,
-          gym_equipment_id,
-          equipment_name_snapshot,
-          exercises(id, name)
-        `)
-        .single();
-
-      if (exError) throw exError;
-
-      // Add 1 initial blank set slot
-      const { data: setData, error: setError } = await supabase
-        .from("exercise_sets")
-        .insert({
-          owner_id: userId,
-          session_exercise_id: exData.id,
-          set_number: 1,
-          weight: null,
-          reps: null,
-          is_warmup: false,
-          reported_rir_bucket: null,
-          rir_source: null,
-        })
-        .select()
-        .single();
-
-      if (setError) throw setError;
-
-      exData.exercise_sets = [setData];
-      activeExercises.push(exData);
-
-      await Promise.all([
-        loadEquipmentOptionsForExercises(),
-        refreshHistoryContext(),
-      ]);
-
-      renderCurrent();
+      if (rpcError) throw rpcError;
     } catch (error) {
       errorMessage = `Could not add exercise: ${error.message}`;
+      renderCurrent();
+      return;
+    }
+
+    try {
       await loadActiveSession();
+    } catch (error) {
+      errorMessage = `Exercise added, but could not refresh workout: ${error.message}`;
       renderCurrent();
     }
   }
 
   async function removeExercise(sessionExerciseId) {
+    if (isConcluding) return;
     const supabase = getClient();
     const userId = getUserId();
     if (!supabase || !userId || !activeSession) return;
@@ -458,36 +406,39 @@ export function createSessionFeature(options) {
 
     const hasData = (exercise.exercise_sets || []).some((s) => s.weight !== null || s.reps !== null);
     if (hasData) {
-      const confirmDelete = window.confirm(`Remove ${exercise.exercises?.name || "this exercise"} and its entered data?`);
+      const confirmDelete = typeof window !== "undefined" && typeof window.confirm === "function"
+        ? window.confirm(`Remove ${exercise.exercises?.name || "this exercise"} and its entered data?`)
+        : true;
       if (!confirmDelete) return;
     }
 
     try {
-      const { error } = await supabase
-        .from("session_exercises")
-        .delete()
-        .eq("id", sessionExerciseId)
-        .eq("owner_id", userId);
+      const { error: rpcError } = await supabase.rpc("remove_session_exercise", {
+        p_session_exercise_id: sessionExerciseId,
+      });
 
-      if (error) throw error;
+      if (rpcError) throw rpcError;
 
-      activeExercises = activeExercises.filter((e) => e.id !== sessionExerciseId);
-      const remainingIds = activeExercises.map((e) => e.id);
-      if (remainingIds.length) {
-        await supabase.rpc("reorder_session_exercises", {
-          p_session_id: activeSession.id,
-          p_exercise_ids: remainingIds,
-        });
+      // Discard all child sets from autosave and storage after deletion RPC succeeds
+      for (const set of exercise.exercise_sets || []) {
+        autosave.discardPendingSet(activeSession.id, set.id);
       }
-      await loadActiveSession();
     } catch (error) {
       errorMessage = `Could not remove exercise: ${error.message}`;
+      renderCurrent();
+      return;
+    }
+
+    try {
       await loadActiveSession();
+    } catch (error) {
+      errorMessage = `Exercise removed, but could not refresh workout: ${error.message}`;
       renderCurrent();
     }
   }
 
   async function reorderExercise(sessionExerciseId, direction) {
+    if (isConcluding) return;
     const supabase = getClient();
     const userId = getUserId();
     if (!supabase || !userId || !activeSession) return;
@@ -521,6 +472,7 @@ export function createSessionFeature(options) {
   }
 
   async function changeEquipment(sessionExerciseId, gymEquipmentId) {
+    if (isConcluding) return;
     const supabase = getClient();
     const userId = getUserId();
     if (!supabase || !userId || !activeSession) return;
@@ -565,6 +517,7 @@ export function createSessionFeature(options) {
   }
 
   async function createEquipment(sessionExerciseId, gymId, name) {
+    if (isConcluding) return;
     const supabase = getClient();
     const userId = getUserId();
     if (!supabase || !userId || !activeSession) return;
@@ -586,6 +539,7 @@ export function createSessionFeature(options) {
   }
 
   async function concludeActiveSession() {
+    if (isConcluding) return;
     const supabase = getClient();
     const userId = getUserId();
     if (!supabase || !userId || !activeSession) return;
@@ -604,7 +558,15 @@ export function createSessionFeature(options) {
 
     try {
       // 1. Flush pending autosaves
-      await autosave.flushPendingEdits(activeSession.id);
+      const flushSuccess = await autosave.flushPendingEdits(activeSession.id);
+      const remainingPending = storage.getPendingSetEdits(activeSession.id);
+      if (!flushSuccess || remainingPending.length > 0) {
+        throw new Error(
+          autosave.getSyncState() === SYNC_STATE.OFFLINE
+            ? "Cannot conclude session while offline. Changes are saved on this device."
+            : "Cannot conclude session: one or more changes failed to save to the server."
+        );
+      }
 
       // 2. Call server-side atomic conclusion
       const { data, error } = await supabase.rpc("conclude_workout_session", {
@@ -613,7 +575,12 @@ export function createSessionFeature(options) {
 
       if (error) throw error;
 
-      storage.clearPendingSessionEdits(activeSession.id);
+      // Only clear storage if no pending edits were added
+      const postRpcPending = storage.getPendingSetEdits(activeSession.id);
+      if (postRpcPending.length === 0) {
+        storage.clearPendingSessionEdits(activeSession.id);
+      }
+
       const concludedSessionId = activeSession.id;
       activeSession = null;
       activeExercises = [];
@@ -634,6 +601,7 @@ export function createSessionFeature(options) {
   }
 
   function openCancelConfirmation() {
+    if (isConcluding) return;
     const cancelModal = typeof document !== "undefined" ? document.querySelector("#cancel-workout-modal") : null;
     if (cancelModal) {
       const keepBtn = cancelModal.querySelector("#keep-workout-button");
@@ -660,6 +628,7 @@ export function createSessionFeature(options) {
   }
 
   async function cancelActiveWorkoutSession() {
+    if (isConcluding) return;
     const supabase = getClient();
     const userId = getUserId();
     if (!supabase || !userId || !activeSession) return;
@@ -1064,6 +1033,12 @@ export function createSessionFeature(options) {
     getActiveSession() {
       return activeSession;
     },
+    getActiveExercises() {
+      return activeExercises;
+    },
+    getErrorMessage() {
+      return errorMessage;
+    },
     async load() {
       return await loadActiveSession();
     },
@@ -1073,6 +1048,21 @@ export function createSessionFeature(options) {
       } else {
         void openCreationWizard();
       }
+    },
+    async addExercise(exerciseId) {
+      await addExerciseToActiveSession(exerciseId);
+    },
+    async removeExercise(sessionExerciseId) {
+      await removeExercise(sessionExerciseId);
+    },
+    async addSet(sessionExerciseId) {
+      await addSet(sessionExerciseId);
+    },
+    async removeSet(sessionExerciseId, setId) {
+      await removeSet(sessionExerciseId, setId);
+    },
+    async concludeSession() {
+      await concludeActiveSession();
     },
     async cancelSession() {
       await cancelActiveWorkoutSession();
