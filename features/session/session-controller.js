@@ -52,6 +52,16 @@ export function createSessionFeature(options) {
     },
   });
 
+  function handleOnline() {
+    if (activeSession) {
+      void autosave.retryPendingWrites(activeSession.id);
+    }
+  }
+
+  if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+    window.addEventListener("online", handleOnline);
+  }
+
   function renderCurrent() {
     if (renderer && activeSession) {
       renderer.renderLiveSession({
@@ -273,6 +283,17 @@ export function createSessionFeature(options) {
           Object.assign(set, pending.fields);
         }
       }
+    }
+
+    // Recover durable edits without delaying rendering of the recovered workout.
+    if (pendingEdits.length > 0) {
+      const sessionId = activeSession.id;
+      // Yield once so load() can finish presenting the recovered workout first.
+      setTimeout(() => {
+        if (activeSession && activeSession.id === sessionId) {
+          void autosave.retryPendingWrites(sessionId);
+        }
+      }, 0);
     }
 
     // Load exercise-specific equipment options and history context

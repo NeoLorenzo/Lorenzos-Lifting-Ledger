@@ -1242,6 +1242,128 @@ test("ISSUE 2 REGRESSION: network failure during debounce transitions to FAILED 
 });
 
 // =========================================================================
+// ISSUE 15 REGRESSION TESTS: durable recovery and reconnection
+// =========================================================================
+
+function installIssue15Browser(online) {
+  const previousNavigator = Object.getOwnPropertyDescriptor(globalThis, "navigator");
+  const previousWindow = Object.getOwnPropertyDescriptor(globalThis, "window");
+  const listeners = new Map();
+  const mockWindow = {
+    addEventListener(type, listener) {
+      listeners.set(type, listener);
+    },
+    dispatchEvent(event) {
+      listeners.get(event.type)?.(event);
+    },
+  };
+  Object.defineProperty(globalThis, "navigator", { configurable: true, value: { onLine: online } });
+  Object.defineProperty(globalThis, "window", { configurable: true, value: mockWindow });
+  return {
+    window: mockWindow,
+    setOnline(value) { globalThis.navigator.onLine = value; },
+    restore() {
+      if (previousNavigator) Object.defineProperty(globalThis, "navigator", previousNavigator);
+      else delete globalThis.navigator;
+      if (previousWindow) Object.defineProperty(globalThis, "window", previousWindow);
+      else delete globalThis.window;
+    },
+  };
+}
+
+function issue15FeatureFixture({ online = true, update } = {}) {
+  const browser = installIssue15Browser(online);
+  const storage = createSessionStorage();
+  storage.savePendingSetEdit(999, 201, { weight: 90 });
+  const updates = [];
+  const client = {
+    from(table) {
+      const builder = {
+        select() { return builder; }, eq() { return builder; }, in() { return builder; },
+        not() { return builder; }, neq() { return builder; }, order() { return builder; }, limit() { return builder; },
+        maybeSingle() {
+          return table === "workout_sessions"
+            ? Promise.resolve({ data: { id: 999, gym_id: 10, status: "in_progress" }, error: null })
+            : Promise.resolve({ data: [], error: null });
+        },
+        update(payload) {
+          updates.push(payload);
+          return { eq: () => ({ eq: () => update ? update(payload) : Promise.resolve({ data: { id: 201 }, error: null }) }) };
+        },
+        then(resolve) {
+          if (table === "session_exercises") {
+            return resolve({ data: [{ id: 101, session_id: 999, exercise_id: 5, exercise_order: 1, exercise_sets: [{ id: 201, weight: 80, reps: 8, is_warmup: false }] }], error: null });
+          }
+          return resolve({ data: [], error: null });
+        },
+      };
+      return builder;
+    },
+  };
+  const feature = createSessionFeature({
+    getClient: () => client,
+    getUserId: () => "user-test",
+    storage,
+    historyContext: { fetchPreviousPerformance: async () => ({ sets: [] }) },
+  });
+  return { browser, storage, updates, feature };
+}
+
+test("ISSUE 15 REGRESSION: online resume overlays and retries durable pending edits", async () => {
+  let resolveUpdate;
+  const updatePromise = new Promise((resolve) => { resolveUpdate = resolve; });
+  const fixture = issue15FeatureFixture({ update: () => updatePromise });
+  try {
+    await fixture.feature.load();
+    assert.equal(fixture.feature.getActiveExercises()[0].exercise_sets[0].weight, 90);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.equal(fixture.feature.getActiveExercises().length, 1);
+    assert.deepEqual(fixture.updates[0], { weight: 90 });
+    resolveUpdate({ data: { id: 201 }, error: null });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.equal(fixture.storage.getPendingSetEdits(999).length, 0);
+  } finally { fixture.browser.restore(); }
+});
+
+test("ISSUE 15 REGRESSION: offline resume preserves durable edits and reconnection retries them", async () => {
+  const fixture = issue15FeatureFixture({ online: false });
+  try {
+    await fixture.feature.load();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.equal(fixture.feature.getActiveExercises()[0].exercise_sets[0].weight, 90);
+    assert.equal(fixture.updates.length, 0);
+    assert.equal(fixture.storage.getPendingSetEdits(999).length, 1);
+    fixture.browser.setOnline(true);
+    fixture.browser.window.dispatchEvent(new Event("online"));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.deepEqual(fixture.updates[0], { weight: 90 });
+    assert.equal(fixture.storage.getPendingSetEdits(999).length, 0);
+  } finally { fixture.browser.restore(); }
+});
+
+test("ISSUE 15 REGRESSION: recovery preserves a newer generation queued while the retry is in flight", async () => {
+  let resolveUpdate;
+  let calls = 0;
+  const fixture = issue15FeatureFixture({ update: () => {
+    calls++;
+    if (calls === 1) return new Promise((resolve) => { resolveUpdate = resolve; });
+    return Promise.resolve({ data: { id: 201 }, error: null });
+  } });
+  try {
+    await fixture.feature.load();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    fixture.storage.savePendingSetEdit(999, 201, { reps: 10 });
+    resolveUpdate({ data: { id: 201 }, error: null });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.equal(fixture.storage.getPendingSetEdits(999).length, 1);
+    assert.deepEqual(fixture.storage.getPendingSetEdits(999)[0].fields, { weight: 90, reps: 10 });
+    fixture.browser.window.dispatchEvent(new Event("online"));
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.equal(fixture.storage.getPendingSetEdits(999).length, 0);
+  } finally { fixture.browser.restore(); }
+});
+
+// =========================================================================
 // ISSUE 3 REGRESSION TESTS: Atomic structural live-workout mutations
 // =========================================================================
 
