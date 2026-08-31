@@ -332,13 +332,15 @@ test("BUG 2 REGRESSION: field edits are PATCH updates that never erase other exi
     from: (table) => ({
       update: (payload) => ({
         eq: (k1, setId) => ({
-          eq: (k2, userId) => {
-            updateCalls.push({ payload, setId, userId });
-            const existing = dbRows.get(setId) || {};
-            const updated = { ...existing, ...payload };
-            dbRows.set(setId, updated);
-            return Promise.resolve({ data: updated, error: null });
-          },
+          eq: (k2, userId) => ({
+            select: () => {
+              updateCalls.push({ payload, setId, userId });
+              const existing = dbRows.get(setId) || {};
+              const updated = { ...existing, ...payload };
+              dbRows.set(setId, updated);
+              return Promise.resolve({ data: [{ id: setId }], error: null });
+            },
+          }),
         }),
       }),
     }),
@@ -912,7 +914,7 @@ test("ISSUE 1 REGRESSION: failed autosave prevents session conclusion, keeps pen
       update(payload) {
         return {
           eq: () => ({
-            eq: () => Promise.resolve({ data: null, error: new Error("Network connection dropped during autosave") }),
+            eq: () => ({ select: () => Promise.resolve({ data: [], error: null }) }),
           }),
         };
       },
@@ -1014,7 +1016,7 @@ test("ISSUE 1 REGRESSION: successful flush allows session conclusion, calls conc
       update(payload) {
         return {
           eq: () => ({
-            eq: () => Promise.resolve({ data: { id: 100, ...payload }, error: null }),
+            eq: () => ({ select: () => Promise.resolve({ data: [{ id: 100 }], error: null }) }),
           }),
         };
       },
@@ -1093,10 +1095,12 @@ test("ISSUE 2 REGRESSION: natural debounce fires without calling flushPendingEdi
     from: () => ({
       update: (payload) => ({
         eq: (k1, setId) => ({
-          eq: (k2, userId) => {
+          eq: (k2, userId) => ({
+            select: () => {
             dbRows.set(setId, { ...(dbRows.get(setId) || {}), ...payload });
-            return Promise.resolve({ data: dbRows.get(setId), error: null });
-          },
+            return Promise.resolve({ data: [{ id: setId }], error: null });
+            },
+          }),
         }),
       }),
     }),
@@ -1129,10 +1133,12 @@ test("ISSUE 2 REGRESSION: multiple overlapping edits to different sets do not em
     from: () => ({
       update: (payload) => ({
         eq: (k1, setId) => ({
-          eq: (k2, userId) => {
+          eq: (k2, userId) => ({
+            select: () => {
             dbRows.set(setId, { ...(dbRows.get(setId) || {}), ...payload });
-            return Promise.resolve({ data: dbRows.get(setId), error: null });
-          },
+            return Promise.resolve({ data: [{ id: setId }], error: null });
+            },
+          }),
         }),
       }),
     }),
@@ -1170,14 +1176,16 @@ test("ISSUE 2 REGRESSION (GENERATIONS/RACES): newer edit to same set while earli
     from: () => ({
       update: (payload) => ({
         eq: (k1, setId) => ({
-          eq: async (k2, userId) => {
+          eq: (k2, userId) => ({
+            select: async () => {
             updateCallCount++;
             if (updateCallCount === 1) {
               // Pause first request in flight
               await firstUpdateDeferred;
             }
-            return { data: { id: setId, ...payload }, error: null };
-          },
+            return { data: [{ id: setId }], error: null };
+            },
+          }),
         }),
       }),
     }),
@@ -1222,7 +1230,7 @@ test("ISSUE 2 REGRESSION: network failure during debounce transitions to FAILED 
     from: () => ({
       update: () => ({
         eq: () => ({
-          eq: () => Promise.resolve({ data: null, error: new Error("500 Internal Server Error") }),
+          eq: () => ({ select: () => Promise.resolve({ data: null, error: new Error("500 Internal Server Error") }) }),
         }),
       }),
     }),
@@ -1239,6 +1247,31 @@ test("ISSUE 2 REGRESSION: network failure during debounce transitions to FAILED 
 
   assert.equal(autosave.getSyncState(), SYNC_STATE.FAILED, "State transitions to FAILED on network failure");
   assert.equal(mockStorage.getPendingSetEdits(100).length, 1, "Failed edit is retained in pending storage");
+});
+
+test("ISSUE 11 REGRESSION: error-free zero-row update retains the durable pending edit and fails flush", async () => {
+  const mockStorage = createSessionStorage();
+  mockStorage.savePendingSetEdit(100, 1, { weight: 80, reps: 6 });
+  const mockClient = {
+    from: () => ({
+      update: () => ({
+        eq: () => ({
+          eq: () => ({
+            select: () => Promise.resolve({ data: [], error: null }),
+          }),
+        }),
+      }),
+    }),
+  };
+  const autosave = createSessionAutosave({
+    getClient: () => mockClient,
+    getUserId: () => "user-1",
+    storage: mockStorage,
+  });
+
+  assert.equal(await autosave.flushPendingEdits(100), false);
+  assert.deepEqual(mockStorage.getPendingSetEdits(100)[0].fields, { weight: 80, reps: 6 });
+  assert.equal(autosave.getSyncState(), SYNC_STATE.FAILED);
 });
 
 // =========================================================================
@@ -1288,7 +1321,7 @@ function issue15FeatureFixture({ online = true, update } = {}) {
         },
         update(payload) {
           updates.push(payload);
-          return { eq: () => ({ eq: () => update ? update(payload) : Promise.resolve({ data: { id: 201 }, error: null }) }) };
+          return { eq: () => ({ eq: () => ({ select: () => update ? update(payload) : Promise.resolve({ data: [{ id: 201 }], error: null }) }) }) };
         },
         then(resolve) {
           if (table === "session_exercises") {
@@ -1319,7 +1352,7 @@ test("ISSUE 15 REGRESSION: online resume overlays and retries durable pending ed
     await new Promise((resolve) => setTimeout(resolve, 5));
     assert.equal(fixture.feature.getActiveExercises().length, 1);
     assert.deepEqual(fixture.updates[0], { weight: 90 });
-    resolveUpdate({ data: { id: 201 }, error: null });
+    resolveUpdate({ data: [{ id: 201 }], error: null });
     await new Promise((resolve) => setTimeout(resolve, 5));
     assert.equal(fixture.storage.getPendingSetEdits(999).length, 0);
   } finally { fixture.browser.restore(); }
@@ -1347,7 +1380,7 @@ test("ISSUE 15 REGRESSION: recovery preserves a newer generation queued while th
   const fixture = issue15FeatureFixture({ update: () => {
     calls++;
     if (calls === 1) return new Promise((resolve) => { resolveUpdate = resolve; });
-    return Promise.resolve({ data: { id: 201 }, error: null });
+    return Promise.resolve({ data: [{ id: 201 }], error: null });
   } });
   try {
     await fixture.feature.load();
@@ -1393,7 +1426,7 @@ test("ISSUE 3 REGRESSION: addExerciseToActiveSession calls atomic add_session_ex
       update(payload) {
         return {
           eq: () => ({
-            eq: () => Promise.resolve({ data: { id: 100, ...payload }, error: null }),
+            eq: () => ({ select: () => Promise.resolve({ data: [{ id: 100 }], error: null }) }),
           }),
         };
       },
@@ -1489,7 +1522,7 @@ test("ISSUE 3 REGRESSION: removeExercise calls remove_session_exercise RPC; pres
       update(payload) {
         return {
           eq: () => ({
-            eq: () => Promise.resolve({ data: { id: 100, ...payload }, error: null }),
+            eq: () => ({ select: () => Promise.resolve({ data: [{ id: 100 }], error: null }) }),
           }),
         };
       },
@@ -1585,7 +1618,7 @@ test("ISSUE 3 REGRESSION: removeSet calls remove_exercise_set RPC; preserves pen
       update(payload) {
         return {
           eq: () => ({
-            eq: () => Promise.resolve({ data: { id: 100, ...payload }, error: null }),
+            eq: () => ({ select: () => Promise.resolve({ data: [{ id: 100 }], error: null }) }),
           }),
         };
       },
@@ -1684,7 +1717,7 @@ test("ISSUE 1 REGRESSION: starting concludeActiveSession() locks out concurrent 
       update(payload) {
         return {
           eq: () => ({
-            eq: () => Promise.resolve({ data: { id: 100, ...payload }, error: null }),
+            eq: () => ({ select: () => Promise.resolve({ data: [{ id: 100 }], error: null }) }),
           }),
         };
       },

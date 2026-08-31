@@ -101,13 +101,18 @@ export function createSessionAutosave(options) {
         return true;
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("exercise_sets")
         .update(updatePayload)
         .eq("id", setId)
-        .eq("owner_id", userId);
+        .eq("owner_id", userId)
+        .select("id");
 
       if (error) throw error;
+
+      if (!Array.isArray(data) || data.length !== 1) {
+        return false;
+      }
 
       if (!discardedSetIds.has(setId)) {
         storage.removePendingSetEdit(sessionId, setId, version);
