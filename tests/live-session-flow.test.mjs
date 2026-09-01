@@ -596,6 +596,7 @@ test("BUG 5 REGRESSION: cancel active workout aborts autosave, clears pending st
   let rpcCalls = [];
   let navPages = [];
   let cancelledSessionId = null;
+  const syncTransitions = [];
 
   const mockStorage = createSessionStorage();
   mockStorage.savePendingSetEdit(999, 1, { weight: 100 });
@@ -654,6 +655,7 @@ test("BUG 5 REGRESSION: cancel active workout aborts autosave, clears pending st
     onSessionCancelled: (sessionId) => {
       cancelledSessionId = sessionId;
     },
+    onSyncStateChange: (state, label) => syncTransitions.push({ state, label }),
   });
 
   await feature.load();
@@ -670,6 +672,9 @@ test("BUG 5 REGRESSION: cancel active workout aborts autosave, clears pending st
   assert.equal(feature.getActiveSession(), null, "Active session cleared in-memory");
   assert.equal(cancelledSessionId, 999, "onSessionCancelled callback received session id");
   assert.equal(navPages.includes("home"), true, "Navigated home upon cancellation");
+  assert.ok(syncTransitions.some(({ state, label }) => (
+    state === SYNC_STATE.SAVED && label === SYNC_LABELS[SYNC_STATE.SAVED]
+  )), "Autosave abort forwards the canonical saved transition");
 });
 
 test("BUG 5 REGRESSION: cancellation failure preserves pending local mutations and keeps session active without navigating home", async () => {
@@ -1369,7 +1374,7 @@ function installIssue15Browser(online) {
   };
 }
 
-function issue15FeatureFixture({ online = true, update } = {}) {
+function issue15FeatureFixture({ online = true, update, onSyncStateChange } = {}) {
   const browser = installIssue15Browser(online);
   const storage = createSessionStorage();
   storage.savePendingSetEdit(999, 201, { weight: 90 });
@@ -1403,9 +1408,53 @@ function issue15FeatureFixture({ online = true, update } = {}) {
     getUserId: () => "user-test",
     storage,
     historyContext: { fetchPreviousPerformance: async () => ({ sets: [] }) },
+    onSyncStateChange,
   });
   return { browser, storage, updates, feature };
 }
+
+test("ISSUE 9 REGRESSION: session controller forwards autosave sync transitions to its external callback", async () => {
+  const onlineTransitions = [];
+  const onlineFixture = issue15FeatureFixture({
+    onSyncStateChange: (state, label) => onlineTransitions.push({ state, label }),
+  });
+  try {
+    await onlineFixture.feature.load();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.ok(onlineTransitions.some(({ state, label }) => (
+      state === SYNC_STATE.SAVING && label === SYNC_LABELS[SYNC_STATE.SAVING]
+    )));
+    assert.ok(onlineTransitions.some(({ state, label }) => (
+      state === SYNC_STATE.SAVED && label === SYNC_LABELS[SYNC_STATE.SAVED]
+    )));
+  } finally { onlineFixture.browser.restore(); }
+
+  const offlineTransitions = [];
+  const offlineFixture = issue15FeatureFixture({
+    online: false,
+    onSyncStateChange: (state, label) => offlineTransitions.push({ state, label }),
+  });
+  try {
+    await offlineFixture.feature.load();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.ok(offlineTransitions.some(({ state, label }) => (
+      state === SYNC_STATE.OFFLINE && label === SYNC_LABELS[SYNC_STATE.OFFLINE]
+    )));
+  } finally { offlineFixture.browser.restore(); }
+
+  const failedTransitions = [];
+  const failedFixture = issue15FeatureFixture({
+    update: () => Promise.resolve({ data: null, error: new Error("Persistence failed") }),
+    onSyncStateChange: (state, label) => failedTransitions.push({ state, label }),
+  });
+  try {
+    await failedFixture.feature.load();
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.ok(failedTransitions.some(({ state, label }) => (
+      state === SYNC_STATE.FAILED && label === SYNC_LABELS[SYNC_STATE.FAILED]
+    )));
+  } finally { failedFixture.browser.restore(); }
+});
 
 test("ISSUE 15 REGRESSION: online resume overlays and retries durable pending edits", async () => {
   let resolveUpdate;

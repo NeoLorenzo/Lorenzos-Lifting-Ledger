@@ -13,6 +13,7 @@ export function createSessionFeature(options) {
     onNavigate,
     onSessionConcluded,
     onSessionCancelled,
+    onSyncStateChange,
     liveContainer,
     wizardModal,
   } = options;
@@ -49,6 +50,7 @@ export function createSessionFeature(options) {
       if (renderer) {
         renderer.updateSyncBadge(state, label);
       }
+      onSyncStateChange?.(state, label);
     },
   });
 
