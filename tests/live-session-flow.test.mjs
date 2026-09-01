@@ -191,6 +191,7 @@ import {
 } from "../features/session/session-autosave.js";
 import {
   createSessionRenderer,
+  parseWorkoutWeightInput,
 } from "../features/session/session-rendering.js";
 import {
   createSessionFeature,
@@ -295,6 +296,8 @@ test("BUG 1 REGRESSION: sync badge updates do not replace input nodes or interru
 
   const weightInput = container.querySelector(".weight-input");
   assert.ok(weightInput, "Weight input must exist in DOM");
+  assert.equal(weightInput.type, "text");
+  assert.equal(weightInput.inputMode, "decimal");
 
   // User types '8'
   weightInput.value = "8";
@@ -320,6 +323,68 @@ test("BUG 1 REGRESSION: sync badge updates do not replace input nodes or interru
   assert.equal(fieldChanges.length, 3);
   assert.equal(fieldChanges[2].fields.weight, 80.5);
   assert.equal(container.querySelector(".weight-input"), weightInput, "Input node preserved continuously throughout multi-digit typing");
+});
+
+test("session-rendering: parses locale-tolerant workout weight input", () => {
+  const validCases = [
+    ["", null],
+    ["   ", null],
+    ["82", 82],
+    ["82.5", 82.5],
+    ["82,5", 82.5],
+    [".5", 0.5],
+    [",5", 0.5],
+    ["1,234", 1.234],
+  ];
+
+  for (const [rawValue, expectedValue] of validCases) {
+    assert.deepEqual(parseWorkoutWeightInput(rawValue), { valid: true, value: expectedValue });
+  }
+
+  for (const rawValue of ["abc", "82,5,2", "82.5.2", "82,5.2", "-5", "NaN", "Infinity"]) {
+    assert.deepEqual(parseWorkoutWeightInput(rawValue), { valid: false, value: null });
+  }
+});
+
+test("session-rendering: locale comma input updates valid weights and invalid input is safely restored on blur", () => {
+  const container = document.createElement("div");
+  const fieldChanges = [];
+  const blurs = [];
+  const set = { id: 501, set_number: 1, weight: 80, reps: null, is_warmup: false, reported_rir_bucket: null };
+  const renderer = createSessionRenderer({
+    container,
+    onSetFieldChange: (sessionId, setId, fields) => fieldChanges.push({ sessionId, setId, fields }),
+    onSetFieldBlur: (sessionId, setId) => blurs.push({ sessionId, setId }),
+  });
+  renderer.renderLiveSession({
+    session: { id: 1, gym_id: 10, performed_on: "2026-08-24" },
+    exercises: [{ id: 101, exercise_id: 1, exercise_order: 1, exercises: { name: "Bench Press" }, exercise_sets: [set] }],
+    gyms: [{ id: 10, name: "Power Gym" }],
+    equipmentByGym: new Map(), equipmentOptionsByExercise: new Map(), historyContextByExercise: new Map(),
+    syncState: SYNC_STATE.SAVED, syncLabel: "Saved ✓",
+  });
+
+  const weightInput = container.querySelector(".weight-input");
+  for (const [rawValue, expectedValue] of [["80.5", 80.5], ["80,5", 80.5], ["80", 80], ["", null], [".5", 0.5], [",5", 0.5]]) {
+    weightInput.value = rawValue;
+    weightInput.dispatchEvent(new Event("input"));
+    assert.equal(fieldChanges.at(-1).fields.weight, expectedValue);
+  }
+
+  const changesBeforeInvalidInput = fieldChanges.length;
+  set.weight = 80;
+  for (const rawValue of ["abc", "82,5,2", "82,5.2", "-5"]) {
+    weightInput.value = rawValue;
+    weightInput.dispatchEvent(new Event("input"));
+    assert.equal(fieldChanges.length, changesBeforeInvalidInput, `${rawValue} must not dispatch a weight change`);
+    assert.equal(set.weight, 80, `${rawValue} must not replace the canonical weight`);
+    assert.equal(weightInput.getAttribute("aria-invalid"), "true");
+  }
+
+  weightInput.dispatchEvent(new Event("blur"));
+  assert.equal(weightInput.value, "80");
+  assert.equal(weightInput.getAttribute("aria-invalid"), null);
+  assert.equal(blurs.length, 1);
 });
 
 test("BUG 2 REGRESSION: field edits are PATCH updates that never erase other existing fields", async () => {

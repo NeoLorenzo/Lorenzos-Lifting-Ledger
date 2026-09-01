@@ -5,6 +5,23 @@ import {
 } from "./session-history-context.js";
 import { isCompletedSet } from "../../set-model.js";
 
+export function parseWorkoutWeightInput(rawValue) {
+  const value = String(rawValue ?? "").trim();
+  if (value === "") return { valid: true, value: null };
+
+  const normalizedValue = value.replace(",", ".");
+  if (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalizedValue)) {
+    return { valid: false, value: null };
+  }
+
+  const numericValue = Number(normalizedValue);
+  if (!Number.isFinite(numericValue) || numericValue < 0) {
+    return { valid: false, value: null };
+  }
+
+  return { valid: true, value: numericValue };
+}
+
 function formatDateLong(isoDate) {
   if (!isoDate) return "";
   const [year, month, day] = isoDate.split("-").map(Number);
@@ -603,20 +620,28 @@ export function createSessionRenderer(options) {
             weightLabel.textContent = `Weight (${formatWeightUnit(exerciseHeading.textContent)})`;
 
             const weightInput = document.createElement("input");
-            weightInput.type = "number";
+            weightInput.type = "text";
             weightInput.inputMode = "decimal";
-            weightInput.step = "any";
-            weightInput.min = "0";
             weightInput.placeholder = "—";
             weightInput.className = "live-input weight-input";
             weightInput.setAttribute("aria-label", `Set ${set.set_number} weight`);
             weightInput.value = set.weight !== null && set.weight !== undefined ? set.weight : "";
             weightInput.addEventListener("input", () => {
-              const val = weightInput.value === "" ? null : Number(weightInput.value);
-              set.weight = val;
-              onSetFieldChange(session.id, set.id, { weight: val });
+              const parsed = parseWorkoutWeightInput(weightInput.value);
+              if (!parsed.valid) {
+                weightInput.setAttribute("aria-invalid", "true");
+                return;
+              }
+
+              weightInput.removeAttribute("aria-invalid");
+              set.weight = parsed.value;
+              onSetFieldChange(session.id, set.id, { weight: parsed.value });
             });
             weightInput.addEventListener("blur", () => {
+              if (!parseWorkoutWeightInput(weightInput.value).valid) {
+                weightInput.value = set.weight !== null && set.weight !== undefined ? set.weight : "";
+                weightInput.removeAttribute("aria-invalid");
+              }
               onSetFieldBlur(session.id, set.id);
             });
 
