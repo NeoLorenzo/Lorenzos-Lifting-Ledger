@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(25);
+select plan(26);
 
 select hasnt_table('public', 'lift_entries', 'legacy lift_entries is absent');
 select hasnt_table('public', 'lift_sets', 'legacy lift_sets is absent');

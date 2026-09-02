@@ -1,0 +1,5 @@
+{
+  "cutoverMigration": "20260902120000_fix_live_workout_reorder.sql",
+  "baselineFile": "current_baseline.sql",
+  "sha256": "b32f49c38a0f9211dbb7261bc006c9753d1a48b2444a5789c849dc6b7fdb4915"
+}

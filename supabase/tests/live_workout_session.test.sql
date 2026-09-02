@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(53);
+select plan(52);
 
 select has_table('public', 'gym_equipment', 'gym_equipment table exists');
 select has_column('public', 'session_exercises', 'gym_equipment_id', 'gym_equipment_id column exists on session_exercises');
@@ -76,7 +76,7 @@ values
 -- Check ON DELETE RESTRICT on referenced gym_equipment
 select throws_ok($sql$
   delete from public.gym_equipment where name = 'Matrix Incline Press';
-$sql$, '23503', '%session_exercises_gym_equipment_fk%', 'deleting referenced gym equipment is restricted');
+$sql$, '23503', 'update or delete on table "gym_equipment" violates foreign key constraint "session_exercises_gym_equipment_fk" on table "session_exercises"', 'deleting referenced gym equipment is restricted');
 
 -- Start new session from preset
 select lives_ok($sql$
@@ -149,7 +149,7 @@ select throws_ok($sql$
   select public.conclude_workout_session(
     (select id from public.workout_sessions where status = 'in_progress')
   );
-$sql$, '22023', '%incomplete drafts%', 'concluding session fails if partial draft sets exist');
+$sql$, '22023', 'Cannot conclude session: one or more sets are incomplete drafts.', 'concluding session fails if partial draft sets exist');
 
 -- Delete the draft set from exercise 2 (now exercise 2 is empty)
 delete from public.exercise_sets
@@ -217,14 +217,14 @@ select throws_ok($sql$
     (select id from public.gyms limit 1),
     null::bigint
   );
-$sql$, '42501', '%not owned%', 'user 2 cannot create a session with user 1 gym');
+$sql$, '22023', 'A gym is required to start a new workout session.', 'user 2 cannot create a session with an RLS-hidden gym');
 
 -- User 2 cannot cancel completed session from User 1
 select throws_ok($sql$
   select public.cancel_workout_session(
     (select id from public.workout_sessions limit 1)
   );
-$sql$, '42501', '%not owned%', 'user 2 cannot cancel user 1 session');
+$sql$, '42501', 'Session not found or not owned by current user.', 'user 2 cannot cancel user 1 session');
 
 -- Switch back to User 1
 reset role;
@@ -236,7 +236,7 @@ select throws_ok($sql$
   select public.cancel_workout_session(
     (select id from public.workout_sessions where status = 'completed' limit 1)
   );
-$sql$, '22023', '%Only in-progress%', 'cannot cancel a completed session');
+$sql$, '22023', 'Only in-progress workout sessions can be cancelled.', 'cannot cancel a completed session');
 
 -- Start a new in-progress session and cancel it
 select lives_ok($sql$
@@ -373,7 +373,7 @@ select throws_ok($sql$
     -999999::bigint,
     null::bigint
   );
-$sql$, '22023', '%Exercise not found%', 'add_session_exercise with invalid exercise throws 22023');
+$sql$, '22023', 'Exercise not found in catalogue.', 'add_session_exercise with invalid exercise throws 22023');
 
 -- Error cases: completed session
 select throws_ok($sql$
@@ -382,7 +382,7 @@ select throws_ok($sql$
     (select id from public.exercises order by id limit 1),
     null::bigint
   );
-$sql$, '42501', '%Active session not found%', 'add_session_exercise on completed session throws 42501');
+$sql$, '42501', 'Active session not found or not owned by current user.', 'add_session_exercise on completed session throws 42501');
 
 -- Error cases: foreign gym equipment (create gym 2)
 insert into public.gyms (owner_id, name)
@@ -396,19 +396,19 @@ select throws_ok($sql$
     (select id from public.exercises order by id limit 1),
     (select id from public.gym_equipment where name = 'Other Machine')
   );
-$sql$, '42501', '%not compatible%', 'add_session_exercise with foreign gym equipment throws 42501');
+$sql$, '42501', 'Equipment not found, inactive, or not compatible with session gym.', 'add_session_exercise with foreign gym equipment throws 42501');
 
 select throws_ok($sql$
   select public.remove_session_exercise(
     (select se.id from public.session_exercises se join public.workout_sessions ws on ws.id = se.session_id where ws.status = 'completed' limit 1)
   );
-$sql$, '42501', '%not active%', 'remove_session_exercise on completed session throws 42501');
+$sql$, '42501', 'Session exercise not found, not active, or not owned by current user.', 'remove_session_exercise on completed session throws 42501');
 
 select throws_ok($sql$
   select public.remove_exercise_set(
     (select es.id from public.exercise_sets es join public.session_exercises se on se.id = es.session_exercise_id join public.workout_sessions ws on ws.id = se.session_id where ws.status = 'completed' limit 1)
   );
-$sql$, '42501', '%not active%', 'remove_exercise_set on completed session throws 42501');
+$sql$, '42501', 'Set not found, not active, or not owned by current user.', 'remove_exercise_set on completed session throws 42501');
 
 -- Switch to User 2: Cross-user mutation tests
 reset role;
@@ -421,19 +421,19 @@ select throws_ok($sql$
     (select id from public.exercises order by id limit 1),
     null::bigint
   );
-$sql$, '42501', '%Active session not found%', 'user 2 cannot add exercise to user 1 session');
+$sql$, '42501', 'Active session not found or not owned by current user.', 'user 2 cannot add exercise to user 1 session');
 
 select throws_ok($sql$
   select public.remove_session_exercise(
     (select id from public.session_exercises where owner_id = '30000000-0000-0000-0000-000000000001' limit 1)
   );
-$sql$, '42501', '%not owned%', 'user 2 cannot remove exercise from user 1 session');
+$sql$, '42501', 'Session exercise not found, not active, or not owned by current user.', 'user 2 cannot remove exercise from user 1 session');
 
 select throws_ok($sql$
   select public.remove_exercise_set(
     (select id from public.exercise_sets where owner_id = '30000000-0000-0000-0000-000000000001' limit 1)
   );
-$sql$, '42501', '%not owned%', 'user 2 cannot remove set from user 1 session');
+$sql$, '42501', 'Set not found, not active, or not owned by current user.', 'user 2 cannot remove set from user 1 session');
 
 select * from finish();
 rollback;

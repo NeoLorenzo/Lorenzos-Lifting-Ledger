@@ -1,9 +1,10 @@
+import path from "node:path";
 import { spawnSync } from "node:child_process";
 
 const databaseUrl = process.env.SUPABASE_TEST_DB_URL;
 if (!databaseUrl) {
-  console.log("SKIP: SUPABASE_TEST_DB_URL is not set; database tests require an explicitly disposable local database.");
-  process.exit(0);
+  console.error("Database validation was not run: SUPABASE_TEST_DB_URL is not set. Configure an explicitly disposable local Supabase/Postgres database before running database tests.");
+  process.exit(1);
 }
 
 let parsed;
@@ -19,8 +20,14 @@ if (!["localhost", "127.0.0.1", "::1"].includes(parsed.hostname)) {
   process.exit(1);
 }
 
-const npxCommand = process.platform === "win32" ? "npx.cmd" : "npx";
-const result = spawnSync(npxCommand, ["supabase", "test", "db", "--db-url", databaseUrl], {
+// Supabase local Postgres does not serve TLS. Keep this local-only adjustment
+// after the hostname guard so it cannot alter remote connection behavior.
+if (!parsed.searchParams.has("sslmode")) {
+  parsed.searchParams.set("sslmode", "disable");
+}
+
+const cliPath = path.join(process.cwd(), "node_modules", "supabase", "dist", "supabase.js");
+const result = spawnSync(process.execPath, [cliPath, "test", "db", "--db-url", parsed.toString()], {
   encoding: "utf8",
   shell: false,
   maxBuffer: 50 * 1024 * 1024,

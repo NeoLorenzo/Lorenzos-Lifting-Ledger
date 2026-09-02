@@ -29,11 +29,11 @@ select throws_ok($sql$
   where owner_id = '20000000-0000-0000-0000-000000000001'
 $sql$, '23514');
 
-select throws_ok($sql$
+select lives_ok($sql$
   insert into public.exercise_sets (owner_id, session_exercise_id, set_number, weight, reps)
   select owner_id, id, 3, 100, 8 from public.session_exercises
   where owner_id = '20000000-0000-0000-0000-000000000001'
-$sql$, '23514');
+$sql$, 'working-set drafts without RIR are accepted until workout conclusion');
 
 select throws_ok($sql$
   insert into public.exercise_sets (owner_id, session_exercise_id, set_number, weight, reps, reported_rir_bucket, rir_source)
