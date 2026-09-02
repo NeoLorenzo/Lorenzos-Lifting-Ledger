@@ -1,4 +1,4 @@
-# Lorenzo's Lifting Ledger
+# Heracles
 
 An installable, evidence-aware lifting tracker with a public scientific overview and an authenticated personal training ledger.
 
@@ -66,7 +66,7 @@ For each representative RIR 0–3 working set, strength progression preserves fo
 ## Live infrastructure
 
 - App: <https://neolorenzo.github.io/Lorenzos-Lifting-Ledger/>
-- Supabase project: `Lorenzo's Lifting Ledger` (`yfhmjwkscqbpzblrpsoy`, London)
+- Supabase project: legacy-named `Lorenzo's Lifting Ledger` (`yfhmjwkscqbpzblrpsoy`, London)
 - Production Site URL and redirect allow-list are configured in Supabase.
 - GitHub Pages deploys from `main` at `/ (root)` with HTTPS enforced.
 

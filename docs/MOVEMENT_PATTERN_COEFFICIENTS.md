@@ -2,7 +2,7 @@
 
 ## Purpose and status
 
-This document defines how Lorenzo's Lifting Ledger interprets the values in the movement-pattern mapping matrix. It is the authoritative product specification for those coefficients until it is superseded by a documented revision. The same explanation must eventually be made available inside the app wherever movement-pattern data or a derived result is shown.
+This document defines how Heracles interprets the values in the movement-pattern mapping matrix. It is the authoritative product specification for those coefficients until it is superseded by a documented revision. The same explanation must eventually be made available inside the app wherever movement-pattern data or a derived result is shown.
 
 The coefficients are an authored biomechanical model. They are useful for organizing, comparing, and aggregating exercise participation, but they are not direct physical measurements and must not be presented with experimental precision.
 

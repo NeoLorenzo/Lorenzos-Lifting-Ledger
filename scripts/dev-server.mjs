@@ -64,5 +64,5 @@ const server = createServer(async (request, response) => {
 
 server.listen(port, host, () => {
   const displayHost = host === "0.0.0.0" ? "localhost" : host;
-  console.log(`Lorenzo's Lifting Ledger: http://${displayHost}:${port}`);
+  console.log(`Heracles: http://${displayHost}:${port}`);
 });

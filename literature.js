@@ -45,7 +45,7 @@ export const LITERATURE_DOCUMENTS = {
     label: "Product decision",
   },
   "design-rules": {
-    title: "Lorenzo's Lifting Ledger — Design Rules",
+    title: "Heracles — Design Rules",
     path: "./docs/DESIGN_RULES.md",
     label: "Product standard",
   },

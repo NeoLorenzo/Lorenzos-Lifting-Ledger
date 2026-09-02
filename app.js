@@ -499,7 +499,7 @@ async function openPublicLiteratureDocument(documentId, updateHistory = true) {
   publicDocumentStatus.textContent = "Loading document…";
   publicDocumentStatus.hidden = false;
   publicDocumentContent.replaceChildren();
-  document.title = `${documentDefinition.title} | Lorenzo's Lifting Ledger`;
+  document.title = `${documentDefinition.title} | Heracles`;
   if (updateHistory) {
     const url = new URL(window.location.href);
     url.searchParams.set("literature", documentId);
@@ -524,7 +524,7 @@ function showPublicHome(updateHistory = true) {
   documentRequestId += 1;
   publicDocumentPage.hidden = true;
   publicHome.hidden = false;
-  document.title = "Lorenzo's Lifting Ledger | Evidence-aware training data";
+  document.title = "Heracles | Evidence-aware training data";
   if (updateHistory) {
     const url = new URL(window.location.href);
     url.searchParams.delete("literature");

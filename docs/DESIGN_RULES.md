@@ -1,4 +1,4 @@
-# Lorenzo's Lifting Ledger — Design Rules
+# Heracles — Design Rules
 
 ## 1. No magic math, numbers, formulas, or science
 
