@@ -264,6 +264,182 @@ test("session-history-context: formats prior performance summary and badge", () 
   assert.equal(formatPreviousSetBadge(historyRecord.sets[2]), "50 × 15 (W)");
 });
 
+function createHistoryQueryClient(getSessions, queryLog) {
+  return {
+    from(table) {
+      assert.equal(table, "workout_sessions", "previous-performance lookup must be rooted in workout_sessions");
+      const filters = [];
+      const orders = [];
+      const builder = {
+        select(columns) { queryLog.push({ type: "select", columns }); return builder; },
+        eq(column, value) { filters.push({ op: "eq", column, value }); return builder; },
+        neq(column, value) { filters.push({ op: "neq", column, value }); return builder; },
+        order(column, options) { orders.push({ column, options }); return builder; },
+        limit(value) { queryLog.push({ type: "query", filters, orders, limit: value }); return builder; },
+        then(resolve) {
+          const session = getSessions()
+            .filter((row) => filters.every(({ op, column, value }) => {
+              if (column === "session_exercises.exercise_id") return row.session_exercises.some((ex) => ex.exercise_id === value);
+              if (column === "session_exercises.gym_equipment_id") return row.session_exercises.some((ex) => ex.gym_equipment_id === value);
+              return op === "eq" ? row[column] === value : row[column] !== value;
+            }))
+            .sort((left, right) => orders.reduce((difference, { column, options }) => {
+              if (difference !== 0) return difference;
+              const comparison = left[column] < right[column] ? -1 : left[column] > right[column] ? 1 : 0;
+              return options.ascending ? comparison : -comparison;
+            }, 0))
+            .slice(0, 1);
+          return resolve({ data: session, error: null });
+        },
+      };
+      return builder;
+    },
+  };
+}
+
+function completedHistorySession({ id, performed_on, created_at, equipmentId = 7, setWeight, exerciseRows }) {
+  return {
+    id,
+    owner_id: "user-test",
+    gym_id: 10,
+    status: "completed",
+    performed_on,
+    created_at,
+    session_exercises: exerciseRows || [{
+      id: id * 10,
+      exercise_id: 5,
+      exercise_order: 1,
+      gym_equipment_id: equipmentId,
+      exercise_sets: [{ id: id * 100, set_number: 1, weight: setWeight, reps: 8, is_warmup: false, reported_rir_bucket: 2 }],
+    }],
+  };
+}
+
+test("ISSUE 12 REGRESSION: consecutive A → B → C history lookup does not reuse B after A completes", async () => {
+  let sessions = [completedHistorySession({ id: 2, performed_on: "2026-08-20", created_at: "2026-08-20T09:00:00Z", setWeight: 80 })];
+  const queryLog = [];
+  const history = createSessionHistoryContext({
+    getClient: () => createHistoryQueryClient(() => sessions, queryLog),
+    getUserId: () => "user-test",
+  });
+
+  const duringA = await history.fetchPreviousPerformance(10, 5, 7, 1);
+  assert.equal(duringA.sessionId, 2, "Active A initially sees completed B");
+
+  sessions = [
+    completedHistorySession({ id: 1, performed_on: "2026-08-21", created_at: "2026-08-21T09:00:00Z", setWeight: 90 }),
+    ...sessions,
+  ];
+  const duringC = await history.fetchPreviousPerformance(10, 5, 7, 3);
+  assert.equal(duringC.sessionId, 1, "Later C sees newly completed A, not cached B");
+  assert.equal(queryLog.filter(({ type }) => type === "query").length, 2, "Different excluded sessions use distinct cache entries");
+});
+
+test("ISSUE 12 REGRESSION: newest eligible session query orders workout sessions by date, creation time, then ID", async () => {
+  const sessions = [
+    completedHistorySession({ id: 1, performed_on: "2026-08-21", created_at: "2026-08-21T09:00:00Z", setWeight: 81 }),
+    completedHistorySession({ id: 2, performed_on: "2026-08-22", created_at: "2026-08-22T08:00:00Z", setWeight: 82 }),
+    completedHistorySession({ id: 3, performed_on: "2026-08-22", created_at: "2026-08-22T10:00:00Z", setWeight: 83 }),
+    completedHistorySession({ id: 4, performed_on: "2026-08-22", created_at: "2026-08-22T10:00:00Z", setWeight: 84 }),
+  ];
+  const queryLog = [];
+  const history = createSessionHistoryContext({ getClient: () => createHistoryQueryClient(() => sessions, queryLog), getUserId: () => "user-test" });
+  const result = await history.fetchPreviousPerformance(10, 5, 7, 99);
+
+  assert.equal(result.sessionId, 4);
+  assert.equal(result.sets[0].weight, 84);
+  const query = queryLog.find(({ type }) => type === "query");
+  assert.deepEqual(query.orders, [
+    { column: "performed_on", options: { ascending: false } },
+    { column: "created_at", options: { ascending: false } },
+    { column: "id", options: { ascending: false } },
+  ]);
+  assert.equal(query.limit, 1);
+});
+
+test("ISSUE 12 REGRESSION: equipment-filtered history chooses the matching machine and keeps selected session sets coherent", async () => {
+  const sessions = [
+    completedHistorySession({ id: 3, performed_on: "2026-08-23", created_at: "2026-08-23T09:00:00Z", equipmentId: 8, setWeight: 120 }),
+    completedHistorySession({ id: 2, performed_on: "2026-08-22", created_at: "2026-08-22T09:00:00Z", equipmentId: 7, setWeight: 90 }),
+  ];
+  const queryLog = [];
+  const history = createSessionHistoryContext({ getClient: () => createHistoryQueryClient(() => sessions, queryLog), getUserId: () => "user-test" });
+  const machineSeven = await history.fetchPreviousPerformance(10, 5, 7, 99);
+  const noEquipmentFilter = await history.fetchPreviousPerformance(10, 5, null, 98);
+
+  assert.deepEqual({ sessionId: machineSeven.sessionId, performed_on: machineSeven.performed_on, weight: machineSeven.sets[0].weight }, { sessionId: 2, performed_on: "2026-08-22", weight: 90 });
+  assert.equal(noEquipmentFilter.sessionId, 3, "No equipment ID retains the existing unrestricted matching behavior");
+  const equipmentQuery = queryLog.find(({ type, filters }) => type === "query" && filters.some((filter) => filter.column === "session_exercises.gym_equipment_id"));
+  assert.ok(equipmentQuery, "Requested equipment is filtered through the matching session exercise");
+});
+
+test("ISSUE 12 REGRESSION: selected session uses its highest-order matching exercise and completed sets only", async () => {
+  const session = completedHistorySession({
+    id: 4, performed_on: "2026-08-22", created_at: "2026-08-22T10:00:00Z", exerciseRows: [
+      { id: 40, exercise_id: 5, exercise_order: 1, gym_equipment_id: 7, exercise_sets: [{ id: 402, set_number: 2, weight: 80, reps: 8, is_warmup: false, reported_rir_bucket: 2 }] },
+      { id: 41, exercise_id: 5, exercise_order: 2, gym_equipment_id: 7, exercise_sets: [{ id: 411, set_number: 2, weight: 95, reps: 6, is_warmup: false, reported_rir_bucket: 1 }, { id: 410, set_number: 1, weight: null, reps: null, is_warmup: false, reported_rir_bucket: null }] },
+      { id: 42, exercise_id: 5, exercise_order: 2, gym_equipment_id: 7, exercise_sets: [{ id: 421, set_number: 1, weight: 100, reps: 5, is_warmup: false, reported_rir_bucket: 1 }] },
+    ],
+  });
+  const history = createSessionHistoryContext({ getClient: () => createHistoryQueryClient(() => [session], []), getUserId: () => "user-test" });
+  const result = await history.fetchPreviousPerformance(10, 5, 7, 99);
+  assert.deepEqual(result.sets.map((set) => set.id), [421], "Sets come only from the highest-order, highest-ID matching exercise");
+  assert.equal(result.performed_on, "2026-08-22");
+  assert.equal(result.sessionId, 4);
+});
+
+function issue12ControllerFixture({ concludeError = null } = {}) {
+  const historyCalls = [];
+  const historyContext = {
+    clearCache() { historyCalls.push("clear"); },
+    fetchPreviousPerformance: async () => null,
+  };
+  const client = {
+    from(table) {
+      const builder = {
+        select() { return builder; }, eq() { return builder; }, neq() { return builder; }, in() { return builder; }, not() { return builder; }, order() { return builder; }, limit() { return builder; },
+        maybeSingle() {
+          return table === "workout_sessions"
+            ? Promise.resolve({ data: { id: 999, owner_id: "user-test", gym_id: 10, status: "in_progress", performed_on: "2026-08-27" }, error: null })
+            : Promise.resolve({ data: null, error: null });
+        },
+        then(resolve) {
+          if (table === "gyms") return resolve({ data: [{ id: 10, name: "Gym A" }], error: null });
+          if (table === "gym_equipment") return resolve({ data: [], error: null });
+          if (table === "session_exercises") return resolve({ data: [{ id: 101, session_id: 999, exercise_id: 5, exercise_order: 1, gym_equipment_id: 7, exercise_sets: [{ id: 201, set_number: 1, weight: 80, reps: 8, is_warmup: false, reported_rir_bucket: 2 }] }], error: null });
+          return resolve({ data: [], error: null });
+        },
+      };
+      return builder;
+    },
+    rpc(fn) {
+      assert.equal(fn, "conclude_workout_session");
+      return Promise.resolve(concludeError ? { data: null, error: concludeError } : { data: { id: 999, status: "completed" }, error: null });
+    },
+  };
+  return {
+    historyCalls,
+    feature: createSessionFeature({ getClient: () => client, getUserId: () => "user-test", storage: createSessionStorage(), historyContext }),
+  };
+}
+
+test("ISSUE 12 REGRESSION: successful conclusion clears history cache only after its RPC succeeds", async () => {
+  const fixture = issue12ControllerFixture();
+  await fixture.feature.load();
+  await fixture.feature.concludeSession();
+  assert.deepEqual(fixture.historyCalls, ["clear"], "A completed workout invalidates prior-history cache once");
+});
+
+test("ISSUE 12 REGRESSION: failed conclusion preserves history cache, while reset clears it", async () => {
+  const failed = issue12ControllerFixture({ concludeError: new Error("RPC failed") });
+  await failed.feature.load();
+  await failed.feature.concludeSession();
+  assert.deepEqual(failed.historyCalls, [], "A failed conclusion must not invalidate completed history");
+
+  failed.feature.reset();
+  assert.deepEqual(failed.historyCalls, ["clear"], "Feature reset releases cached history");
+});
+
 test("BUG 1 REGRESSION: sync badge updates do not replace input nodes or interrupt typing", () => {
   const container = document.createElement("div");
   const fieldChanges = [];
@@ -1407,7 +1583,7 @@ function issue15FeatureFixture({ online = true, update, onSyncStateChange } = {}
     getClient: () => client,
     getUserId: () => "user-test",
     storage,
-    historyContext: { fetchPreviousPerformance: async () => ({ sets: [] }) },
+    historyContext: { clearCache() {}, fetchPreviousPerformance: async () => ({ sets: [] }) },
     onSyncStateChange,
   });
   return { browser, storage, updates, feature };

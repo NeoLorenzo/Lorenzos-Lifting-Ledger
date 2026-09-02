@@ -605,6 +605,7 @@ export function createSessionFeature(options) {
       }
 
       const concludedSessionId = activeSession.id;
+      historyContext.clearCache();
       activeSession = null;
       activeExercises = [];
       historyContextByExercise.clear();
@@ -1091,6 +1092,7 @@ export function createSessionFeature(options) {
       await cancelActiveWorkoutSession();
     },
     reset() {
+      historyContext.clearCache();
       activeSession = null;
       activeExercises = [];
       gyms = [];

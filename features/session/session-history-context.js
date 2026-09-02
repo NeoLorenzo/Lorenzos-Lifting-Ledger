@@ -77,8 +77,8 @@ export function createSessionHistoryContext(options) {
   const { getClient, getUserId } = options;
   const historyCache = new Map();
 
-  function cacheKey(gymId, exerciseId, equipmentId) {
-    return `${gymId}_${exerciseId}_${equipmentId || "none"}`;
+  function cacheKey(userId, gymId, exerciseId, equipmentId, excludeSessionId) {
+    return `${userId}_${gymId}_${exerciseId}_${equipmentId || "none"}_${excludeSessionId || "none"}`;
   }
 
   return {
@@ -91,54 +91,49 @@ export function createSessionHistoryContext(options) {
       const userId = getUserId();
       if (!supabase || !userId || !gymId || !exerciseId) return null;
 
-      const key = cacheKey(gymId, exerciseId, equipmentId);
+      const key = cacheKey(userId, gymId, exerciseId, equipmentId, excludeSessionId);
       if (historyCache.has(key)) {
         return historyCache.get(key);
       }
 
       let query = supabase
-        .from("session_exercises")
+        .from("workout_sessions")
         .select(`
           id,
-          exercise_order,
           created_at,
-          gym_equipment_id,
-          workout_sessions!inner(
+          performed_on,
+          session_exercises!inner(
             id,
-            owner_id,
-            gym_id,
-            performed_on,
-            status,
-            created_at
-          ),
-          exercise_sets(
-            id,
-            set_number,
-            weight,
-            reps,
-            is_warmup,
-            reported_rir_bucket,
-            rir_source
+            exercise_order,
+            gym_equipment_id,
+            exercise_id,
+            exercise_sets(
+              id,
+              set_number,
+              weight,
+              reps,
+              is_warmup,
+              reported_rir_bucket,
+              rir_source
+            )
           )
         `)
-        .eq("workout_sessions.owner_id", userId)
-        .eq("workout_sessions.gym_id", gymId)
-        .eq("workout_sessions.status", "completed")
-        .eq("exercise_id", exerciseId);
+        .eq("owner_id", userId)
+        .eq("gym_id", gymId)
+        .eq("status", "completed")
+        .eq("session_exercises.exercise_id", exerciseId);
 
       if (equipmentId) {
-        query = query.eq("gym_equipment_id", equipmentId);
+        query = query.eq("session_exercises.gym_equipment_id", equipmentId);
       }
 
       if (excludeSessionId) {
-        query = query.neq("session_id", excludeSessionId);
+        query = query.neq("id", excludeSessionId);
       }
 
       query = query
-        .order("performed_on", { foreignTable: "workout_sessions", ascending: false })
-        .order("created_at", { foreignTable: "workout_sessions", ascending: false })
-        .order("id", { foreignTable: "workout_sessions", ascending: false })
-        .order("exercise_order", { ascending: false })
+        .order("performed_on", { ascending: false })
+        .order("created_at", { ascending: false })
         .order("id", { ascending: false })
         .limit(1);
 
@@ -148,14 +143,26 @@ export function createSessionHistoryContext(options) {
         return null;
       }
 
-      const match = data[0];
+      const session = data[0];
+      const match = (session.session_exercises || [])
+        .filter((exercise) => (
+          exercise.exercise_id === exerciseId
+          && (!equipmentId || exercise.gym_equipment_id === equipmentId)
+        ))
+        .sort((a, b) => b.exercise_order - a.exercise_order || b.id - a.id)[0];
+
+      if (!match) {
+        historyCache.set(key, null);
+        return null;
+      }
+
       const sets = (match.exercise_sets || [])
         .filter(isCompletedSet)
         .sort((a, b) => a.set_number - b.set_number || a.id - b.id);
 
       const result = {
-        sessionId: match.workout_sessions.id,
-        performed_on: match.workout_sessions.performed_on,
+        sessionId: session.id,
+        performed_on: session.performed_on,
         gymEquipmentId: match.gym_equipment_id,
         sets,
       };
