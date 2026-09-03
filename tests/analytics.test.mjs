@@ -59,14 +59,25 @@ test("joins dashboard records and applies canonical RIR working-set classificati
   assert.deepEqual(workingSets(records).map((record) => record.id), [2]);
 });
 
-test("keeps equipment identity on joined dashboard records", () => {
+test("keeps canonical equipment identity separate from historical display provenance", () => {
   const [record] = joinDashboardData(
     [{ id: 10, performed_on: "2026-08-10" }],
-    [{ id: 20, session_id: 10, exercise_id: 1, exercises: { name: "Press" }, equipment_id: "Machine A" }],
+    [{ id: 20, session_id: 10, exercise_id: 1, exercises: { name: "Press" }, gym_equipment_id: 42, equipment_name_snapshot: "Prime Leg Extension" }],
     [{ id: 1, session_exercise_id: 20, is_warmup: false }],
   );
-  assert.equal(record.equipment_id, "Machine A");
-  assert.equal(getEquipmentSeriesKey(record), "equipment-Machine A");
+  assert.equal(record.equipment_id, 42);
+  assert.equal(record.equipment_name, "Prime Leg Extension");
+  assert.equal(getEquipmentSeriesKey(record), "equipment-42");
+});
+
+test("keeps same-named equipment IDs in separate progression series", () => {
+  const records = [
+    set({ id: 1, session_id: 10, equipment_id: 42, equipment_name: "Prime" }),
+    set({ id: 2, session_id: 11, equipment_id: 42, equipment_name: "Prime" }),
+    set({ id: 3, session_id: 10, equipment_id: 43, equipment_name: "Prime" }),
+    set({ id: 4, session_id: 11, equipment_id: 43, equipment_name: "Prime" }),
+  ];
+  assert.deepEqual(selectRepresentativeSetsBySeries(records, 1).map(getEquipmentSeriesKey), ["equipment-42", "equipment-42", "equipment-43", "equipment-43"]);
 });
 
 test("calculates independent detailed exposure and max-child UI group exposure", () => {

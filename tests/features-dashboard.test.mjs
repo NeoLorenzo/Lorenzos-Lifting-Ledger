@@ -7,8 +7,15 @@ import {
   datePosition,
   deriveProgressionObservation,
   formatProgressionAnnotation,
+  formatEquipmentLabel,
   getAdaptiveDateTicks,
 } from "../features/dashboard.js";
+
+test("formats progression equipment labels from names with defensive fallbacks", () => {
+  assert.equal(formatEquipmentLabel({ equipment_id: 42, equipment_name: "Prime Leg Extension" }), "Prime Leg Extension");
+  assert.equal(formatEquipmentLabel({ equipment_id: 42, equipment_name: "  " }), "42");
+  assert.equal(formatEquipmentLabel({ equipment_id: null, equipment_name: null }), "Not recorded");
+});
 
 test("exports createDashboardFeature factory function", () => {
   assert.equal(typeof createDashboardFeature, "function");
@@ -51,7 +58,9 @@ test("dashboard synchronizes contextual range controls and keeps progression his
   assert.match(source, /function formatHistoryDate\(value\)/);
   assert.match(source, /padStart\(2, "0"\)/);
   assert.match(source, /\$\{formatDecimal\(Number\(record\.weight\)\)\} kg/);
-  assert.match(source, /return equipmentId === null[\s\S]*: String\(equipmentId\);/);
+  assert.match(source, /formatEquipmentLabel\(record\)/);
+  assert.match(source, /formatEquipmentLabel\(sample\)/);
+  assert.match(source, /formatEquipmentLabel\(point\.record\)/);
   assert.doesNotMatch(source, /: `Equipment \$\{equipmentId\}`/);
   assert.match(source, /E1RM_MODELS\.map\(\(model\) => `\$\{model\.label\}: \$\{formatOneRepMaxValue/);
 });

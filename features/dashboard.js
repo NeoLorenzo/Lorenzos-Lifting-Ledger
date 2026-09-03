@@ -444,7 +444,7 @@ export function createDashboardFeature(options) {
       const swatch = document.createElement("i");
       swatch.setAttribute("aria-hidden", "true");
       const seriesLabel = document.createElement("span");
-      seriesLabel.textContent = formatEquipmentLabel(record.equipment_id);
+      seriesLabel.textContent = formatEquipmentLabel(record);
       series.append(swatch, seriesLabel);
       const performance = document.createElement("strong");
       const load = record.weight === null ? "Load not recorded" : `${formatDecimal(Number(record.weight))} kg`;
@@ -484,12 +484,12 @@ export function createDashboardFeature(options) {
       item.type = "button";
       item.className = "progression-series-pill";
       item.setAttribute("aria-pressed", String(enabled));
-      item.setAttribute("aria-label", `${enabled ? "Hide" : "Show"} ${formatEquipmentLabel(sample?.equipment_id)} series`);
+      item.setAttribute("aria-label", `${enabled ? "Hide" : "Show"} ${formatEquipmentLabel(sample)} series`);
       item.style.setProperty("--series-color", seriesColors.get(seriesKey));
       const swatch = document.createElement("i");
       swatch.setAttribute("aria-hidden", "true");
       const label = document.createElement("span");
-      label.textContent = formatEquipmentLabel(sample?.equipment_id);
+      label.textContent = formatEquipmentLabel(sample);
       item.append(swatch, label);
       item.addEventListener("click", () => {
         hiddenProgressionSeries = new Set(hiddenProgressionSeries);
@@ -580,7 +580,7 @@ export function createDashboardFeature(options) {
       const tooltipDate = document.createElement("strong");
       tooltipDate.textContent = formatShortDate(point.record.performed_on);
       const tooltipSeries = document.createElement("span");
-      tooltipSeries.textContent = formatEquipmentLabel(point.record.equipment_id);
+      tooltipSeries.textContent = formatEquipmentLabel(point.record);
       const tooltipPerformance = document.createElement("span");
       const load = point.record.weight === null ? "Load not recorded" : `${formatDecimal(Number(point.record.weight))} ${formatWeightUnit(point.record.exercise_name)}`;
       const reps = point.record.reps === null ? "reps not recorded" : `${point.record.reps} ${point.record.reps === 1 ? "rep" : "reps"}`;
@@ -786,7 +786,10 @@ function assignExerciseSeriesColors(exerciseName, seriesKeys) {
   return colors;
 }
 
-function formatEquipmentLabel(equipmentId) {
+export function formatEquipmentLabel(record) {
+  const equipmentName = typeof record?.equipment_name === "string" ? record.equipment_name.trim() : record?.equipment_name;
+  if (equipmentName) return String(equipmentName);
+  const equipmentId = record?.equipment_id;
   return equipmentId === null || equipmentId === undefined || equipmentId === ""
     ? "Not recorded"
     : String(equipmentId);
