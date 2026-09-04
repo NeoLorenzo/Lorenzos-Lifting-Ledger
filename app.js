@@ -5,6 +5,7 @@ import { createBodyWeightFeature } from "./features/body-weight.js";
 import { createPresetFeature } from "./features/presets.js";
 import { createDashboardFeature } from "./features/dashboard.js";
 import { createSessionFeature } from "./features/session/session-controller.js";
+import { initializePullToRefresh } from "./features/pull-to-refresh.js";
 import { formatSetClassification, isAnalyticalWorkingSet } from "./set-model.js";
 
 const loadingView = document.querySelector("#loading");
@@ -103,6 +104,7 @@ const liveSessionFeature = createSessionFeature({
   liveContainer: typeof document !== "undefined" ? document.querySelector("#live-session-container") : null,
   wizardModal: typeof document !== "undefined" ? (document.querySelector("#session-wizard-modal") || document.querySelector("#session-modal")) : null,
 });
+initializePullToRefresh();
 const bodyWeightFeature = createBodyWeightFeature({
   getClient: () => supabaseClient,
   getUserId: () => activeUserId,
