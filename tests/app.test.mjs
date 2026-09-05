@@ -648,7 +648,7 @@ test("creates, resumes, and concludes one persisted active workout session", asy
   assert.match(migration, /security invoker/);
   assert.match(migration, /set search_path = ''/);
   assert.match(migration, /revoke all on function public\.start_or_resume_workout_session\(\) from public, anon/);
-  assert.match(serviceWorker, /lifting-ledger-v40/);
+  assert.match(serviceWorker, /lifting-ledger-v41/);
   assert.match(presetsFeature, /async function openSessionPresetPicker\(\)/);
   assert.match(setCountMigration, /row_number\(\) over \(order by random\(\)\)/);
   assert.match(setCountMigration, /generate_series\(1, membership\.set_count\)/);
