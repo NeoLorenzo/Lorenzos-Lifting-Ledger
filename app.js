@@ -204,7 +204,10 @@ document.addEventListener("click", (event) => {
 });
 
 window.addEventListener("popstate", () => {
-  if (!signedInView.hidden) return;
+  if (!signedInView.hidden) {
+    showPage(readSignedInPageFromUrl(), { updateHistory: false });
+    return;
+  }
   const documentId = new URLSearchParams(window.location.search).get("literature");
   if (documentId && LITERATURE_DOCUMENTS[documentId]) {
     void openPublicLiteratureDocument(documentId, false);
@@ -296,7 +299,11 @@ function renderSession(session) {
     signedInView.hidden = false;
     signOutButton.disabled = false;
     clearError();
-    showPage("home");
+    const pageName = readSignedInPageFromUrl();
+    if (hasInvalidSignedInPageInUrl() || new URLSearchParams(window.location.search).has("literature")) {
+      synchronizeSignedInPageUrl(pageName, { replace: true });
+    }
+    showPage(pageName, { updateHistory: false });
     resetActiveSession();
     resetLiftList();
     dashboardFeature.reset();
@@ -383,7 +390,41 @@ const PAGE_TITLES = Object.freeze({
   document: "Literature",
 });
 
-function showPage(pageName) {
+const URL_BACKED_SIGNED_IN_PAGES = new Set([
+  "home",
+  "live-session",
+  "session-history",
+  "my-data",
+  "my-stuff",
+  "literature",
+  "settings",
+]);
+
+function readSignedInPageFromUrl() {
+  const pageName = new URLSearchParams(window.location.search).get("page");
+  return URL_BACKED_SIGNED_IN_PAGES.has(pageName) ? pageName : "home";
+}
+
+function hasInvalidSignedInPageInUrl() {
+  const pageName = new URLSearchParams(window.location.search).get("page");
+  return pageName !== null && !URL_BACKED_SIGNED_IN_PAGES.has(pageName);
+}
+
+function synchronizeSignedInPageUrl(pageName, { replace = false } = {}) {
+  const url = new URL(window.location.href);
+  if (pageName === "home") url.searchParams.delete("page");
+  else url.searchParams.set("page", pageName);
+  url.searchParams.delete("literature");
+
+  if (url.href === window.location.href) return;
+  if (replace) window.history.replaceState({ page: pageName }, "", url);
+  else window.history.pushState({ page: pageName }, "", url);
+}
+
+function showPage(pageName, { updateHistory = true } = {}) {
+  if (updateHistory && activeUserId && URL_BACKED_SIGNED_IN_PAGES.has(pageName)) {
+    synchronizeSignedInPageUrl(pageName);
+  }
   const activeMenuPage = pageName === "document" ? "literature" : pageName;
 
   for (const panel of pagePanels) {
