@@ -1,0 +1,8 @@
+{
+  "issue": 3,
+  "exercise": "Pushdown (Cable) (Bench Supported)",
+  "baseExercise": "Pushdown (Cable) (EZ bar)",
+  "movementModelDecision": "Inherit the existing cable pushdown movement-pattern vector because bench support changes body support/positioning but not the intended elbow-extension action.",
+  "hypertrophicRelevanceDecision": "Inherit the existing cable pushdown triceps relevance vector pending exercise-specific evidence; this keeps the new canonical identity scientifically complete without inventing unsupported coefficients.",
+  "date": "2026-09-05"
+}
