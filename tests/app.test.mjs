@@ -68,6 +68,29 @@ test("ships a crawlable public science and product overview", async () => {
   assert.match(sitemap, /Lorenzos-Lifting-Ledger\//);
 });
 
+test("keeps signed-in application pages in explicit URL-backed history state", async () => {
+  const app = await read("app.js");
+
+  assert.match(app, /const URL_BACKED_SIGNED_IN_PAGES = new Set\(\[[\s\S]*"live-session"[\s\S]*"session-history"[\s\S]*"my-data"[\s\S]*"my-stuff"[\s\S]*"literature"[\s\S]*"settings"/);
+  assert.match(app, /function readSignedInPageFromUrl\(\)[\s\S]*URL_BACKED_SIGNED_IN_PAGES\.has\(pageName\) \? pageName : "home"/);
+  assert.match(app, /function synchronizeSignedInPageUrl\(pageName, \{ replace = false \} = \{\}\)[\s\S]*pageName === "home"\) url\.searchParams\.delete\("page"\)[\s\S]*url\.searchParams\.set\("page", pageName\)[\s\S]*window\.history\.replaceState[\s\S]*window\.history\.pushState/);
+  assert.match(app, /if \(url\.href === window\.location\.href\) return/);
+  assert.match(app, /const pageName = readSignedInPageFromUrl\(\);[\s\S]*synchronizeSignedInPageUrl\(pageName, \{ replace: true \}\);[\s\S]*showPage\(pageName, \{ updateHistory: false \}\);/);
+  assert.match(app, /if \(!signedInView\.hidden\) \{[\s\S]*showPage\(readSignedInPageFromUrl\(\), \{ updateHistory: false \}\);[\s\S]*return;[\s\S]*const documentId = new URLSearchParams\(window\.location\.search\)\.get\("literature"\)/);
+  assert.match(app, /function showPage\(pageName, \{ updateHistory = true \} = \{\}\)[\s\S]*URL_BACKED_SIGNED_IN_PAGES\.has\(pageName\)[\s\S]*synchronizeSignedInPageUrl\(pageName\)/);
+  assert.match(app, /url\.searchParams\.delete\("literature"\)/);
+  const signedInPageSet = app.slice(
+    app.indexOf("const URL_BACKED_SIGNED_IN_PAGES"),
+    app.indexOf("function readSignedInPageFromUrl"),
+  );
+  const routeSynchronization = app.slice(
+    app.indexOf("function synchronizeSignedInPageUrl"),
+    app.indexOf("function showPage"),
+  );
+  assert.doesNotMatch(signedInPageSet, /"document"/);
+  assert.doesNotMatch(routeSynchronization, /workout_sessions|loadActiveSession|activeWorkoutSession/);
+});
+
 test("provides a dependency-free local development command", async () => {
   const [packageJson, devServer] = await Promise.all([
     read("package.json"),
