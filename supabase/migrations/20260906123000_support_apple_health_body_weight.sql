@@ -52,13 +52,15 @@ create unique index body_weight_measurements_owner_csv_date_key
 create index body_weight_measurements_owner_date_time_idx
   on public.body_weight_measurements (owner_id, measured_on, measured_at desc, id desc);
 
-create or replace function public.import_body_weight(
+drop function if exists public.import_body_weight(text, text, text, jsonb);
+
+create function public.import_body_weight(
   p_source_file_name text,
   p_source_sha256 text,
   p_canonical_sha256 text,
   p_rows jsonb
 )
-returns table (import_id uuid, measurement_count bigint)
+returns uuid
 language plpgsql
 security invoker
 set search_path = ''
@@ -133,10 +135,7 @@ begin
     measured_at = null,
     created_at = now();
 
-  return query
-  select body_import_id, count(*)
-  from public.body_weight_measurements measurement
-  where measurement.owner_id = import_owner_id;
+  return body_import_id;
 end;
 $$;
 
@@ -326,8 +325,10 @@ as $$
   order by neighbour.measured_on;
 $$;
 
+revoke all on function public.import_body_weight(text, text, text, jsonb) from public, anon;
 revoke all on function public.sync_apple_health_body_weight(jsonb) from public, anon;
 revoke all on function public.body_weight_daily_series(date, date) from public, anon;
+grant execute on function public.import_body_weight(text, text, text, jsonb) to authenticated;
 grant execute on function public.sync_apple_health_body_weight(jsonb) to authenticated;
 grant execute on function public.body_weight_daily_series(date, date) to authenticated;
 
@@ -335,6 +336,7 @@ comment on table public.body_weight_measurements is 'Owner-scoped raw scale obse
 comment on column public.body_weight_measurements.source_kind is 'Provenance class: csv_import or apple_health.';
 comment on column public.body_weight_measurements.source_record_key is 'Owner-scoped deterministic identity of the source measurement, used for idempotent ingestion.';
 comment on column public.body_weight_measurements.measured_at is 'Exact source timestamp when available. Required for Apple Health and absent for date-only CSV observations.';
+comment on function public.import_body_weight(text, text, text, jsonb) is 'Atomically imports owner-scoped date-only CSV body-weight observations and refreshes provenance imported_at for every successful import.';
 comment on function public.sync_apple_health_body_weight(jsonb) is 'Idempotently inserts authenticated-owner Apple Health bodyMass samples using caller-supplied deterministic source record keys.';
 comment on function public.body_weight_daily_series(date, date) is 'Returns one deterministic representative per measured day plus transparent interpolation strictly between measured days; same-day raw observations are preserved in the source table.';
 
