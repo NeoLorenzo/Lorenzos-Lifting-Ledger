@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(19);
+select plan(22);
 
 select has_column('public', 'body_weight_measurements', 'source_kind', 'body weight stores source kind');
 select has_column('public', 'body_weight_measurements', 'source_record_key', 'body weight stores deterministic source identity');
