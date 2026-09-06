@@ -8,6 +8,27 @@ import { createSessionFeature } from "./features/session/session-controller.js";
 import { initializePullToRefresh } from "./features/pull-to-refresh.js";
 import { formatSetClassification, isAnalyticalWorkingSet } from "./set-model.js";
 
+const PAGE_TITLES = Object.freeze({
+  home: "Home",
+  "live-session": "Live Workout",
+  "session-history": "Session history",
+  "my-data": "My data",
+  "my-stuff": "My Stuff",
+  literature: "Literature",
+  settings: "Settings",
+  document: "Literature",
+});
+
+const URL_BACKED_SIGNED_IN_PAGES = new Set([
+  "home",
+  "live-session",
+  "session-history",
+  "my-data",
+  "my-stuff",
+  "literature",
+  "settings",
+]);
+
 const loadingView = document.querySelector("#loading");
 const signedOutView = document.querySelector("#signed-out");
 const signedInView = document.querySelector("#signed-in");
@@ -378,27 +399,6 @@ function closeMenu() {
   appMenu.inert = true;
   appMenu.setAttribute("aria-hidden", "true");
 }
-
-const PAGE_TITLES = Object.freeze({
-  home: "Home",
-  "live-session": "Live Workout",
-  "session-history": "Session history",
-  "my-data": "My data",
-  "my-stuff": "My Stuff",
-  literature: "Literature",
-  settings: "Settings",
-  document: "Literature",
-});
-
-const URL_BACKED_SIGNED_IN_PAGES = new Set([
-  "home",
-  "live-session",
-  "session-history",
-  "my-data",
-  "my-stuff",
-  "literature",
-  "settings",
-]);
 
 function readSignedInPageFromUrl() {
   const pageName = new URLSearchParams(window.location.search).get("page");
