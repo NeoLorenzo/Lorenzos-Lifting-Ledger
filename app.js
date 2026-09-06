@@ -5,6 +5,7 @@ import { createBodyWeightFeature } from "./features/body-weight.js";
 import { createPresetFeature } from "./features/presets.js";
 import { createDashboardFeature } from "./features/dashboard.js";
 import { createSessionFeature } from "./features/session/session-controller.js";
+import { persistSessionHistoryExerciseCorrection } from "./features/session/history-correction.js";
 import { initializePullToRefresh } from "./features/pull-to-refresh.js";
 import { formatSetClassification, isAnalyticalWorkingSet } from "./set-model.js";
 
@@ -1214,30 +1215,16 @@ function showExerciseEditor(item, exercise, performedOn) {
 async function saveExerciseChanges(exercise, equipmentId, setUpdates) {
   if (!supabaseClient || !activeUserId) throw new Error("You are no longer signed in.");
   const requestedUserId = activeUserId;
-  const equipmentRequest = supabaseClient
-    .from("session_exercises")
-    .update({ equipment_id: equipmentId })
-    .eq("id", exercise.id)
-    .eq("owner_id", requestedUserId)
-    .select("id, equipment_id")
-    .single();
-
-  const setRequests = setUpdates.map((set) => supabaseClient
-    .from("exercise_sets")
-    .update({ weight: set.weight, reps: set.reps, is_warmup: set.isWarmup, reported_rir_bucket: set.reportedRirBucket, rir_source: set.isWarmup ? null : "user_entered" })
-    .eq("id", set.id)
-    .eq("session_exercise_id", exercise.id)
-    .eq("owner_id", requestedUserId)
-    .select("id, weight, reps, is_warmup, reported_rir_bucket, rir_source, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_brzycki_rir_adjusted, estimated_1rm_epley_rir_adjusted")
-    .single());
-
-  const [equipmentResult, ...setResults] = await Promise.all([equipmentRequest, ...setRequests]);
-  const failedResult = [equipmentResult, ...setResults].find((result) => result.error);
-  if (failedResult) throw failedResult.error;
+  const savedCorrection = await persistSessionHistoryExerciseCorrection(
+    supabaseClient,
+    exercise.id,
+    equipmentId,
+    setUpdates,
+  );
   if (requestedUserId !== activeUserId) throw new Error("Your session changed while saving.");
 
-  exercise.equipment_id = equipmentResult.data.equipment_id;
-  const savedSets = new Map(setResults.map((result) => [String(result.data.id), result.data]));
+  exercise.equipment_id = savedCorrection.equipment_id;
+  const savedSets = new Map((savedCorrection.sets ?? []).map((set) => [String(set.id), set]));
   for (const set of exercise.exercise_sets) {
     const saved = savedSets.get(String(set.id));
     if (saved) Object.assign(set, saved);
