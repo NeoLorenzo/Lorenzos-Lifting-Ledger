@@ -81,6 +81,19 @@ test("set payload conversion preserves nulls and warm-up semantics", () => {
   ]);
 });
 
+test("Session History save no longer performs sibling browser-side table updates", async () => {
+  const app = await read("app.js");
+  const start = app.indexOf("async function saveExerciseChanges");
+  const end = app.indexOf("function formatOneRepMaxRange", start);
+  const saveFunction = app.slice(start, end);
+
+  assert.ok(start >= 0 && end > start);
+  assert.match(saveFunction, /persistSessionHistoryExerciseCorrection/);
+  assert.doesNotMatch(saveFunction, /\.from\("session_exercises"\)/);
+  assert.doesNotMatch(saveFunction, /\.from\("exercise_sets"\)/);
+  assert.doesNotMatch(saveFunction, /Promise\.all/);
+});
+
 test("atomic correction migration validates the complete child set before any mutation", async () => {
   const migration = await read("supabase/migrations/20260906145000_make_session_history_corrections_atomic.sql");
   const exactSetValidation = migration.indexOf("Submitted set IDs do not exactly match the current exercise sets.");
