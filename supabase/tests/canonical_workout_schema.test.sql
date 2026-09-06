@@ -25,7 +25,7 @@ select ok(not exists (
   select 1 from public.data_imports where import_kind <> 'body_weight'
 ), 'legacy lifting-history import records are absent');
 select has_function('public', 'import_body_weight', array['text', 'text', 'text', 'jsonb'], 'body-weight import function remains');
-select has_function('public', 'body_weight_daily_series', array[]::text[], 'body-weight daily series remains');
+select has_function('public', 'body_weight_daily_series', array['date', 'date'], 'body-weight daily series remains');
 select has_function('public', 'delete_body_weight_data', array[]::text[], 'body-weight deletion remains');
 select ok((select relrowsecurity from pg_class where oid = 'public.body_weight_measurements'::regclass), 'body-weight RLS remains enabled');
 
