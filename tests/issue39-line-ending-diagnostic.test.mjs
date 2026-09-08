@@ -12,17 +12,23 @@ function diagnose(buffer) {
   const withoutBom = utf8.replace(/^\uFEFF/, "");
   const withoutBomLf = withoutBom.replace(/\r\n/g, "\n");
   const withoutBomCrlf = withoutBomLf.replace(/\n/g, "\r\n");
+  const stripFinalNewline = (value) => value.replace(/(?:\r\n|\n)$/, "");
   return {
     bytes: buffer.length,
     startsWithBom: buffer.subarray(0, 3).equals(Buffer.from([0xef, 0xbb, 0xbf])),
     crlfCount: (utf8.match(/\r\n/g) ?? []).length,
     lfCount: (utf8.match(/\n/g) ?? []).length,
+    endsWithNewline: /(?:\r\n|\n)$/.test(utf8),
     raw: sha256(buffer),
     lf: sha256(lf),
     crlf: sha256(crlf),
+    lfNoFinalNewline: sha256(stripFinalNewline(lf)),
+    crlfNoFinalNewline: sha256(stripFinalNewline(crlf)),
     withoutBom: sha256(withoutBom),
     withoutBomLf: sha256(withoutBomLf),
     withoutBomCrlf: sha256(withoutBomCrlf),
+    withoutBomLfNoFinalNewline: sha256(stripFinalNewline(withoutBomLf)),
+    withoutBomCrlfNoFinalNewline: sha256(stripFinalNewline(withoutBomCrlf)),
   };
 }
 
