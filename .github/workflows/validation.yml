@@ -50,7 +50,7 @@ jobs:
           fi
           for log in "${logs[@]}"; do
             echo "::group::$log"
-            tail -n 120 "$log"
+            cat "$log"
             echo "::endgroup::"
           done
 
