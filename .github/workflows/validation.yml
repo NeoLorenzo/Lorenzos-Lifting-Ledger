@@ -9,7 +9,7 @@ on:
       - main
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate:
@@ -22,32 +22,12 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: npm
-
-      - name: Apply issue 39 test maintenance
-        if: github.event_name == 'pull_request' && github.head_ref == 'issue-39-fix-ci-node-failures'
-        run: node scripts/issue39-apply-test-maintenance.mjs
-
-      - name: Commit issue 39 test maintenance
-        if: github.event_name == 'pull_request' && github.head_ref == 'issue-39-fix-ci-node-failures'
-        shell: bash
-        run: |
-          git add -A
-          if git diff --cached --quiet; then
-            echo "Issue #39 maintenance is already applied."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "test: reconcile CI-exposed regression assertions"
-          git push origin HEAD:${{ github.head_ref }}
 
       - name: Install dependencies
         run: npm ci
