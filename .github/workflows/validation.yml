@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      SUPABASE_TEST_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      SUPABASE_TEST_DB_URL: postgresql://postgres:postgres@127.0.0.1:55322/postgres
 
     steps:
       - name: Check out repository
@@ -32,12 +32,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Start disposable local Supabase database
-        run: npx supabase db start
+      - name: Bootstrap disposable local Supabase database
+        run: npm run db:bootstrap
 
       - name: Run canonical repository validation
         run: npm run agent:check
 
       - name: Stop disposable local Supabase database
         if: always()
-        run: npx supabase stop --no-backup
+        run: npx supabase stop --project-id heracles-bootstrap --no-backup
