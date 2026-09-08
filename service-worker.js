@@ -17,6 +17,7 @@ const APP_SHELL = [
   "./features/session/session-rendering.js",
   "./features/session/session-recents.js",
   "./features/session/session-controller.js",
+  "./features/session/history-correction.js",
   "./relative-e1rm.js",
   "./set-model.js",
   "./literature.js",
