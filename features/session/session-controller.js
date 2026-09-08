@@ -693,8 +693,12 @@ export function createSessionFeature(options) {
       // 4. If cancellation fails:
       // - do NOT clear locally persisted workout edits
       // - keep the active workout open
+      // - restore retained edits to the existing autosave reconciliation path
       // - surface an error to the user
       errorMessage = `Could not cancel workout: ${error.message}`;
+      if (activeSession && activeSession.id === targetSessionId) {
+        await autosave.retryPendingWrites(targetSessionId);
+      }
       renderCurrent();
     }
   }
