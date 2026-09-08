@@ -257,11 +257,12 @@ test("uses the authored exercise-to-muscle hypertrophic relevance layer", async 
   assert.equal(coefficients.filter((value) => value === 1).length, 186);
   assert.ok(coefficients.every((value) => [0, 0.25, 0.5, 0.75, 1].includes(value)));
   assert.equal(
-    createHash("sha256").update(matrix).digest("hex"),
-    "d02a9b06f62c634dfac77643e6f46282e0e08015d9c995fcfad63c392db8faa2",
+    createHash("sha256").update(matrix.replace(/\r\n/g, "\n")).digest("hex"),
+    "506cd478b08fa1289cf2c9263e92aa68296a92e82380919321f708a54d72c3b8",
   );
   assert.match(documentation, /^# Exercise → Muscle Hypertrophic Relevance Matrix/);
   assert.match(documentation, /not percentages/i);
+  assert.match(documentation, /506cd478b08fa1289cf2c9263e92aa68296a92e82380919321f708a54d72c3b8/);
   assert.match(documentation, /ea447d03fdc8284768512a47fb713a5670bfd7f507155df8bbf3337285b3de3f/);
   assert.match(importScript, /ALLOWED_COEFFICIENTS/);
   assert.match(importScript, /exercise rows do not exactly match the current catalogue/);
@@ -564,8 +565,9 @@ test("searches session history by exercise and edits owned exercise sets", async
   assert.match(app, /\.ilike\("session_exercises\.exercises\.name"/);
   assert.match(app, /exercise_sets\(id, set_number, weight, reps/);
   assert.match(app, /showExerciseEditor\(item, exercise, performedOn\)/);
-  assert.match(app, /\.from\("session_exercises"\)[\s\S]+\.update\(\{ equipment_id: equipmentId \}\)/);
-  assert.match(app, /\.from\("exercise_sets"\)[\s\S]+reported_rir_bucket: set\.reportedRirBucket/);
+  assert.match(app, /import \{ persistSessionHistoryExerciseCorrection \} from "\.\/features\/session\/history-correction\.js"/);
+  assert.match(app, /const savedCorrection = await persistSessionHistoryExerciseCorrection\(/);
+  assert.match(app, /exercise\.equipment_id = savedCorrection\.equipment_id/);
   assert.match(app, /\.eq\("owner_id", requestedUserId\)/);
   assert.match(app, /estimated_1rm_brzycki_rir_adjusted, estimated_1rm_epley_rir_adjusted/);
   assert.match(oneRepMaxMigration, /generated always as/);
@@ -761,16 +763,19 @@ test("applies the persisted relative-e1RM preference across history and progress
 });
 
 test("implements canonical RIR persistence, UI requirements, and four-value progression", async () => {
-  const [app, analytics, dashboard, setModel, migration, designRules] = await Promise.all([
+  const [app, analytics, dashboard, setModel, migration, designRules, historyCorrection] = await Promise.all([
     read("app.js"), read("analytics.js"), read("features/dashboard.js"), read("set-model.js"),
     read("supabase/migrations/20260820190518_implement_rir_set_model.sql"), read("docs/DESIGN_RULES.md"),
+    read("features/session/history-correction.js"),
   ]);
   assert.match(setModel, /SET_CLASS[\s\S]*WARMUP[\s\S]*WORKING[\s\S]*HIGH_RIR/);
   assert.match(analytics, /records\.filter\(isAnalyticalWorkingSet\)/);
   assert.match(app, /rirSelect\.required = !warmupInput\.checked/);
   assert.match(app, /if \(warmupInput\.checked\) rirSelect\.value = ""/);
   assert.match(app, /4\+ — not counted as a working set/);
-  assert.match(app, /rir_source: set\.isWarmup \? null : "user_entered"/);
+  assert.match(historyCorrection, /is_warmup: set\.isWarmup/);
+  assert.match(historyCorrection, /reported_rir_bucket: set\.reportedRirBucket/);
+  assert.match(historyCorrection, /\.rpc\("update_session_history_exercise"/);
   assert.doesNotMatch(`${app}\n${dashboard}`, /RPE \$\{|RPE not recorded/);
   assert.match(dashboard, /E1RM_MODELS[\s\S]*observedBrzycki[\s\S]*adjustedEpley/);
   assert.match(dashboard, /calculateRirE1rmEstimates\(record\)/);
