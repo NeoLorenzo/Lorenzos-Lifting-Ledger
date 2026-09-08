@@ -38,6 +38,22 @@ jobs:
       - name: Run canonical repository validation
         run: npm run agent:check
 
+      - name: Show validation diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          shopt -s nullglob
+          logs=(.agent-logs/*.log)
+          if (( ${#logs[@]} == 0 )); then
+            echo "No agent validation logs were produced."
+            exit 0
+          fi
+          for log in "${logs[@]}"; do
+            echo "::group::$log"
+            tail -n 120 "$log"
+            echo "::endgroup::"
+          done
+
       - name: Stop disposable local Supabase database
         if: always()
         run: npx supabase stop --project-id heracles-bootstrap --no-backup
