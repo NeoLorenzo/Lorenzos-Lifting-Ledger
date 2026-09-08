@@ -78,7 +78,7 @@ try {
     const sourcePath = path.join(MIGRATIONS_DIR, migration.name);
     const containerPath = `/tmp/${migration.name}`;
     run(docker, ["cp", sourcePath, `supabase_db_heracles-bootstrap:${containerPath}`]);
-    run(docker, ["exec", "supabase_db_heracles-bootstrap", "psql", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "postgres", "-f", containerPath]);
+    run(docker, ["exec", "supabase_db_heracles-bootstrap", "psql", "--single-transaction", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "postgres", "-f", containerPath]);
   }
 
   console.log("Clean local Supabase bootstrap completed.");
