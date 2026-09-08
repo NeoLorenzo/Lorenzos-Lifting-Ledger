@@ -17,7 +17,7 @@
 - GitHub Actions runs the repository validation gate for pull requests targeting `main` and pushes to `main`.
 - For agent work, run `npm run agent:check` as the final repository validation.
 - `npm run agent:check` is the repository-designated bounded-output validation pathway. It performs the applicable syntax and test checks while keeping routine output in `.agent-logs/`.
-- The full local equivalent requires a disposable localhost Supabase/Postgres database: start it with `npx supabase db start`, set `SUPABASE_TEST_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres`, run `npm run agent:check`, then stop it with `npx supabase stop --no-backup`.
+- The full local equivalent requires the repository's isolated disposable database bootstrap: run `npm run db:bootstrap`, set `SUPABASE_TEST_DB_URL=postgresql://postgres:postgres@127.0.0.1:55322/postgres`, run `npm run agent:check`, then stop it with `npx supabase stop --project-id heracles-bootstrap --no-backup`.
 - Do not point `SUPABASE_TEST_DB_URL` at a hosted or production database; `scripts/db-check.mjs` intentionally rejects non-localhost targets.
 - Do not bypass legitimate validation merely to obtain a passing result.
 - Do not weaken or remove legitimate tests merely to make validation pass.
