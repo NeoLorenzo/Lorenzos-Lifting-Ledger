@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
+// Temporary diagnostic for #39; remove before merge.
 const sha256 = (value) => createHash("sha256").update(value).digest("hex");
 
 function diagnose(buffer) {
