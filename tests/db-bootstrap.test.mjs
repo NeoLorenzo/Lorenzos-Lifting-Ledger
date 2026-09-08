@@ -18,6 +18,7 @@ test("clean bootstrap uses a committed baseline and only later validated migrati
   assert.match(source, /project_id = "heracles-bootstrap"/);
   assert.match(source, /port = 55322/);
   assert.match(source, /docker\.exe/);
+  assert.match(source, /--single-transaction/);
   assert.doesNotMatch(source, /indexOf|\.slice\(|readMigration|jsonb_array_elements|--linked/);
 
   const dbCheck = fs.readFileSync("scripts/db-check.mjs", "utf8");

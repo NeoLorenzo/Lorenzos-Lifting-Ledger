@@ -112,7 +112,9 @@ The initial published version contains:
 - 218 cells at `0.75`;
 - 186 cells at `1.00`.
 
-Source CSV SHA-256: `d02a9b06f62c634dfac77643e6f46282e0e08015d9c995fcfad63c392db8faa2`.
+Source-text SHA-256 (UTF-8 BOM retained; CRLF normalized to LF before hashing): `506cd478b08fa1289cf2c9263e92aa68296a92e82380919321f708a54d72c3b8`.
+
+The source-checksum metadata was corrected in September 2026 after Linux CI exposed that the originally documented value matched neither the committed bytes nor BOM, line-ending, or final-newline normalization variants. Repository history confirms that the authoritative CSV blob has been unchanged since it and this documentation were introduced together on 2026-08-10; this correction changes provenance metadata only, not any exercise–muscle coefficient.
 
 Canonical payload SHA-256: `ea447d03fdc8284768512a47fb713a5670bfd7f507155df8bbf3337285b3de3f`.
 

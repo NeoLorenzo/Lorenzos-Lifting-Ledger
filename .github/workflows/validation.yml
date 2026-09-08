@@ -1,0 +1,59 @@
+name: Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Syntax, frontend, and database regression checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SUPABASE_TEST_DB_URL: postgresql://postgres:postgres@127.0.0.1:55322/postgres
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Bootstrap disposable local Supabase database
+        run: npm run db:bootstrap
+
+      - name: Run canonical repository validation
+        run: npm run agent:check
+
+      - name: Show validation diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          shopt -s nullglob
+          logs=(.agent-logs/*.log)
+          if (( ${#logs[@]} == 0 )); then
+            echo "No agent validation logs were produced."
+            exit 0
+          fi
+          for log in "${logs[@]}"; do
+            echo "::group::$log"
+            cat "$log"
+            echo "::endgroup::"
+          done
+
+      - name: Stop disposable local Supabase database
+        if: always()
+        run: npx supabase stop --project-id heracles-bootstrap --no-backup
