@@ -1,6 +1,6 @@
 begin;
 
-create or replace function public.get_kleos_strength_snapshot()
+create or replace function public.get_kleos_strength_snapshot(p_owner_id uuid)
 returns table (
   exercise_id bigint,
   exercise_name text,
@@ -11,17 +11,10 @@ returns table (
 )
 language sql
 stable
-security definer
+security invoker
 set search_path = ''
 as $$
-  with authorized_owner as (
-    select id
-    from auth.users
-    where lower(email) = 'theneolorenzo@gmail.com'
-    order by created_at asc
-    limit 1
-  ),
-  candidate_sets as (
+  with candidate_sets as (
     select
       ws.id as session_id,
       ws.performed_on,
@@ -29,9 +22,7 @@ as $$
       e.name as exercise_name,
       es.id as set_id,
       es.estimated_1rm_high as estimated_1rm
-    from authorized_owner owner
-    join public.workout_sessions ws
-      on ws.owner_id = owner.id
+    from public.workout_sessions ws
     join public.session_exercises se
       on se.session_id = ws.id
      and se.owner_id = ws.owner_id
@@ -40,7 +31,8 @@ as $$
     join public.exercise_sets es
       on es.session_exercise_id = se.id
      and es.owner_id = ws.owner_id
-    where ws.status = 'completed'
+    where ws.owner_id = p_owner_id
+      and ws.status = 'completed'
       and ws.performed_on >= current_date - 29
       and not es.is_warmup
       and es.reported_rir_bucket between 0 and 3
@@ -81,12 +73,12 @@ as $$
   order by ranked_sets.exercise_name, ranked_sets.exercise_id;
 $$;
 
-comment on function public.get_kleos_strength_snapshot() is
-  'Read-only Kleos export for the authorized owner. Returns one row per exercise trained in at least 3 distinct completed sessions across today plus the preceding 29 calendar dates. best_1rm is the highest positive estimated_1rm_high from non-warm-up RIR 0-3 working sets; estimated_1rm_high is the upper observed Brzycki/Epley estimate and is not a measured true 1RM.';
+comment on function public.get_kleos_strength_snapshot(uuid) is
+  'Service-only read export for one owner. Returns one row per exercise trained in at least 3 distinct completed sessions across today plus the preceding 29 calendar dates. best_1rm is the highest positive estimated_1rm_high from non-warm-up RIR 0-3 working sets; estimated_1rm_high is the upper observed Brzycki/Epley estimate and is not a measured true 1RM.';
 
-revoke all on function public.get_kleos_strength_snapshot() from public;
-revoke all on function public.get_kleos_strength_snapshot() from anon;
-revoke all on function public.get_kleos_strength_snapshot() from authenticated;
-grant execute on function public.get_kleos_strength_snapshot() to service_role;
+revoke all on function public.get_kleos_strength_snapshot(uuid) from public;
+revoke all on function public.get_kleos_strength_snapshot(uuid) from anon;
+revoke all on function public.get_kleos_strength_snapshot(uuid) from authenticated;
+grant execute on function public.get_kleos_strength_snapshot(uuid) to service_role;
 
 commit;
