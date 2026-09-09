@@ -35,13 +35,14 @@ test("raw export RPC is a service-only security invoker", () => {
   assert.doesNotMatch(migration, /from auth\.users/i);
 });
 
-test("Edge Function validates a Kleos session before using Heracles service privileges", () => {
-  assert.match(edgeFunction, /\/auth\/v1\/user/);
-  assert.match(edgeFunction, /theneolorenzo@gmail\.com/);
+test("Edge Function validates the forwarded user token through the Kleos gateway before using Heracles service privileges", () => {
+  assert.match(edgeFunction, /verify-heracles-caller/);
+  assert.match(edgeFunction, /Authorization: authorization/);
+  assert.match(edgeFunction, /payload\?\.authorized === true/);
   assert.match(edgeFunction, /SUPABASE_SERVICE_ROLE_KEY/);
   assert.match(edgeFunction, /auth\.admin\.listUsers/);
   assert.match(edgeFunction, /rpc\("get_kleos_strength_snapshot"[\s\S]*p_owner_id: owner\.id/);
-  assert.doesNotMatch(edgeFunction, /sb_secret_/i);
+  assert.doesNotMatch(edgeFunction, /sb_(?:publishable|secret)_/i);
 });
 
 test("export response declares its filtering and estimation contract", () => {
