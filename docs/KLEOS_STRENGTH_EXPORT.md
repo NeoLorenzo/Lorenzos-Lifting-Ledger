@@ -1,6 +1,6 @@
 # Kleos strength export
 
-Heracles remains the source of truth for workout sessions, exercise identity, sets, and estimated strength performance. Kleos receives only a narrow derived snapshot; it does not receive raw workout history and cannot write workout data back to Heracles.
+Heracles remains the source of truth for workout sessions, exercise identity, sets, equipment, and estimated strength performance. Kleos receives only a narrow derived snapshot; it does not receive raw workout history and cannot write workout data back to Heracles.
 
 ## Qualification window
 
@@ -27,15 +27,22 @@ It is therefore:
 
 The response labels this basis as `observed_e1rm_high`.
 
+## Equipment provenance
+
+`equipment_name` is taken from `session_exercises.equipment_name_snapshot` on the **same session exercise as the set that produced `best_1rm`**. This intentionally uses the historical snapshot rather than the current equipment catalogue name, so a later rename does not rewrite the context of an older lift.
+
+If a legacy session genuinely has no equipment snapshot, `equipment_name` is `null`. Kleos preserves that as missing equipment context rather than guessing a machine.
+
 ## Security boundary
 
 `public.get_kleos_strength_snapshot()` is executable only by the Heracles service role. Ordinary `anon` and `authenticated` Heracles clients cannot call it.
 
 The `kleos-strength` Edge Function is the only cross-project HTTP boundary. It accepts a Kleos bearer token, validates that token against the Kleos Supabase Auth project, requires the authorized Kleos account, and only then calls the service-only export RPC. No Heracles service credential is shared with Kleos or exposed to a browser.
 
-The endpoint returns only:
+The endpoint contract is version `1.1.0` and returns only:
 
 - exercise ID and name;
+- historical machine/equipment name for the selected estimate;
 - `best_1rm`;
 - qualifying-session count;
 - date on which the selected estimate was achieved;
