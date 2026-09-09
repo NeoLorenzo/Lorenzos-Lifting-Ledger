@@ -12,6 +12,7 @@ const edgeFunction = await readFile(
 );
 
 test("Kleos export uses completed analytical working sets in a 30-calendar-day window", () => {
+  assert.match(migration, /ws\.owner_id = p_owner_id/i);
   assert.match(migration, /ws\.status = 'completed'/i);
   assert.match(migration, /ws\.performed_on >= current_date - 29/i);
   assert.match(migration, /not es\.is_warmup/i);
@@ -26,17 +27,20 @@ test("Kleos export requires three distinct sessions and selects the maximum obse
   assert.match(migration, /'observed_e1rm_high'::text as estimation_basis/i);
 });
 
-test("raw export RPC is not exposed to ordinary Heracles clients", () => {
-  assert.match(migration, /revoke all on function public\.get_kleos_strength_snapshot\(\) from anon/i);
-  assert.match(migration, /revoke all on function public\.get_kleos_strength_snapshot\(\) from authenticated/i);
-  assert.match(migration, /grant execute on function public\.get_kleos_strength_snapshot\(\) to service_role/i);
+test("raw export RPC is a service-only security invoker", () => {
+  assert.match(migration, /security invoker/i);
+  assert.match(migration, /revoke all on function public\.get_kleos_strength_snapshot\(uuid\) from anon/i);
+  assert.match(migration, /revoke all on function public\.get_kleos_strength_snapshot\(uuid\) from authenticated/i);
+  assert.match(migration, /grant execute on function public\.get_kleos_strength_snapshot\(uuid\) to service_role/i);
+  assert.doesNotMatch(migration, /from auth\.users/i);
 });
 
 test("Edge Function validates a Kleos session before using Heracles service privileges", () => {
   assert.match(edgeFunction, /\/auth\/v1\/user/);
   assert.match(edgeFunction, /theneolorenzo@gmail\.com/);
   assert.match(edgeFunction, /SUPABASE_SERVICE_ROLE_KEY/);
-  assert.match(edgeFunction, /rpc\("get_kleos_strength_snapshot"\)/);
+  assert.match(edgeFunction, /auth\.admin\.listUsers/);
+  assert.match(edgeFunction, /rpc\("get_kleos_strength_snapshot"[\s\S]*p_owner_id: owner\.id/);
   assert.doesNotMatch(edgeFunction, /sb_secret_/i);
 });
 
