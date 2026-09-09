@@ -84,7 +84,7 @@ Deno.serve(async (req: Request) => {
   }
 
   return json({
-    contract_version: "1.0.0",
+    contract_version: "1.1.0",
     source: "heracles",
     window_days: 30,
     minimum_sessions: 3,

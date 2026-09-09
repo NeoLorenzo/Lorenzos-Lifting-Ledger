@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(8);
+select plan(9);
 
 insert into auth.users (id, email)
 values ('20000000-0000-0000-0000-000000000036', 'kleos-strength@example.test');
@@ -22,8 +22,21 @@ values
   ('20000000-0000-0000-0000-000000000036', current_date - 30, 'completed'),
   ('20000000-0000-0000-0000-000000000036', current_date - 3, 'in_progress');
 
-insert into public.session_exercises (owner_id, session_id, exercise_order, exercise_id)
-select session.owner_id, session.id, 1, exercise.id
+insert into public.session_exercises (
+  owner_id, session_id, exercise_order, exercise_id, equipment_name_snapshot
+)
+select
+  session.owner_id,
+  session.id,
+  1,
+  exercise.id,
+  case session.performed_on
+    when current_date then 'Current Machine'
+    when current_date - 1 then 'Winning Machine'
+    when current_date - 2 then 'Older Machine'
+    when current_date - 30 then 'Outside Window Machine'
+    when current_date - 3 then 'In Progress Machine'
+  end
 from public.workout_sessions session
 cross join (select id from selected_exercises where ordinal = 1) exercise
 where session.owner_id = '20000000-0000-0000-0000-000000000036';
@@ -101,6 +114,7 @@ where exercise.owner_id = '20000000-0000-0000-0000-000000000036'
 select is((select count(*) from public.get_kleos_strength_snapshot('20000000-0000-0000-0000-000000000036')), 1::bigint, 'only exercises with at least three distinct qualifying sessions are exported');
 select is((select qualifying_sessions from public.get_kleos_strength_snapshot('20000000-0000-0000-0000-000000000036')), 3::bigint, 'multiple sets in one workout still count as one session');
 select is((select best_1rm from public.get_kleos_strength_snapshot('20000000-0000-0000-0000-000000000036')), 128.33::numeric, 'highest observed e1RM in the rolling window is selected');
+select is((select equipment_name from public.get_kleos_strength_snapshot('20000000-0000-0000-0000-000000000036')), 'Winning Machine'::text, 'export carries equipment from the set that produced the selected e1RM');
 select is((select achieved_on from public.get_kleos_strength_snapshot('20000000-0000-0000-0000-000000000036')), current_date - 1, 'export preserves the date of the selected set');
 select is((select estimation_basis from public.get_kleos_strength_snapshot('20000000-0000-0000-0000-000000000036')), 'observed_e1rm_high'::text, 'export states the e1RM estimation basis');
 select ok(not has_function_privilege('authenticated', 'public.get_kleos_strength_snapshot(uuid)', 'EXECUTE'), 'authenticated clients cannot execute the export RPC directly');
