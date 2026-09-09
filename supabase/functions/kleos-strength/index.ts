@@ -1,10 +1,8 @@
 import { createClient } from "npm:@supabase/supabase-js@2.56.0";
 
 const AUTHORIZED_EMAIL = "theneolorenzo@gmail.com";
-const KLEOS_SUPABASE_URL = "https://jhpsggjphoqyygthqfki.supabase.co";
-// Publishable keys are intentionally public credentials. This key is used only to
-// ask Kleos Auth to validate the caller's Kleos access token.
-const KLEOS_PUBLISHABLE_KEY = "sb_publishable_-r71Jkgx3TiyY_2_RtMUqQ_XWdW3Beh";
+const KLEOS_CALLER_VERIFIER_URL =
+  "https://jhpsggjphoqyygthqfki.supabase.co/functions/v1/verify-heracles-caller";
 
 const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
@@ -18,19 +16,18 @@ function json(body: unknown, status = 200) {
 }
 
 async function authenticateKleosCaller(authorization: string) {
-  const response = await fetch(`${KLEOS_SUPABASE_URL}/auth/v1/user`, {
-    method: "GET",
+  const response = await fetch(KLEOS_CALLER_VERIFIER_URL, {
+    method: "POST",
     headers: {
       Authorization: authorization,
-      apikey: KLEOS_PUBLISHABLE_KEY,
+      "Content-Type": "application/json",
     },
+    body: "{}",
   });
 
-  if (!response.ok) return null;
-
-  const user = await response.json().catch(() => null) as { email?: string } | null;
-  const email = String(user?.email ?? "").trim().toLowerCase();
-  return email === AUTHORIZED_EMAIL ? user : null;
+  if (!response.ok) return false;
+  const payload = await response.json().catch(() => null) as { authorized?: boolean } | null;
+  return payload?.authorized === true;
 }
 
 Deno.serve(async (req: Request) => {
@@ -43,14 +40,14 @@ Deno.serve(async (req: Request) => {
     return json({ error: "UNAUTHORIZED" }, 401);
   }
 
-  let caller;
+  let callerAuthorized = false;
   try {
-    caller = await authenticateKleosCaller(authorization);
+    callerAuthorized = await authenticateKleosCaller(authorization);
   } catch (_error) {
     return json({ error: "AUTHENTICATION_UNAVAILABLE" }, 503);
   }
 
-  if (!caller) {
+  if (!callerAuthorized) {
     return json({ error: "UNAUTHORIZED" }, 401);
   }
 
