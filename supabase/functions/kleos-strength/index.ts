@@ -64,7 +64,24 @@ Deno.serve(async (req: Request) => {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const { data, error } = await heracles.rpc("get_kleos_strength_snapshot");
+  const { data: usersPage, error: usersError } = await heracles.auth.admin.listUsers({
+    page: 1,
+    perPage: 1000,
+  });
+  if (usersError) {
+    return json({ error: "HERACLES_OWNER_LOOKUP_FAILED" }, 500);
+  }
+
+  const owner = usersPage.users.find(
+    (user) => String(user.email ?? "").trim().toLowerCase() === AUTHORIZED_EMAIL,
+  );
+  if (!owner) {
+    return json({ error: "HERACLES_OWNER_NOT_FOUND" }, 500);
+  }
+
+  const { data, error } = await heracles.rpc("get_kleos_strength_snapshot", {
+    p_owner_id: owner.id,
+  });
   if (error) {
     return json({ error: "STRENGTH_SNAPSHOT_UNAVAILABLE" }, 500);
   }
