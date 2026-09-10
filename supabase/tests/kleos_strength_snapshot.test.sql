@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(9);
+select plan(16);
 
 insert into auth.users (id, email)
 values ('20000000-0000-0000-0000-000000000036', 'kleos-strength@example.test');
@@ -13,6 +13,13 @@ order by id
 limit 2;
 
 select is((select count(*) from selected_exercises), 2::bigint, 'test catalogue contains two exercises');
+
+insert into public.body_weight_measurements (
+  owner_id, measured_on, weight_kg, source_kind, source_record_key
+)
+values
+  ('20000000-0000-0000-0000-000000000036', current_date - 2, 80, 'csv_import', 'test:kleos-bw:1'),
+  ('20000000-0000-0000-0000-000000000036', current_date, 82, 'csv_import', 'test:kleos-bw:2');
 
 insert into public.workout_sessions (owner_id, performed_on, status)
 values
@@ -116,9 +123,20 @@ select is((select qualifying_sessions from public.get_kleos_strength_snapshot('2
 select is((select best_1rm from public.get_kleos_strength_snapshot('20000000-0000-0000-0000-000000000036')), 128.33::numeric, 'highest observed e1RM in the rolling window is selected');
 select is((select equipment_name from public.get_kleos_strength_snapshot('20000000-0000-0000-0000-000000000036')), 'Winning Machine'::text, 'export carries equipment from the set that produced the selected e1RM');
 select is((select achieved_on from public.get_kleos_strength_snapshot('20000000-0000-0000-0000-000000000036')), current_date - 1, 'export preserves the date of the selected set');
+select is((select body_weight_kg_at_achieved from public.get_kleos_strength_snapshot('20000000-0000-0000-0000-000000000036')), 81::numeric, 'winning lift uses interpolated body weight from the same workout date');
+select is((select body_weight_kind from public.get_kleos_strength_snapshot('20000000-0000-0000-0000-000000000036')), 'interpolated'::text, 'export identifies interpolated body-weight provenance');
+select is(
+  round((select best_1rm_relative_bw from public.get_kleos_strength_snapshot('20000000-0000-0000-0000-000000000036')), 4),
+  round(128.33::numeric / 81::numeric, 4),
+  'relative e1RM divides the winning absolute e1RM by workout-date body weight'
+);
 select is((select estimation_basis from public.get_kleos_strength_snapshot('20000000-0000-0000-0000-000000000036')), 'observed_e1rm_high'::text, 'export states the e1RM estimation basis');
-select ok(not has_function_privilege('authenticated', 'public.get_kleos_strength_snapshot(uuid)', 'EXECUTE'), 'authenticated clients cannot execute the export RPC directly');
-select ok(has_function_privilege('service_role', 'public.get_kleos_strength_snapshot(uuid)', 'EXECUTE'), 'service role may execute the narrow export RPC');
+select is((select weight_kg from public.get_kleos_current_body_weight('20000000-0000-0000-0000-000000000036')), 82::numeric, 'current body weight is the latest actual daily representative');
+select is((select measured_on from public.get_kleos_current_body_weight('20000000-0000-0000-0000-000000000036')), current_date, 'current body-weight export preserves its measurement date');
+select ok(not has_function_privilege('authenticated', 'public.get_kleos_strength_snapshot(uuid)', 'EXECUTE'), 'authenticated clients cannot execute the strength export RPC directly');
+select ok(has_function_privilege('service_role', 'public.get_kleos_strength_snapshot(uuid)', 'EXECUTE'), 'service role may execute the strength export RPC');
+select ok(not has_function_privilege('authenticated', 'public.get_kleos_current_body_weight(uuid)', 'EXECUTE'), 'authenticated clients cannot execute the body-weight export RPC directly');
+select ok(has_function_privilege('service_role', 'public.get_kleos_current_body_weight(uuid)', 'EXECUTE'), 'service role may execute the body-weight export RPC');
 
 select * from finish();
 rollback;
