@@ -15,11 +15,11 @@ limit 2;
 select is((select count(*) from selected_exercises), 2::bigint, 'test catalogue contains two exercises');
 
 insert into public.body_weight_measurements (
-  owner_id, measured_on, weight_kg, source_kind, source_record_key
+  owner_id, measured_on, measured_at, weight_kg, source_kind, source_record_key
 )
 values
-  ('20000000-0000-0000-0000-000000000036', current_date - 2, 80, 'csv_import', 'test:kleos-bw:1'),
-  ('20000000-0000-0000-0000-000000000036', current_date, 82, 'csv_import', 'test:kleos-bw:2');
+  ('20000000-0000-0000-0000-000000000036', current_date - 2, now() - interval '2 days', 80, 'apple_health', 'test:kleos-bw:1'),
+  ('20000000-0000-0000-0000-000000000036', current_date, now(), 82, 'apple_health', 'test:kleos-bw:2');
 
 insert into public.workout_sessions (owner_id, performed_on, status)
 values
