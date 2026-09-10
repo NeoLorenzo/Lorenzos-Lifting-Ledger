@@ -1,6 +1,6 @@
 # Kleos strength export
 
-Heracles remains the source of truth for workout sessions, exercise identity, sets, equipment, and estimated strength performance. Kleos receives only a narrow derived snapshot; it does not receive raw workout history and cannot write workout data back to Heracles.
+Heracles remains the source of truth for workout sessions, exercise identity, sets, equipment, body-weight measurements, and estimated strength performance. Kleos receives only a narrow derived snapshot; it does not receive raw workout or body-weight history and cannot write either back to Heracles.
 
 ## Qualification window
 
@@ -27,6 +27,35 @@ It is therefore:
 
 The response labels this basis as `observed_e1rm_high`.
 
+## Body-weight-relative strength
+
+The absolute `best_1rm` winner is selected first. Heracles does **not** independently select a second best relative-strength record.
+
+For the exact workout date that produced `best_1rm`, Heracles resolves body weight with the same daily semantics used by the main body-weight subsystem:
+
+- an observation on that calendar date produces `body_weight_kind = measured`;
+- a missing date strictly between surrounding measurements is linearly interpolated and produces `body_weight_kind = interpolated`;
+- no value is extrapolated before the first or after the final measurement.
+
+When workout-date body weight is available, the export includes:
+
+- `body_weight_kg_at_achieved`;
+- `body_weight_kind`;
+- `best_1rm_relative_bw = best_1rm / body_weight_kg_at_achieved`.
+
+If workout-date body weight is outside measured coverage, all three relative-strength fields are `null`. Absolute strength remains available.
+
+For dumbbell exercises, the ratio preserves the one-dumbbell convention and should be interpreted as `× BW per dumbbell`.
+
+## Current body weight
+
+Contract `1.2.0` also exposes `current_body_weight` at the top level. This is the latest actual Heracles daily body-weight representative, with:
+
+- `weight_kg`;
+- `measured_on`.
+
+It is not extrapolated forward to today. If Heracles has no body-weight measurements, `current_body_weight` is `null`.
+
 ## Equipment provenance
 
 `equipment_name` is taken from `session_exercises.equipment_name_snapshot` on the **same session exercise as the set that produced `best_1rm`**. This intentionally uses the historical snapshot rather than the current equipment catalogue name, so a later rename does not rewrite the context of an older lift.
@@ -35,15 +64,18 @@ If a legacy session genuinely has no equipment snapshot, `equipment_name` is `nu
 
 ## Security boundary
 
-`public.get_kleos_strength_snapshot()` is executable only by the Heracles service role. Ordinary `anon` and `authenticated` Heracles clients cannot call it.
+`public.get_kleos_strength_snapshot()` and `public.get_kleos_current_body_weight()` are executable only by the Heracles service role. Ordinary `anon` and `authenticated` Heracles clients cannot call them.
 
-The `kleos-strength` Edge Function is the only cross-project HTTP boundary. It accepts a Kleos bearer token, validates that token against the Kleos Supabase Auth project, requires the authorized Kleos account, and only then calls the service-only export RPC. No Heracles service credential is shared with Kleos or exposed to a browser.
+The `kleos-strength` Edge Function is the only cross-project HTTP boundary. It accepts a Kleos bearer token, validates that token against the Kleos Supabase Auth project, requires the authorized Kleos account, and only then calls the service-only export RPCs. No Heracles service credential is shared with Kleos or exposed to a browser.
 
-The endpoint contract is version `1.1.0` and returns only:
+The endpoint contract is version `1.2.0` and returns only:
 
+- current body weight and its measurement date;
 - exercise ID and name;
 - historical machine/equipment name for the selected estimate;
-- `best_1rm`;
+- absolute `best_1rm`;
+- workout-date body weight and measured/interpolated provenance when available;
+- bodyweight-relative `best_1rm_relative_bw` when available;
 - qualifying-session count;
 - date on which the selected estimate was achieved;
 - estimation-basis label;
