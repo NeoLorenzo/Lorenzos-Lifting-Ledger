@@ -76,20 +76,33 @@ Deno.serve(async (req: Request) => {
     return json({ error: "HERACLES_OWNER_NOT_FOUND" }, 500);
   }
 
-  const { data, error } = await heracles.rpc("get_kleos_strength_snapshot", {
-    p_owner_id: owner.id,
-  });
-  if (error) {
-    return json({ error: "STRENGTH_SNAPSHOT_UNAVAILABLE" }, 500);
+  const [strengthResult, bodyWeightResult] = await Promise.all([
+    heracles.rpc("get_kleos_strength_snapshot", { p_owner_id: owner.id }),
+    heracles.rpc("get_kleos_current_body_weight", { p_owner_id: owner.id }),
+  ]);
+
+  if (strengthResult.error || bodyWeightResult.error) {
+    return json({ error: "PHYSICAL_SNAPSHOT_UNAVAILABLE" }, 500);
   }
 
+  const bodyWeightRow = Array.isArray(bodyWeightResult.data) && bodyWeightResult.data.length
+    ? bodyWeightResult.data[0]
+    : null;
+  const currentBodyWeight = bodyWeightRow
+    ? {
+      weight_kg: bodyWeightRow.weight_kg,
+      measured_on: bodyWeightRow.measured_on,
+    }
+    : null;
+
   return json({
-    contract_version: "1.1.0",
+    contract_version: "1.2.0",
     source: "heracles",
     window_days: 30,
     minimum_sessions: 3,
     estimation_basis: "observed_e1rm_high",
     generated_at: new Date().toISOString(),
-    lifts: Array.isArray(data) ? data : [],
+    current_body_weight: currentBodyWeight,
+    lifts: Array.isArray(strengthResult.data) ? strengthResult.data : [],
   });
 });
