@@ -48,22 +48,25 @@ export function createSessionAutosave(options) {
     setSyncState(SYNC_STATE.SAVED);
   }
 
+  function retainPendingSetEdit(sessionId, setId, fields) {
+    if (discardedSetIds.has(setId)) return;
+    if (!storage.getPendingSetEdit(sessionId, setId)) {
+      storage.savePendingSetEdit(sessionId, setId, fields);
+    }
+  }
+
   async function persistSet(sessionId, setId, fields, version = null) {
     const supabase = getClient();
     const userId = getUserId();
     if (!supabase || !userId) {
-      if (!discardedSetIds.has(setId)) {
-        storage.savePendingSetEdit(sessionId, setId, fields);
-        setSyncState(SYNC_STATE.FAILED);
-      }
+      retainPendingSetEdit(sessionId, setId, fields);
+      setSyncState(SYNC_STATE.FAILED);
       return false;
     }
 
     if (!getOnlineStatus()) {
-      if (!discardedSetIds.has(setId)) {
-        storage.savePendingSetEdit(sessionId, setId, fields);
-        setSyncState(SYNC_STATE.OFFLINE);
-      }
+      retainPendingSetEdit(sessionId, setId, fields);
+      setSyncState(SYNC_STATE.OFFLINE);
       return false;
     }
 
@@ -119,11 +122,36 @@ export function createSessionAutosave(options) {
       }
       return true;
     } catch {
-      if (!discardedSetIds.has(setId)) {
-        storage.savePendingSetEdit(sessionId, setId, fields);
-        return false;
+      retainPendingSetEdit(sessionId, setId, fields);
+      return discardedSetIds.has(setId);
+    }
+  }
+
+  function enqueueSetPersist(sessionId, setId) {
+    const previous = pendingRequests.get(setId) || Promise.resolve(true);
+    const request = previous.catch(() => false).then(async () => {
+      if (discardedSetIds.has(setId)) return true;
+      const latest = storage.getPendingSetEdit(sessionId, setId);
+      if (!latest) return true;
+      return await persistSet(sessionId, setId, latest.fields, latest.version);
+    });
+
+    pendingRequests.set(setId, request);
+    void request.finally(() => {
+      if (pendingRequests.get(setId) !== request) return;
+      pendingRequests.delete(setId);
+      if (discardedSetIds.has(setId)) {
+        discardedSetIds.delete(setId);
       }
-      return true;
+      evaluateSyncState(sessionId);
+    });
+
+    return request;
+  }
+
+  async function waitForPendingRequests() {
+    while (pendingRequests.size > 0) {
+      await Promise.allSettled([...pendingRequests.values()]);
     }
   }
 
@@ -164,26 +192,15 @@ export function createSessionAutosave(options) {
         clearTimeout(pendingTimers.get(setId));
       }
 
-      const timer = setTimeout(async () => {
+      const timer = setTimeout(() => {
         pendingTimers.delete(setId);
         if (discardedSetIds.has(setId)) {
           discardedSetIds.delete(setId);
           evaluateSyncState(sessionId);
           return;
         }
-        const latest = storage.getPendingSetEdit(sessionId, setId);
-        if (latest) {
-          const req = persistSet(sessionId, setId, latest.fields, latest.version);
-          pendingRequests.set(setId, req);
-          try {
-            await req;
-          } finally {
-            pendingRequests.delete(setId);
-            if (discardedSetIds.has(setId)) {
-              discardedSetIds.delete(setId);
-            }
-            evaluateSyncState(sessionId);
-          }
+        if (storage.getPendingSetEdit(sessionId, setId)) {
+          enqueueSetPersist(sessionId, setId);
         } else {
           evaluateSyncState(sessionId);
         }
@@ -193,21 +210,20 @@ export function createSessionAutosave(options) {
     },
 
     async flushPendingEdits(sessionId) {
-      // Cancel all debounce timers and trigger immediate persist
+      // Cancel all debounce timers; their durable edits will be persisted below.
       for (const [, timer] of pendingTimers) {
         clearTimeout(timer);
       }
       pendingTimers.clear();
 
-      // Wait for any existing pending requests to complete first
-      if (pendingRequests.size > 0) {
-        await Promise.allSettled([...pendingRequests.values()]);
-      }
+      // Wait for every current per-set chain, including a newer generation that
+      // may have been queued behind an older in-flight request.
+      await waitForPendingRequests();
 
       const pendingEdits = storage.getPendingSetEdits(sessionId);
       if (pendingEdits.length === 0) {
         evaluateSyncState(sessionId);
-        return true;
+        return pendingRequests.size === 0;
       }
 
       if (!getOnlineStatus()) {
@@ -216,20 +232,19 @@ export function createSessionAutosave(options) {
       }
 
       setSyncState(SYNC_STATE.SAVING);
-      const promises = pendingEdits.map(async (item) => {
-        const req = persistSet(sessionId, item.setId, item.fields, item.version);
-        pendingRequests.set(item.setId, req);
-        try {
-          return await req;
-        } finally {
-          pendingRequests.delete(item.setId);
-        }
-      });
+      const results = await Promise.all(
+        pendingEdits.map((item) => enqueueSetPersist(sessionId, item.setId))
+      );
 
-      const results = await Promise.all(promises);
+      // A queued request may have chained behind one of the writes above; do not
+      // report success until every same-set tail is incapable of changing the row.
+      await waitForPendingRequests();
+
       const allSuccess = results.every(Boolean);
       evaluateSyncState(sessionId);
-      return allSuccess && storage.getPendingSetEdits(sessionId).length === 0;
+      return allSuccess
+        && pendingRequests.size === 0
+        && storage.getPendingSetEdits(sessionId).length === 0;
     },
 
     async retryPendingWrites(sessionId) {
