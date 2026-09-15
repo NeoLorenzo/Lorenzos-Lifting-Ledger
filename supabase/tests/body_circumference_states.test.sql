@@ -10,7 +10,7 @@ select has_column(
 );
 
 select is(
-  (select column_default from information_schema.columns where table_schema = 'public' and table_name = 'body_circumference_measurements' and column_name = 'measurement_state'),
+  (select column_default::text from information_schema.columns where table_schema = 'public' and table_name = 'body_circumference_measurements' and column_name = 'measurement_state'),
   '''relaxed''::text'::text,
   'measurement state defaults to relaxed for existing and legacy-style inserts'
 );
