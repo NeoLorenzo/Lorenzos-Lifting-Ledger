@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(13);
+select plan(14);
 
 select has_table('public', 'body_circumference_measurements', 'circumference table exists');
 select has_column('public', 'body_circumference_measurements', 'site', 'site identity is stored');
@@ -35,7 +35,8 @@ select lives_ok($sql$delete from public.body_circumference_measurements where id
 reset role;
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"40000000-0000-0000-0000-000000000001","role":"authenticated"}', true);
-select is((select count(*) from public.body_circumference_measurements), 2::bigint, 'cross-owner mutation attempts changed nothing');
+select is((select circumference_cm from public.body_circumference_measurements where id = 1001), 82.4::numeric, 'cross-owner update did not mutate the first owner observation');
+select is((select count(*) from public.body_circumference_measurements), 2::bigint, 'cross-owner delete did not remove first-owner observations');
 
 select * from finish();
 rollback;
