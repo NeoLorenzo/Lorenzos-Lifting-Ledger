@@ -100,18 +100,20 @@ const liveSessionFeature = createSessionFeature({
   getUserId: () => activeUserId,
   ensureExerciseCatalogue: () => ensureGlobalExerciseCatalogue(supabaseClient),
   onNavigate: (page) => showPage(page),
-  onSessionConcluded: () => {
+  onSessionConcluded: (_sessionId, wasHistoricalCorrection = false) => {
     activeWorkoutSession = null;
     activeSessionLoadedForUser = activeUserId;
     updateSessionButton();
-    showPage("home");
+    resetSessionResults();
     dashboardFeature.invalidate();
-    if (activeUserId && supabaseClient) void loadSessions(supabaseClient);
+    showPage(wasHistoricalCorrection ? "session-history" : "home");
+    if (!wasHistoricalCorrection && activeUserId && supabaseClient) void loadSessions(supabaseClient);
   },
   onSessionCancelled: () => {
     activeWorkoutSession = null;
     activeSessionLoadedForUser = activeUserId;
     updateSessionButton();
+    resetSessionResults();
     showPage("home");
     dashboardFeature.invalidate();
     if (activeUserId && supabaseClient) void loadSessions(supabaseClient);
@@ -471,7 +473,9 @@ function updateContextualNavTitle() {
 
   if (activePageName === "live-session") {
     const activeSession = liveSessionFeature.getActiveSession();
-    pageTitle = activeSession?.source_preset_name || "Live Workout";
+    pageTitle = activeSession?.is_historical_correction
+      ? "Correcting workout"
+      : activeSession?.source_preset_name || "Live Workout";
   }
 
   const topBarSyncBadge = document.querySelector("#top-bar-sync-badge");
@@ -731,7 +735,9 @@ function closeSessionModal() {
 }
 
 function updateSessionButton() {
-  startSessionButton.textContent = activeWorkoutSession ? "Resume Session" : "Create Session";
+  startSessionButton.textContent = activeWorkoutSession
+    ? activeWorkoutSession.is_historical_correction ? "Resume Correction" : "Resume Session"
+    : "Create Session";
   startSessionButton.disabled = false;
   window.requestAnimationFrame(updateContextualNavTitle);
 }
@@ -766,7 +772,7 @@ async function loadSessions(supabase) {
   let sessionRequest = supabase
     .from("workout_sessions")
     .select(
-      `id, performed_on, status, gyms(name), session_exercises${requestedSearch ? "!inner" : ""}(id, exercise_id, exercise_order, equipment_id, exercises${requestedSearch ? "!inner" : ""}(name), gym_equipment_id, equipment_name_snapshot, gym_equipment(id, name), exercise_sets(id, set_number, weight, reps, is_warmup, reported_rir_bucket, rir_source, is_drop_set, is_superset, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_brzycki_rir_adjusted, estimated_1rm_epley_rir_adjusted))`,
+      `id, performed_on, status, is_historical_correction, gyms(name), session_exercises${requestedSearch ? "!inner" : ""}(id, exercise_id, exercise_order, equipment_id, exercises${requestedSearch ? "!inner" : ""}(name), gym_equipment_id, equipment_name_snapshot, gym_equipment(id, name), exercise_sets(id, set_number, weight, reps, is_warmup, reported_rir_bucket, rir_source, is_drop_set, is_superset, estimated_1rm_brzycki, estimated_1rm_epley, estimated_1rm_brzycki_rir_adjusted, estimated_1rm_epley_rir_adjusted))`,
       { count: "exact" },
     )
     .eq("owner_id", requestedUserId);
@@ -818,6 +824,100 @@ function formatSessionResultCount(count, query) {
   const label = `${count.toLocaleString()} ${count === 1 ? "workout session" : "workout sessions"}`;
   return query ? `${label} matching "${query}"` : label;
 }
+
+function describeHistoricalSession(session) {
+  return `${session.gyms?.name ?? "Workout"} on ${formatDate(session.performed_on)}`;
+}
+
+function setSessionHistoryActionBusy(buttons, busy) {
+  for (const button of buttons) button.disabled = busy;
+}
+
+async function reopenHistoricalSession(session, buttons) {
+  if (!supabaseClient || !activeUserId) return;
+  const requestedUserId = activeUserId;
+  setSessionHistoryActionBusy(buttons, true);
+  datasetStatus.textContent = `Opening ${describeHistoricalSession(session)} for correction…`;
+
+  try {
+    const { error } = await supabaseClient.rpc("reopen_completed_workout_session", {
+      p_session_id: session.id,
+    });
+    if (error) throw error;
+    if (requestedUserId !== activeUserId) return;
+
+    liveSessionFeature.reset();
+    activeWorkoutSession = null;
+    activeSessionLoadedForUser = null;
+    activeSessionLoadingForUser = null;
+    resetSessionResults();
+    dashboardFeature.invalidate();
+    await loadActiveSession(supabaseClient);
+    if (requestedUserId !== activeUserId) return;
+    showPage("live-session");
+  } catch (error) {
+    datasetStatus.textContent = `Could not reopen workout: ${error.message}`;
+    setSessionHistoryActionBusy(buttons, false);
+  }
+}
+
+async function deleteHistoricalSession(session, buttons) {
+  if (!supabaseClient || !activeUserId) return;
+  const sessionDescription = describeHistoricalSession(session);
+  const confirmed = window.confirm(
+    `Delete ${sessionDescription}? This permanently removes the workout and all of its exercises and sets.`
+  );
+  if (!confirmed) return;
+
+  const requestedUserId = activeUserId;
+  setSessionHistoryActionBusy(buttons, true);
+  datasetStatus.textContent = `Deleting ${sessionDescription}…`;
+
+  try {
+    const { error } = await supabaseClient.rpc("delete_completed_workout_session", {
+      p_session_id: session.id,
+    });
+    if (error) throw error;
+    if (requestedUserId !== activeUserId) return;
+
+    await liveSessionFeature.invalidateHistoryContext();
+    resetSessionResults();
+    dashboardFeature.invalidate();
+    await loadSessions(supabaseClient);
+  } catch (error) {
+    datasetStatus.textContent = `Could not delete workout: ${error.message}`;
+    setSessionHistoryActionBusy(buttons, false);
+  }
+}
+
+function createSessionHistoryActions(session) {
+  const actions = document.createElement("div");
+  actions.className = "exercise-edit-actions session-history-actions";
+
+  const editButton = document.createElement("button");
+  editButton.type = "button";
+  editButton.className = "secondary-button compact";
+  editButton.textContent = "Edit workout";
+  editButton.setAttribute("aria-label", `Edit ${describeHistoricalSession(session)}`);
+
+  const deleteButton = document.createElement("button");
+  deleteButton.type = "button";
+  deleteButton.className = "text-button danger-link";
+  deleteButton.textContent = "Delete workout";
+  deleteButton.setAttribute("aria-label", `Delete ${describeHistoricalSession(session)}`);
+
+  const buttons = [editButton, deleteButton];
+  editButton.addEventListener("click", () => {
+    void reopenHistoricalSession(session, buttons);
+  });
+  deleteButton.addEventListener("click", () => {
+    void deleteHistoricalSession(session, buttons);
+  });
+
+  actions.append(editButton, deleteButton);
+  return actions;
+}
+
 function appendSessionRows(rows) {
   const fragment = document.createDocumentFragment();
 
@@ -835,7 +935,9 @@ function appendSessionRows(rows) {
     summaryCopy.className = "session-summary-copy";
 
     const heading = document.createElement("h2");
-    heading.textContent = session.status === "in_progress" ? "Workout session" : session.gyms?.name ?? "Gym";
+    heading.textContent = session.status === "in_progress"
+      ? session.is_historical_correction ? "Correcting workout" : "Workout session"
+      : session.gyms?.name ?? "Gym";
 
     const exercises = [...session.session_exercises].sort(
       (a, b) => a.exercise_order - b.exercise_order,
@@ -870,13 +972,15 @@ function appendSessionRows(rows) {
     if (session.status === "in_progress") {
       const status = document.createElement("span");
       status.className = "session-status-badge";
-      status.textContent = "In progress";
+      status.textContent = session.is_historical_correction ? "Correction in progress" : "In progress";
       summaryCopy.append(status);
     }
     summaryCopy.append(context);
     if (sessionMuscleViews) summaryCopy.append(sessionMuscleViews);
     summary.append(summaryCopy);
-    disclosure.append(summary, exerciseList);
+    disclosure.append(summary);
+    if (session.status === "completed") disclosure.append(createSessionHistoryActions(session));
+    disclosure.append(exerciseList);
     item.append(disclosure);
     fragment.append(item);
   }
