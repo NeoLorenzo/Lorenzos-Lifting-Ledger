@@ -64,6 +64,31 @@ export function createSessionFeature(options) {
     window.addEventListener("online", handleOnline);
   }
 
+  function applyHistoricalCorrectionPresentation() {
+    if (!activeSession?.is_historical_correction || !liveContainer) return;
+
+    const title = liveContainer.querySelector(".live-session-title");
+    if (title) title.textContent = "Correcting workout";
+
+    const titleLockup = liveContainer.querySelector(".live-session-title-lockup");
+    if (titleLockup && !titleLockup.querySelector(".historical-correction-note")) {
+      const note = document.createElement("p");
+      note.className = "live-session-meta historical-correction-note";
+      note.textContent = "Historical correction · changes update this existing workout";
+      titleLockup.append(note);
+    }
+
+    liveContainer.querySelector(".cancel-session-button")?.remove();
+
+    const concludeButton = liveContainer.querySelector(".conclude-session-button");
+    if (concludeButton) {
+      concludeButton.textContent = isConcluding ? "Saving correction…" : "Save correction";
+      if (!concludeButton.disabled) {
+        concludeButton.title = "Save these corrections and return the workout to completed history.";
+      }
+    }
+  }
+
   function renderCurrent() {
     if (renderer && activeSession) {
       renderer.renderLiveSession({
@@ -78,6 +103,7 @@ export function createSessionFeature(options) {
         errorMessage,
         isConcluding,
       });
+      applyHistoricalCorrectionPresentation();
     }
   }
 
@@ -230,7 +256,7 @@ export function createSessionFeature(options) {
 
     const { data: sessionData, error: sessionError } = await supabase
       .from("workout_sessions")
-      .select("id, owner_id, gym_id, performed_on, status, source_preset_id, source_preset_name, created_at")
+      .select("id, owner_id, gym_id, performed_on, status, is_historical_correction, source_preset_id, source_preset_name, created_at")
       .eq("owner_id", userId)
       .eq("status", "in_progress")
       .limit(1)
@@ -605,6 +631,7 @@ export function createSessionFeature(options) {
       }
 
       const concludedSessionId = activeSession.id;
+      const wasHistoricalCorrection = activeSession.is_historical_correction === true;
       historyContext.clearCache();
       activeSession = null;
       activeExercises = [];
@@ -613,7 +640,7 @@ export function createSessionFeature(options) {
       isConcluding = false;
 
       if (onSessionConcluded) {
-        onSessionConcluded(concludedSessionId);
+        onSessionConcluded(concludedSessionId, wasHistoricalCorrection);
       }
     } catch (error) {
       isConcluding = false;
@@ -624,8 +651,15 @@ export function createSessionFeature(options) {
     }
   }
 
+  function blockHistoricalCorrectionCancellation() {
+    if (!activeSession?.is_historical_correction) return false;
+    errorMessage = "Historical corrections cannot be cancelled. Finish the correction to return this workout to completed history.";
+    renderCurrent();
+    return true;
+  }
+
   function openCancelConfirmation() {
-    if (isConcluding) return;
+    if (isConcluding || blockHistoricalCorrectionCancellation()) return;
     const cancelModal = typeof document !== "undefined" ? document.querySelector("#cancel-workout-modal") : null;
     if (cancelModal) {
       const keepBtn = cancelModal.querySelector("#keep-workout-button");
@@ -652,7 +686,7 @@ export function createSessionFeature(options) {
   }
 
   async function cancelActiveWorkoutSession() {
-    if (isConcluding) return;
+    if (isConcluding || blockHistoricalCorrectionCancellation()) return;
     const supabase = getClient();
     const userId = getUserId();
     if (!supabase || !userId || !activeSession) return;
@@ -1094,6 +1128,13 @@ export function createSessionFeature(options) {
     },
     async cancelSession() {
       await cancelActiveWorkoutSession();
+    },
+    async invalidateHistoryContext() {
+      historyContext.clearCache();
+      if (activeSession) {
+        await refreshHistoryContext();
+        renderCurrent();
+      }
     },
     reset() {
       historyContext.clearCache();
