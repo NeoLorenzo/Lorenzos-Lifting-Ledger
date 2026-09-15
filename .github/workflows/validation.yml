@@ -51,7 +51,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          set -a
           source "$HERACLES_BROWSER_SMOKE_ENV_FILE"
+          set +a
           export HERACLES_SMOKE_SUPABASE_URL="https://heracles-smoke.local"
           export HERACLES_SMOKE_SUPABASE_KEY="$HERACLES_SMOKE_ANON_KEY"
 
