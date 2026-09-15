@@ -24,7 +24,7 @@ create table public.body_circumference_measurements (
     )
   ),
   constraint body_circumference_measurements_value_check check (
-    circumference_cm > 0 and circumference_cm < 1000
+    circumference_cm > 0 and circumference_cm <> 'NaN'::numeric
   )
 );
 
@@ -44,26 +44,26 @@ create policy "Owners can read body circumference measurements"
   on public.body_circumference_measurements
   for select
   to authenticated
-  using (auth.uid() = owner_id);
+  using ((select auth.uid()) = owner_id);
 
 create policy "Owners can insert body circumference measurements"
   on public.body_circumference_measurements
   for insert
   to authenticated
-  with check (auth.uid() = owner_id);
+  with check ((select auth.uid()) = owner_id);
 
 create policy "Owners can update body circumference measurements"
   on public.body_circumference_measurements
   for update
   to authenticated
-  using (auth.uid() = owner_id)
-  with check (auth.uid() = owner_id);
+  using ((select auth.uid()) = owner_id)
+  with check ((select auth.uid()) = owner_id);
 
 create policy "Owners can delete body circumference measurements"
   on public.body_circumference_measurements
   for delete
   to authenticated
-  using (auth.uid() = owner_id);
+  using ((select auth.uid()) = owner_id);
 
 revoke all on table public.body_circumference_measurements from anon;
 grant select, insert, update, delete on table public.body_circumference_measurements to authenticated;
