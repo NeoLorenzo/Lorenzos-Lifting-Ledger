@@ -13,11 +13,12 @@ permissions:
 
 jobs:
   validate:
-    name: Syntax, frontend, and database regression checks
+    name: Syntax, frontend, database, and browser regression checks
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
       SUPABASE_TEST_DB_URL: postgresql://postgres:postgres@127.0.0.1:55322/postgres
+      HERACLES_BROWSER_SMOKE_ENV_FILE: .agent-logs/browser-smoke.env
 
     steps:
       - name: Check out repository
@@ -37,6 +38,40 @@ jobs:
 
       - name: Run canonical repository validation
         run: npm run agent:check
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install browser smoke dependency
+        run: python -m pip install playwright==1.55.0
+
+      - name: Run real-browser smoke flow
+        shell: bash
+        run: |
+          set -euo pipefail
+          source "$HERACLES_BROWSER_SMOKE_ENV_FILE"
+          export HERACLES_SMOKE_SUPABASE_URL="https://heracles-smoke.local"
+          export HERACLES_SMOKE_SUPABASE_KEY="$HERACLES_SMOKE_ANON_KEY"
+
+          google-chrome --version
+          npm run dev -- --host 127.0.0.1 --port 5173 > .agent-logs/browser-server.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+
+          for attempt in {1..30}; do
+            if curl --fail --silent http://127.0.0.1:5173/ > /dev/null; then
+              break
+            fi
+            if (( attempt == 30 )); then
+              echo "Heracles development server did not become ready."
+              exit 1
+            fi
+            sleep 1
+          done
+
+          python tests/browser_smoke.py
 
       - name: Show validation diagnostics
         if: failure()
