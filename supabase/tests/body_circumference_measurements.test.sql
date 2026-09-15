@@ -12,8 +12,7 @@ insert into auth.users (id) values
   ('40000000-0000-0000-0000-000000000002');
 
 set local role authenticated;
-select set_config('request.jwt.claim.sub', '40000000-0000-0000-0000-000000000001', true);
-select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claims', '{"sub":"40000000-0000-0000-0000-000000000001","role":"authenticated"}', true);
 
 select lives_ok($sql$
   insert into public.body_circumference_measurements (id, owner_id, site, measured_at, circumference_cm) values
@@ -28,16 +27,14 @@ select lives_ok($sql$delete from public.body_circumference_measurements where id
 
 reset role;
 set local role authenticated;
-select set_config('request.jwt.claim.sub', '40000000-0000-0000-0000-000000000002', true);
-select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claims', '{"sub":"40000000-0000-0000-0000-000000000002","role":"authenticated"}', true);
 select is((select count(*) from public.body_circumference_measurements), 0::bigint, 'second owner cannot read first owner observations');
 select lives_ok($sql$update public.body_circumference_measurements set circumference_cm = 10 where id = 1001$sql$, 'cross-owner update is filtered by RLS');
 select lives_ok($sql$delete from public.body_circumference_measurements where id = 1003$sql$, 'cross-owner delete is filtered by RLS');
 
 reset role;
 set local role authenticated;
-select set_config('request.jwt.claim.sub', '40000000-0000-0000-0000-000000000001', true);
-select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claims', '{"sub":"40000000-0000-0000-0000-000000000001","role":"authenticated"}', true);
 select is((select count(*) from public.body_circumference_measurements), 2::bigint, 'cross-owner mutation attempts changed nothing');
 
 select * from finish();
