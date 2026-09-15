@@ -1,6 +1,6 @@
 begin;
 create extension if not exists pgtap with schema extensions;
-select plan(12);
+select plan(13);
 
 select has_table('public', 'body_circumference_measurements', 'circumference table exists');
 select has_column('public', 'body_circumference_measurements', 'site', 'site identity is stored');
