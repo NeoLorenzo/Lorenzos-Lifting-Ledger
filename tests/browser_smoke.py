@@ -102,7 +102,7 @@ def main():
             "Live Workout", timeout=20_000
         )
         expect(page.locator("#live-session-container .live-empty-title")).to_have_text("No exercises yet")
-        expect(page).to_have_url(lambda url: url.searchParams.get("page") == "live-session")
+        page.wait_for_url("**/?page=live-session", timeout=20_000)
 
         # Clean up through the real rendered cancellation workflow.
         page.locator("#live-session-container .cancel-session-button").click()
