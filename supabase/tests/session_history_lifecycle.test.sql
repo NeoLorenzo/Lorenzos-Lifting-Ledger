@@ -1,7 +1,7 @@
 begin;
 
 create extension if not exists pgtap with schema extensions;
-select plan(20);
+select plan(21);
 
 select has_column(
   'public',
@@ -176,6 +176,12 @@ select is(
   (select count(*) from public.exercise_sets where id = (select c_set_id from lifecycle_test_ids)),
   0::bigint,
   'history deletion cascades to exercise sets'
+);
+
+select is(
+  (select count(*) from public.workout_sessions where performed_on in (date '2026-09-01', date '2026-09-02')),
+  2::bigint,
+  'history deletion leaves unrelated workout sessions intact'
 );
 
 reset role;
