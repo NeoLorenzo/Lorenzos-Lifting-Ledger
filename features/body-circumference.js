@@ -6,8 +6,18 @@ export const BODY_CIRCUMFERENCE_SITES = Object.freeze([
   { id: "chest", label: "Chest", instruction: "Measure horizontally around the chest at mid-sternum level after a normal relaxed exhale." },
   { id: "waist", label: "Waist", instruction: "Measure midway between the lowest rib and the top of the hip bone after a normal relaxed exhale." },
   { id: "hips", label: "Hips", instruction: "Measure around the widest circumference of the hips and glutes with the feet together." },
-  { id: "upper_arm_left", label: "Upper arm — left", instruction: "With the arm relaxed, measure halfway between the shoulder tip and elbow tip." },
-  { id: "upper_arm_right", label: "Upper arm — right", instruction: "With the arm relaxed, measure halfway between the shoulder tip and elbow tip." },
+  {
+    id: "upper_arm_left",
+    label: "Upper arm — left",
+    instruction: "With the arm relaxed, measure halfway between the shoulder tip and elbow tip.",
+    flexedInstruction: "Bend the elbow to about 90°, hold the upper arm roughly horizontal, maximally flex the upper arm, and measure around its largest circumference.",
+  },
+  {
+    id: "upper_arm_right",
+    label: "Upper arm — right",
+    instruction: "With the arm relaxed, measure halfway between the shoulder tip and elbow tip.",
+    flexedInstruction: "Bend the elbow to about 90°, hold the upper arm roughly horizontal, maximally flex the upper arm, and measure around its largest circumference.",
+  },
   { id: "forearm_left", label: "Forearm — left", instruction: "With the arm relaxed, measure around the widest part of the forearm." },
   { id: "forearm_right", label: "Forearm — right", instruction: "With the arm relaxed, measure around the widest part of the forearm." },
   { id: "thigh_left", label: "Thigh — left", instruction: "With the leg relaxed, measure halfway between the groin crease and the top of the kneecap." },
@@ -16,11 +26,34 @@ export const BODY_CIRCUMFERENCE_SITES = Object.freeze([
   { id: "calf_right", label: "Calf — right", instruction: "Standing with weight evenly distributed, measure around the widest part of the calf." },
 ]);
 
-const BODY_CIRCUMFERENCE_SITE_MAP = new Map(BODY_CIRCUMFERENCE_SITES.map((site) => [site.id, site]));
+export const BODY_CIRCUMFERENCE_MEASUREMENT_STATES = Object.freeze(["relaxed", "flexed"]);
 
-export function normalizeBodyCircumferenceDraft({ site, measuredAt, circumferenceCm }) {
+const BODY_CIRCUMFERENCE_SITE_MAP = new Map(BODY_CIRCUMFERENCE_SITES.map((site) => [site.id, site]));
+const FLEXED_BODY_CIRCUMFERENCE_SITES = new Set(["upper_arm_left", "upper_arm_right"]);
+
+export function bodyCircumferenceMeasurementStatesForSite(site) {
+  if (!BODY_CIRCUMFERENCE_SITE_MAP.has(site)) return [];
+  return FLEXED_BODY_CIRCUMFERENCE_SITES.has(site) ? ["relaxed", "flexed"] : ["relaxed"];
+}
+
+export function getBodyCircumferenceInstruction(site, measurementState = "relaxed") {
+  const siteDefinition = BODY_CIRCUMFERENCE_SITE_MAP.get(String(site ?? ""));
+  if (!siteDefinition) return BODY_CIRCUMFERENCE_PROTOCOL;
+  const allowedStates = bodyCircumferenceMeasurementStatesForSite(siteDefinition.id);
+  const normalizedState = String(measurementState ?? "relaxed").toLowerCase();
+  const state = allowedStates.includes(normalizedState) ? normalizedState : "relaxed";
+  const siteInstruction = state === "flexed" ? siteDefinition.flexedInstruction : siteDefinition.instruction;
+  return `${siteInstruction} ${BODY_CIRCUMFERENCE_PROTOCOL}`;
+}
+
+export function normalizeBodyCircumferenceDraft({ site, measurementState = "relaxed", measuredAt, circumferenceCm }) {
   const siteDefinition = BODY_CIRCUMFERENCE_SITE_MAP.get(String(site ?? ""));
   if (!siteDefinition) throw new Error("Choose a supported body site.");
+
+  const normalizedState = String(measurementState ?? "relaxed").trim().toLowerCase();
+  if (!bodyCircumferenceMeasurementStatesForSite(siteDefinition.id).includes(normalizedState)) {
+    throw new Error("Choose a supported measurement state for this body site.");
+  }
 
   const measuredDate = new Date(measuredAt);
   if (!measuredAt || Number.isNaN(measuredDate.getTime())) throw new Error("Choose a valid measurement date and time.");
@@ -33,17 +66,36 @@ export function normalizeBodyCircumferenceDraft({ site, measuredAt, circumferenc
 
   return {
     site: siteDefinition.id,
+    measurementState: normalizedState,
     measuredAt: measuredDate.toISOString(),
     circumferenceCm: value,
   };
 }
 
-export function selectBodyCircumferenceSeries(measurements, site) {
+export function selectBodyCircumferenceSeries(measurements, site, measurementState = "relaxed") {
   if (!BODY_CIRCUMFERENCE_SITE_MAP.has(site)) return [];
+  const normalizedState = String(measurementState ?? "relaxed").toLowerCase();
+  if (!bodyCircumferenceMeasurementStatesForSite(site).includes(normalizedState)) return [];
   return measurements
-    .filter((measurement) => measurement.site === site)
-    .map((measurement) => ({ ...measurement, circumference_cm: Number(measurement.circumference_cm) }))
+    .filter((measurement) => measurement.site === site && (measurement.measurement_state ?? "relaxed") === normalizedState)
+    .map((measurement) => ({
+      ...measurement,
+      measurement_state: measurement.measurement_state ?? "relaxed",
+      circumference_cm: Number(measurement.circumference_cm),
+    }))
     .sort((a, b) => a.measured_at.localeCompare(b.measured_at) || Number(a.id) - Number(b.id));
+}
+
+function stateLabel(measurementState) {
+  return measurementState === "flexed" ? "Flexed" : "Relaxed";
+}
+
+function siteSeriesLabel(site, measurementState) {
+  const siteDefinition = BODY_CIRCUMFERENCE_SITE_MAP.get(site);
+  const siteLabel = siteDefinition?.label ?? site;
+  return FLEXED_BODY_CIRCUMFERENCE_SITES.has(site)
+    ? `${stateLabel(measurementState)} ${siteLabel}`
+    : siteLabel;
 }
 
 function ensureMarkup() {
@@ -62,6 +114,7 @@ function ensureMarkup() {
       <p class="model-explanation"><strong>Collection protocol:</strong> ${BODY_CIRCUMFERENCE_PROTOCOL} These are raw tape measurements, not body-fat or body-composition estimates.</p>
       <form id="body-circumference-form" class="body-weight-import-form">
         <label for="body-circumference-site">Body site<select id="body-circumference-site" required></select></label>
+        <label id="body-circumference-state-field" for="body-circumference-state" hidden>Measurement state<select id="body-circumference-state"></select></label>
         <p id="body-circumference-instruction" class="section-note"></p>
         <label for="body-circumference-measured-at">Measured at<input id="body-circumference-measured-at" type="datetime-local" required /></label>
         <label for="body-circumference-value">Circumference (cm)<input id="body-circumference-value" type="number" min="0.1" step="0.1" inputmode="decimal" required /></label>
@@ -84,10 +137,11 @@ function ensureMarkup() {
     section.setAttribute("aria-labelledby", "body-circumference-trends-title");
     section.innerHTML = `
       <div class="section-heading progression-heading">
-        <div><p class="section-kicker">Recorded observations</p><h2 id="body-circumference-trends-title">Body measurement trend</h2><p>Compare circumference observations from the same standardized body site over time.</p></div>
+        <div><p class="section-kicker">Recorded observations</p><h2 id="body-circumference-trends-title">Body measurement trend</h2><p>Compare circumference observations from the same standardized body site and measurement state over time.</p></div>
         <label class="exercise-select-label" for="body-circumference-trend-site">Body site<select id="body-circumference-trend-site"></select></label>
+        <label id="body-circumference-trend-state-field" class="exercise-select-label" for="body-circumference-trend-state" hidden>Measurement state<select id="body-circumference-trend-state"></select></label>
       </div>
-      <p class="model-explanation">Only recorded tape measurements are shown. Missing dates remain missing, with no interpolation or extrapolation.</p>
+      <p class="model-explanation">Only recorded tape measurements from the selected site and state are shown. Relaxed and flexed upper-arm series remain separate. Missing dates remain missing, with no interpolation or extrapolation.</p>
       <p id="body-circumference-trend-status" class="section-note"></p>
       <div id="body-circumference-trend-summary" class="recent-overview"></div>
       <div id="body-circumference-trend-history" class="performance-history"></div>
@@ -127,11 +181,28 @@ function datetimeLocalValue(value = new Date()) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
 }
 
+function replaceStateOptions(select, site, preferredState = "relaxed") {
+  const allowedStates = bodyCircumferenceMeasurementStatesForSite(site);
+  if (!select || !allowedStates.length) return "relaxed";
+  const nextState = allowedStates.includes(preferredState) ? preferredState : "relaxed";
+  select.replaceChildren();
+  for (const state of allowedStates) {
+    const option = document.createElement("option");
+    option.value = state;
+    option.textContent = stateLabel(state);
+    select.append(option);
+  }
+  select.value = nextState;
+  return nextState;
+}
+
 export function createBodyCircumferenceFeature({ getClient, getUserId }) {
   ensureMarkup();
 
   const form = document.querySelector("#body-circumference-form");
   const siteInput = document.querySelector("#body-circumference-site");
+  const stateField = document.querySelector("#body-circumference-state-field");
+  const stateInput = document.querySelector("#body-circumference-state");
   const instruction = document.querySelector("#body-circumference-instruction");
   const measuredAtInput = document.querySelector("#body-circumference-measured-at");
   const valueInput = document.querySelector("#body-circumference-value");
@@ -140,6 +211,8 @@ export function createBodyCircumferenceFeature({ getClient, getUserId }) {
   const status = document.querySelector("#body-circumference-status");
   const history = document.querySelector("#body-circumference-history");
   const trendSite = document.querySelector("#body-circumference-trend-site");
+  const trendStateField = document.querySelector("#body-circumference-trend-state-field");
+  const trendState = document.querySelector("#body-circumference-trend-state");
   const trendStatus = document.querySelector("#body-circumference-trend-status");
   const trendSummary = document.querySelector("#body-circumference-trend-summary");
   const trendHistory = document.querySelector("#body-circumference-trend-history");
@@ -148,31 +221,61 @@ export function createBodyCircumferenceFeature({ getClient, getUserId }) {
   let editingId = null;
 
   form?.addEventListener?.("submit", saveFromForm);
-  siteInput?.addEventListener?.("change", renderInstruction);
+  siteInput?.addEventListener?.("change", handleSiteChange);
+  stateInput?.addEventListener?.("change", renderInstruction);
   cancelEditButton?.addEventListener?.("click", resetForm);
   history?.addEventListener?.("click", handleHistoryAction);
-  trendSite?.addEventListener?.("change", renderTrend);
+  trendSite?.addEventListener?.("change", handleTrendSiteChange);
+  trendState?.addEventListener?.("change", renderTrend);
   initializeForm();
 
   function emptyState() {
     return { userId: null, loaded: false, loading: null, measurements: [] };
   }
 
+  function syncStateControl(preferredState = stateInput?.value ?? "relaxed") {
+    if (!siteInput) return "relaxed";
+    const allowedStates = bodyCircumferenceMeasurementStatesForSite(siteInput.value);
+    const nextState = replaceStateOptions(stateInput, siteInput.value, preferredState);
+    if (stateField) stateField.hidden = allowedStates.length <= 1;
+    return nextState;
+  }
+
+  function syncTrendStateControl(preferredState = trendState?.value ?? "relaxed") {
+    if (!trendSite) return "relaxed";
+    const allowedStates = bodyCircumferenceMeasurementStatesForSite(trendSite.value);
+    const nextState = replaceStateOptions(trendState, trendSite.value, preferredState);
+    if (trendStateField) trendStateField.hidden = allowedStates.length <= 1;
+    return nextState;
+  }
+
   function initializeForm() {
+    syncStateControl();
+    syncTrendStateControl();
     if (siteInput && BODY_CIRCUMFERENCE_SITE_MAP.has(siteInput.value)) renderInstruction();
     if (measuredAtInput && !measuredAtInput.value) measuredAtInput.value = datetimeLocalValue();
   }
 
+  function handleSiteChange() {
+    syncStateControl("relaxed");
+    renderInstruction();
+  }
+
+  function handleTrendSiteChange() {
+    syncTrendStateControl("relaxed");
+    renderTrend();
+  }
+
   function renderInstruction() {
     if (!instruction || !siteInput) return;
-    const site = BODY_CIRCUMFERENCE_SITE_MAP.get(siteInput.value);
-    instruction.textContent = site ? `${site.instruction} ${BODY_CIRCUMFERENCE_PROTOCOL}` : BODY_CIRCUMFERENCE_PROTOCOL;
+    instruction.textContent = getBodyCircumferenceInstruction(siteInput.value, stateInput?.value ?? "relaxed");
   }
 
   function resetForm() {
     editingId = null;
     form?.reset?.();
     if (siteInput) siteInput.value = "waist";
+    syncStateControl("relaxed");
     if (measuredAtInput) measuredAtInput.value = datetimeLocalValue();
     if (valueInput) valueInput.value = "";
     if (saveButton) saveButton.textContent = "Save measurement";
@@ -190,7 +293,7 @@ export function createBodyCircumferenceFeature({ getClient, getUserId }) {
     const loading = (async () => {
       const { data, error } = await supabase
         .from("body_circumference_measurements")
-        .select("id, owner_id, site, measured_at, circumference_cm, created_at, updated_at")
+        .select("id, owner_id, site, measurement_state, measured_at, circumference_cm, created_at, updated_at")
         .eq("owner_id", requestedUserId)
         .order("measured_at", { ascending: true })
         .order("id", { ascending: true });
@@ -200,7 +303,11 @@ export function createBodyCircumferenceFeature({ getClient, getUserId }) {
         userId: requestedUserId,
         loaded: true,
         loading: null,
-        measurements: (data ?? []).map((measurement) => ({ ...measurement, circumference_cm: Number(measurement.circumference_cm) })),
+        measurements: (data ?? []).map((measurement) => ({
+          ...measurement,
+          measurement_state: measurement.measurement_state ?? "relaxed",
+          circumference_cm: Number(measurement.circumference_cm),
+        })),
       };
       renderManager();
       renderTrend();
@@ -225,6 +332,7 @@ export function createBodyCircumferenceFeature({ getClient, getUserId }) {
     const payload = {
       owner_id: requestedUserId,
       site: normalized.site,
+      measurement_state: normalized.measurementState,
       measured_at: normalized.measuredAt,
       circumference_cm: normalized.circumferenceCm,
       updated_at: new Date().toISOString(),
@@ -256,7 +364,12 @@ export function createBodyCircumferenceFeature({ getClient, getUserId }) {
     if (saveButton) saveButton.disabled = true;
     if (status) status.textContent = editingId ? "Updating measurement…" : "Saving measurement…";
     try {
-      await save({ site: siteInput.value, measuredAt: measuredAtInput.value, circumferenceCm: valueInput.value }, editingId);
+      await save({
+        site: siteInput.value,
+        measurementState: stateInput?.value ?? "relaxed",
+        measuredAt: measuredAtInput.value,
+        circumferenceCm: valueInput.value,
+      }, editingId);
       if (status) status.textContent = editingId ? "Measurement updated." : "Measurement saved.";
       resetForm();
     } catch (error) {
@@ -273,6 +386,7 @@ export function createBodyCircumferenceFeature({ getClient, getUserId }) {
       if (!measurement) return;
       editingId = measurement.id;
       if (siteInput) siteInput.value = measurement.site;
+      syncStateControl(measurement.measurement_state ?? "relaxed");
       if (measuredAtInput) measuredAtInput.value = datetimeLocalValue(measurement.measured_at);
       if (valueInput) valueInput.value = String(measurement.circumference_cm);
       if (saveButton) saveButton.textContent = "Update measurement";
@@ -286,10 +400,10 @@ export function createBodyCircumferenceFeature({ getClient, getUserId }) {
     if (!deleteButton) return;
     const measurement = state.measurements.find((item) => String(item.id) === deleteButton.dataset.circumferenceDelete);
     if (!measurement) return;
-    const site = BODY_CIRCUMFERENCE_SITE_MAP.get(measurement.site);
+    const seriesName = siteSeriesLabel(measurement.site, measurement.measurement_state ?? "relaxed");
     const confirmed = typeof window === "undefined" || typeof window.confirm !== "function"
       ? true
-      : window.confirm(`Delete the ${site?.label ?? "body"} measurement from ${formatDateTime(measurement.measured_at)}?`);
+      : window.confirm(`Delete the ${seriesName.toLowerCase()} measurement from ${formatDateTime(measurement.measured_at)}?`);
     if (!confirmed) return;
     if (status) status.textContent = "Deleting measurement…";
     try {
@@ -314,12 +428,11 @@ export function createBodyCircumferenceFeature({ getClient, getUserId }) {
 
     const fragment = document.createDocumentFragment();
     for (const measurement of measurements) {
-      const site = BODY_CIRCUMFERENCE_SITE_MAP.get(measurement.site);
       const row = document.createElement("article");
       row.className = "performance-row";
       const description = document.createElement("div");
       const title = document.createElement("strong");
-      title.textContent = site?.label ?? measurement.site;
+      title.textContent = siteSeriesLabel(measurement.site, measurement.measurement_state ?? "relaxed");
       const detail = document.createElement("p");
       detail.textContent = `${formatValue(measurement.circumference_cm)} · ${formatDateTime(measurement.measured_at)}`;
       description.append(title, detail);
@@ -344,15 +457,21 @@ export function createBodyCircumferenceFeature({ getClient, getUserId }) {
   function renderTrend() {
     if (!trendSite || !trendStatus) return;
     let selectedSite = trendSite.value;
-    let series = selectBodyCircumferenceSeries(state.measurements, selectedSite);
-    if (!series.length && state.measurements.length) {
-      selectedSite = state.measurements[0].site;
+    let selectedState = trendState?.value ?? "relaxed";
+    let series = selectBodyCircumferenceSeries(state.measurements, selectedSite, selectedState);
+    const selectedSiteHasMeasurements = state.measurements.some((measurement) => measurement.site === selectedSite);
+
+    if (!selectedSiteHasMeasurements && state.measurements.length) {
+      const firstMeasurement = state.measurements[0];
+      selectedSite = firstMeasurement.site;
       trendSite.value = selectedSite;
-      series = selectBodyCircumferenceSeries(state.measurements, selectedSite);
+      selectedState = syncTrendStateControl(firstMeasurement.measurement_state ?? "relaxed");
+      series = selectBodyCircumferenceSeries(state.measurements, selectedSite, selectedState);
     }
-    const site = BODY_CIRCUMFERENCE_SITE_MAP.get(selectedSite);
+
+    const seriesName = siteSeriesLabel(selectedSite, selectedState);
     if (!series.length) {
-      trendStatus.textContent = `No ${site?.label.toLowerCase() ?? "selected"} measurements yet.`;
+      trendStatus.textContent = `No ${seriesName.toLowerCase()} measurements yet.`;
       trendSummary?.replaceChildren?.();
       trendHistory?.replaceChildren?.();
       return;
@@ -362,7 +481,7 @@ export function createBodyCircumferenceFeature({ getClient, getUserId }) {
     const latest = series.at(-1);
     const change = Number(latest.circumference_cm) - Number(first.circumference_cm);
     const changeLabel = `${change >= 0 ? "+" : "−"}${Math.abs(change).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 2 })} cm`;
-    trendStatus.textContent = `${series.length.toLocaleString()} recorded ${site?.label.toLowerCase() ?? "body"} ${series.length === 1 ? "measurement" : "measurements"}. Missing dates are not filled.`;
+    trendStatus.textContent = `${series.length.toLocaleString()} recorded ${seriesName.toLowerCase()} ${series.length === 1 ? "measurement" : "measurements"}. Missing dates are not filled.`;
 
     if (trendSummary && typeof document?.createElement === "function" && typeof trendSummary.replaceChildren === "function") {
       const summary = document.createElement("p");
