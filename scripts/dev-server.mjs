@@ -16,10 +16,27 @@ for (let index = 2; index < process.argv.length; index += 1) {
 
 const host = args.get("host") ?? "127.0.0.1";
 const port = Number(args.get("port") ?? 5173);
+const smokeSupabaseUrl = process.env.HERACLES_SMOKE_SUPABASE_URL?.trim() ?? "";
+const smokeSupabaseKey = process.env.HERACLES_SMOKE_SUPABASE_KEY?.trim() ?? "";
 
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
   throw new Error("Port must be an integer between 1 and 65535.");
 }
+
+if (Boolean(smokeSupabaseUrl) !== Boolean(smokeSupabaseKey)) {
+  throw new Error("HERACLES_SMOKE_SUPABASE_URL and HERACLES_SMOKE_SUPABASE_KEY must be provided together.");
+}
+
+if (smokeSupabaseUrl) {
+  const parsedSmokeUrl = new URL(smokeSupabaseUrl);
+  if (parsedSmokeUrl.protocol !== "https:" || parsedSmokeUrl.hostname !== "heracles-smoke.local") {
+    throw new Error("Browser-smoke Supabase overrides are restricted to https://heracles-smoke.local.");
+  }
+}
+
+const smokeConfig = smokeSupabaseUrl
+  ? `export const SUPABASE_URL = ${JSON.stringify(smokeSupabaseUrl)};\nexport const SUPABASE_PUBLISHABLE_KEY = ${JSON.stringify(smokeSupabaseKey)};\n`
+  : null;
 
 const contentTypes = new Map([
   [".css", "text/css; charset=utf-8"],
@@ -40,6 +57,15 @@ const server = createServer(async (request, response) => {
 
     if (filePath !== root && !filePath.startsWith(`${root}${sep}`)) {
       response.writeHead(403).end("Forbidden");
+      return;
+    }
+
+    if (relativePath === "config.js" && smokeConfig) {
+      response.writeHead(200, {
+        "Cache-Control": "no-store",
+        "Content-Type": "text/javascript; charset=utf-8",
+      });
+      response.end(request.method === "HEAD" ? undefined : smokeConfig);
       return;
     }
 

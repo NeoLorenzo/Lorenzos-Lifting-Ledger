@@ -19,6 +19,7 @@ function run(command, args) {
     process.stderr.write(result.stderr ?? "");
     throw new Error(`${command} ${args.join(" ")} exited with status ${result.status ?? 1}`);
   }
+  return result;
 }
 
 function parseManifest() {
@@ -61,6 +62,33 @@ function futureMigrations(cutoverVersion) {
     .sort((left, right) => left.version.localeCompare(right.version) || left.name.localeCompare(right.name));
 }
 
+function writeBrowserSmokeEnvironment(temporaryRoot) {
+  const requestedPath = process.env.HERACLES_BROWSER_SMOKE_ENV_FILE?.trim();
+  if (!requestedPath) return;
+
+  const status = run(process.execPath, [CLI, "status", "--workdir", temporaryRoot, "-o", "env"]);
+  const values = new Map();
+  for (const rawLine of (status.stdout ?? "").split(/\r?\n/)) {
+    const match = /^([A-Z0-9_]+)=(?:"([^"]*)"|'([^']*)'|(.*))$/.exec(rawLine.trim());
+    if (!match) continue;
+    values.set(match[1], match[2] ?? match[3] ?? match[4] ?? "");
+  }
+
+  const apiUrl = values.get("API_URL") ?? values.get("SUPABASE_URL");
+  const browserKey = values.get("ANON_KEY") ?? values.get("SUPABASE_ANON_KEY") ?? values.get("PUBLISHABLE_KEY");
+  if (!apiUrl || !browserKey) {
+    throw new Error("Could not read the local Supabase API URL and browser-safe key for browser smoke tests.");
+  }
+
+  const outputPath = path.resolve(ROOT, requestedPath);
+  fs.mkdirSync(path.dirname(outputPath), { recursive: true });
+  fs.writeFileSync(
+    outputPath,
+    `HERACLES_SMOKE_API_URL=${apiUrl}\nHERACLES_SMOKE_ANON_KEY=${browserKey}\n`,
+    { encoding: "utf8", mode: 0o600 },
+  );
+}
+
 const { baselinePath, cutoverVersion } = parseManifest();
 const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), "heracles-supabase-bootstrap-"));
 const temporarySupabaseDir = path.join(temporaryRoot, "supabase");
@@ -81,6 +109,7 @@ try {
     run(docker, ["exec", "supabase_db_heracles-bootstrap", "psql", "--single-transaction", "-v", "ON_ERROR_STOP=1", "-U", "postgres", "-d", "postgres", "-f", containerPath]);
   }
 
+  writeBrowserSmokeEnvironment(temporaryRoot);
   console.log("Clean local Supabase bootstrap completed.");
   console.log("SUPABASE_TEST_DB_URL=postgresql://postgres:postgres@127.0.0.1:55322/postgres");
 } finally {
