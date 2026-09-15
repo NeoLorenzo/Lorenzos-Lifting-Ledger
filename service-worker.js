@@ -8,6 +8,7 @@ const APP_SHELL = [
   "./presets.js",
   "./body-weight.js",
   "./features/body-weight.js",
+  "./features/body-circumference.js",
   "./features/dashboard.js",
   "./features/presets.js",
   "./features/pull-to-refresh.js",

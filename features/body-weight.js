@@ -1,5 +1,6 @@
 import { canonicalizeBodyWeightObservations, formatBodyWeightDate, parseBodyWeightCsv } from "../body-weight.js";
 import { resolveOneRepMaxRange } from "../relative-e1rm.js";
+import { createBodyCircumferenceFeature } from "./body-circumference.js";
 
 const BODY_WEIGHT_RPC_PAGE_SIZE = 1000;
 
@@ -42,6 +43,7 @@ async function fetchBodyWeightDailySeries(supabase) {
 
 export function createBodyWeightFeature(options) {
   const { getClient, getUserId, onInvalidateE1rmPresentations } = options;
+  const bodyCircumferenceFeature = createBodyCircumferenceFeature({ getClient, getUserId });
 
   // DOM elements lookup
   const bodyWeightFile = document.querySelector("#body-weight-file");
@@ -186,6 +188,7 @@ export function createBodyWeightFeature(options) {
     const supabase = getClient();
     const requestedUserId = getUserId();
     if (!requestedUserId || !supabase) return createEmptyBodyWeightUserState();
+    void bodyCircumferenceFeature.ensureState(force).catch(() => {});
     if (!force && bodyWeightUserState.loaded && bodyWeightUserState.userId === requestedUserId) return bodyWeightUserState;
     if (!force && bodyWeightUserState.loading && bodyWeightUserState.userId === requestedUserId) return bodyWeightUserState.loading;
 
@@ -263,6 +266,7 @@ export function createBodyWeightFeature(options) {
     const supabase = getClient();
     const requestedUserId = getUserId();
     if (!requestedUserId || !supabase) return;
+    void bodyCircumferenceFeature.ensureState().catch(() => {});
     const [bodyWeightState, countResult, firstResult, lastResult, importResult] = await Promise.all([
       ensureBodyWeightUserState(),
       supabase.from("body_weight_measurements").select("id", { count: "exact", head: true }).eq("owner_id", requestedUserId),
@@ -310,6 +314,7 @@ export function createBodyWeightFeature(options) {
     },
     reset() {
       resetBodyWeightUserState();
+      bodyCircumferenceFeature.reset();
     },
     resolveOneRepMaxRange({ low, high, exerciseName, performedOn }) {
       return resolveOneRepMaxRange({
