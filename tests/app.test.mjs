@@ -342,7 +342,7 @@ test("renders collapsed sessions with toggleable exercise-level muscle pills", a
   assert.match(app, /\.gt\("relevance", 0\)/);
   assert.match(app, /document\.createElement\("details"\)/);
   assert.match(app, /document\.createElement\("summary"\)/);
-  assert.match(app, /disclosure\.append\(summary, exerciseList\)/);
+  assert.match(app, /disclosure\.append\(summary\);[\s\S]*if \(session\.status === "completed"\) disclosure\.append\(createSessionHistoryActions\(session\)\);[\s\S]*disclosure\.append\(exerciseList\);/);
   assert.doesNotMatch(app, /disclosure\.open\s*=|setAttribute\("open"/);
   assert.match(app, /exercise\.exercise_sets\.some\(isAnalyticalWorkingSet\)/);
   assert.match(app, /className = `muscle-pill muscle-group-\$\{muscle\.uiGroup\.code\}`/);
@@ -660,7 +660,7 @@ test("creates, resumes, and concludes one persisted active workout session", asy
   assert.match(sessionController, /\.eq\("status", "in_progress"\)[\s\S]*\.maybeSingle\(\)/);
   assert.match(sessionController, /start_or_resume_workout_session/);
   assert.match(sessionController, /conclude_workout_session/);
-  assert.match(app, /activeWorkoutSession \? "Resume Session" : "Create Session"/);
+  assert.match(app, /activeWorkoutSession[\s\S]*is_historical_correction \? "Resume Correction" : "Resume Session"[\s\S]*: "Create Session"/);
   assert.match(app, /querySelector\("h1, \[data-page-heading-anchor\]"\)/);
   assert.match(app, /status\.textContent = "In progress"/);
   assert.match(styles, /\.start-session-home[\s\S]*place-content: center/);
