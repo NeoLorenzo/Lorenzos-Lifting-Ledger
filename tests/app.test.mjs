@@ -662,7 +662,7 @@ test("creates, resumes, and concludes one persisted active workout session", asy
   assert.match(sessionController, /conclude_workout_session/);
   assert.match(app, /activeWorkoutSession[\s\S]*is_historical_correction \? "Resume Correction" : "Resume Session"[\s\S]*: "Create Session"/);
   assert.match(app, /querySelector\("h1, \[data-page-heading-anchor\]"\)/);
-  assert.match(app, /status\.textContent = "In progress"/);
+  assert.match(app, /status\.textContent = session\.is_historical_correction \? "Correction in progress" : "In progress"/);
   assert.match(styles, /\.start-session-home[\s\S]*place-content: center/);
   assert.match(styles, /\.session-modal::backdrop/);
   assert.match(styles, /\.session-status-badge/);
