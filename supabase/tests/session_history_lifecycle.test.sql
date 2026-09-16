@@ -15,6 +15,7 @@ create temporary table lifecycle_test_ids (
   c_exercise_id bigint,
   c_set_id bigint
 );
+grant select, insert on lifecycle_test_ids to authenticated;
 
 insert into auth.users (id, email)
 values
