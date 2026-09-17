@@ -1,13 +1,52 @@
 # Heracles
 
-An installable, evidence-aware lifting tracker with a public scientific overview and an authenticated personal training ledger.
+**An evidence-aware strength training system that turns workout logs into interpretable strength and hypertrophy signals.**
 
-The current app has two states:
+Most lifting apps are good notebooks: they record exercises, sets, reps, and personal records. Heracles is built around a stronger requirement — the analytical model should be inspectable. It combines a practical training ledger with explicit movement and muscle models, RIR-aware strength estimation, body-weight context, provenance, and documented limitations.
 
-- signed out: a crawlable public front page explaining the product, its training model, scientific foundations, limitations, and design decisions, with **Sign in** in the top-right
-- signed in: a Home start/resume-session action, Session history, My Data, My Stuff preset management, a Literature hub, Settings for body-weight data, and a sign-out control
+The goal is not to manufacture a single authoritative "progress score." It is to preserve the underlying training evidence and derive useful signals in ways that remain understandable and contestable.
 
-It is a static site for GitHub Pages and uses Supabase Auth plus owner-scoped workout data and global reference data in Postgres.
+## What Heracles does
+
+Heracles covers both the act of training and the analysis that follows it:
+
+- start or resume persistent workout sessions and record exercises, equipment, sets, reps, load, and RIR;
+- use previous-performance context while training;
+- review completed sessions and progression over time;
+- calculate multiple observed and RIR-adjusted e1RM estimates without averaging them into a false single truth;
+- optionally normalize strength estimates to body weight when valid body-weight evidence exists;
+- model exercise-to-muscle relevance through explicit, versioned movement and muscle matrices;
+- manage reusable workout presets;
+- expose the reasoning, evidence quality, scientific foundations, and limitations through the Literature surface.
+
+Heracles deliberately does **not** treat weight × reps / tonnage as a default hypertrophy metric. Product decisions like this are documented rather than hidden inside an opaque scoring layer.
+
+## Position in the system
+
+Heracles is a domain-specific system rather than a whole-person model:
+
+- **Heracles** owns resistance-training history, training-specific analysis, and strength evidence.
+- **Kleos** can consume relevant Heracles outputs as evidence when modelling the broader current state of the person.
+- **Ariadne** connects current state and desired direction to priorities, projects, opportunities, and action.
+
+Conceptually:
+
+```text
+Training observations → Heracles analysis → Kleos current-state evidence → Ariadne strategy and action
+```
+
+Heracles goes deep on one domain. Kleos goes broad across the person. Ariadne turns desired change into execution.
+
+## Current product
+
+The application has two access states:
+
+- **Signed out:** a crawlable public front page explaining Heracles, its training model, scientific foundations, limitations, and design decisions, with **Sign in** in the top-right.
+- **Signed in:** Home and live-workout flow, Session History, My Data analytics, My Stuff preset management, a Literature hub, Settings for body-weight data, and sign-out controls.
+
+The signed-in workout flow supports persistent session state, equipment-aware exercise history, previous-performance context, and recovery-oriented autosave behavior. The application is deployed as a static GitHub Pages site and uses Supabase Auth plus owner-scoped workout data and global reference data in Postgres.
+
+> **Branding note:** the product is **Heracles**. The current GitHub repository and Pages URL still use the legacy `Lorenzos-Lifting-Ledger` slug; that infrastructure naming is being migrated separately.
 
 ## Security model
 
@@ -51,6 +90,8 @@ All dumbbell exercise weights use one product-wide convention: the stored value 
 
 Every user-data table has an `owner_id` reference to `auth.users`. Row Level Security limits select, insert, update, and delete operations to the signed-in owner. Parent/child foreign keys also include the owner ID so records cannot be connected across users. Global exercise and movement reference tables are readable by authenticated users but are not writable from the public client. Personal gym and body-weight exports remain local and are ignored by Git because this repository is public.
 
+## Scientific model
+
 The current scientific catalogue contains 138 global exercise definitions, 40 movement patterns, 40 muscles, a current 5,520-cell exercise-to-pattern mapping version, a current 1,600-cell movement-pattern-to-muscle functional mapping version, a current 5,520-cell derived exercise-to-muscle composition version, and a current 5,520-cell exercise-to-muscle hypertrophic-relevance version. Canonical workout history lives only in the normalized workout hierarchy.
 
 Exercise names are globally standardized. `session_exercises.exercise_id` is the sole performed-exercise identity and the current `exercises.name` is always used for presentation. Equipment IDs remain on session exercises rather than exercise definitions because different machines for the same movement can have different resistance profiles.
@@ -59,14 +100,18 @@ The movement-pattern schema, access model, import guarantees, and current follow
 
 The app intentionally does not calculate or display weight × reps, tonnage, or volume load. The scientific and product rationale is documented in [Why the app does not track tonnage](docs/WHY_THE_APP_DOES_NOT_TRACK_TONNAGE.md).
 
+### Strength estimation and RIR
+
 RIR is the active proximity-to-failure input; RPE is retained only as a legacy historical observation. Warm-ups store no RIR. Non-warm-up sets with reported RIR 0–3 are analytical working sets, while the stored bucket `4` means open-ended `4+` RIR and remains visible only as high-RIR history. Historical non-warm-up sets were backfilled to RIR 0 with `historical_backfill` provenance; future saved entries use `user_entered` provenance. The 0–3 cutoff is an app analytical rule, not a biological claim that 4+ RIR produces zero hypertrophy.
 
-For each representative RIR 0–3 working set, strength progression preserves four calculated e1RM values: Brzycki and Epley using completed reps, plus both formulas using completed reps + reported RIR. The representative set is selected from observed completed performance only, before RIR adjustment. Values use Brzycki `weight × 36 ÷ (37 − reps)` and Epley `weight × (1 + reps ÷ 30)`, retain the formulas' existing validity limits, and are rounded to two decimal places. The four-value model spread is not averaged into one estimate, is not a confidence interval or a measured true 1RM, and does not introduce a literature-derived true-RIR uncertainty model. High-RIR `4+` sets are excluded because their open-ended RIR cannot provide a finite adjusted repetition count. Relative presentation divides each formula value independently by body weight on the workout date; it does not store or replace those absolute estimates.
+For each representative RIR 0–3 working set, strength progression preserves four calculated e1RM values: Brzycki and Epley using completed reps, plus both formulas using completed reps + reported RIR. The representative set is selected from observed completed performance only, before RIR adjustment. Values use Brzycki `weight × 36 ÷ (37 − reps)` and Epley `weight × (1 + reps ÷ 30)`, retain the formulas' existing validity limits, and are rounded to two decimal places.
+
+The four-value model spread is not averaged into one estimate, is not a confidence interval or a measured true 1RM, and does not introduce a literature-derived true-RIR uncertainty model. High-RIR `4+` sets are excluded because their open-ended RIR cannot provide a finite adjusted repetition count. Relative presentation divides each formula value independently by body weight on the workout date; it does not store or replace those absolute estimates.
 
 ## Live infrastructure
 
-- App: <https://neolorenzo.github.io/Lorenzos-Lifting-Ledger/>
-- Supabase project: legacy-named `Lorenzo's Lifting Ledger` (`yfhmjwkscqbpzblrpsoy`, London)
+- App: <https://neolorenzo.github.io/Lorenzos-Lifting-Ledger/> — current legacy deployment slug; the product name is Heracles.
+- Supabase project: currently retains the legacy display name `Lorenzo's Lifting Ledger` (`yfhmjwkscqbpzblrpsoy`, London).
 - Production Site URL and redirect allow-list are configured in Supabase.
 - GitHub Pages deploys from `main` at `/ (root)` with HTTPS enforced.
 
@@ -105,4 +150,4 @@ npm test
 - `literature.js` — safe in-app Markdown rendering and the Literature document registry
 - `config.js` — public browser configuration only
 - `manifest.webmanifest` and `service-worker.js` — installable PWA metadata and offline shell
-- `docs/` — all app-facing scientific methods, product decisions, model interpretations, limitations, and evidence-quality specifications surfaced through Literature; filenames use uppercase snake case
+- `docs/` — app-facing scientific methods, product decisions, model interpretations, limitations, and evidence-quality specifications surfaced through Literature; filenames use uppercase snake case
