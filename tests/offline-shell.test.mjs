@@ -7,7 +7,7 @@ const repositoryRoot = new URL("../", import.meta.url);
 const staticImportPattern = /^\s*import\s+(?:[\s\S]*?\s+from\s+)?["']([^"']+)["']\s*;?/gm;
 
 function normalizeModulePath(modulePath) {
-  return path.posix.normalize(modulePath.replace(/\\/g, "/").replace(/^\.\//, ""));
+  return path.posix.normalize(modulePath.replace(/\\/g, "/").replace(/^(?:\.\/|\/)/, ""));
 }
 
 function stripUrlSuffix(specifier) {
