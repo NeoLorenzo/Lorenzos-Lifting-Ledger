@@ -1,0 +1,61 @@
+{
+  "version": "1.0.0",
+  "designSystemVersion": "0.2.0",
+  "name": "Fabbro Application Sidebar",
+  "sourceModel": "source-owned-shadcn-sidebar-adaptation",
+  "dependencies": {
+    "react": ">=19",
+    "icons": "Lucide visual grammar",
+    "reactPackage": "lucide-react"
+  },
+  "desktop": {
+    "placement": "left",
+    "defaultState": "expanded",
+    "persistent": true,
+    "collapsible": true,
+    "collapseMode": "icon",
+    "expandedWidth": "15.5rem",
+    "collapsedWidth": "4.5rem",
+    "railToggle": true,
+    "contentPlacement": "right-of-sidebar",
+    "activeIndicatorWidth": "2px",
+    "menuItemMinHeight": "2.55rem",
+    "iconSize": "1.15rem"
+  },
+  "utilityBar": {
+    "allowed": true,
+    "primaryNavigation": false,
+    "familyEndorsement": "Fabbro Systems Logo.svg",
+    "familyEndorsementTreatment": "mark-only",
+    "familyMarkSize": "24px",
+    "role": "context-session-family-utilities"
+  },
+  "mobile": {
+    "breakpoint": "900px",
+    "behavior": "offcanvas-drawer",
+    "width": "min(19rem, calc(100vw - 3rem))",
+    "backdrop": true
+  },
+  "productIdentity": {
+    "expanded": "approved product lockup",
+    "collapsed": "approved product mark"
+  },
+  "ownership": {
+    "canonical": [
+      "component composition",
+      "desktop placement",
+      "expanded and collapsed geometry",
+      "collapse behavior",
+      "active-state grammar",
+      "mobile drawer behavior",
+      "family utility separation"
+    ],
+    "productOwned": [
+      "route definitions",
+      "navigation labels",
+      "navigation icon selection",
+      "grouping",
+      "domain-specific rail utilities"
+    ]
+  }
+}

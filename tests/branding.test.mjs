@@ -22,14 +22,14 @@ test("Heracles branding preserves deployment and PWA identity contracts", () => 
     '<span class="brand-mark" aria-hidden="true">H</span>',
     "<strong>Heracles</strong>",
     "Heracles connects exercise performance",
-    "<span>Heracles</span>",
+    '<img class="sidebar-lockup" src="./brand/heracles-lockup.svg" alt="Heracles" />',
   ]) assert.ok(index.includes(expected), `missing ${expected}`);
   const structuredData = JSON.parse(index.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/)[1]);
   assert.deepEqual(
     structuredData["@graph"].map((entry) => entry.name),
     ["Heracles", "Heracles"],
   );
-  assert.match(index, /https:\/\/neolorenzo\.github\.io\/Lorenzos-Lifting-Ledger\//);
+  assert.match(index, /https:\/\/heracles\.fabbrosystems\.com\//);
   assert.doesNotMatch(index, /Lorenzo's Lifting Ledger|>Lifting Ledger</);
 
   const packageJson = JSON.parse(read("package.json"));

@@ -16,7 +16,8 @@
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon.svg" />
-    <link rel="stylesheet" href="./styles.css?v=24" />
+    <link rel="stylesheet" href="./fabbro-design/fabbro-tokens.css" />
+    <link rel="stylesheet" href="./styles.css?v=25" />
     <title>Heracles | Evidence-aware training data</title>
     <script type="application/ld+json">
       {
@@ -42,7 +43,7 @@
       }
     </script>
   </head>
-  <body>
+  <body data-fabbro-product="heracles">
     <main class="shell" aria-live="polite">
       <section id="loading" class="card auth-card" hidden>
         <p>Loading…</p>
@@ -210,16 +211,13 @@
         </section>
       </section>
 
-      <section id="signed-in" class="app-view" hidden>
+      <section id="signed-in" class="app-view" data-sidebar-state="expanded" hidden>
         <header class="top-bar">
-          <button id="menu-toggle" class="menu-toggle" type="button" aria-label="Open menu" aria-controls="app-menu" aria-expanded="false">
-            <span></span><span></span><span></span>
+          <button id="menu-toggle" class="menu-toggle" type="button" aria-label="Collapse navigation" aria-controls="app-menu" aria-expanded="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"></rect><path d="M9 3v18"></path></svg>
           </button>
           <div class="top-bar-context">
-            <div class="brand-lockup">
-              <span>Heracles</span>
-              <strong id="current-page-title">Home</strong>
-            </div>
+            <strong id="current-page-title">Home</strong>
             <fieldset id="contextual-dashboard-range" class="range-control contextual-range-control" aria-label="Dashboard time range" hidden>
               <legend>Time range</legend>
               <button type="button" data-dashboard-range="4w" aria-pressed="false">4 weeks</button>
@@ -229,42 +227,47 @@
               <button type="button" data-dashboard-range="all" aria-pressed="false">All time</button>
             </fieldset>
           </div>
-          <span id="top-bar-sync-badge" class="live-sync-badge sync-state-saved" role="status" aria-live="polite" hidden>Saved ✓</span>
+          <div class="top-bar-utilities">
+            <span id="top-bar-sync-badge" class="live-sync-badge sync-state-saved" role="status" aria-live="polite" hidden>Saved ✓</span>
+            <img class="family-mark" src="./brand/fabbro-mark.svg" alt="Fabbro Systems" />
+            <button id="sign-out" class="utility-sign-out" type="button">Sign out</button>
+          </div>
         </header>
 
         <div id="menu-backdrop" class="menu-backdrop" hidden></div>
-        <aside id="app-menu" class="app-menu" aria-label="Main menu" aria-hidden="true" inert hidden>
-          <div class="menu-heading">Navigate</div>
+        <aside id="app-menu" class="app-menu" aria-label="Heracles primary navigation" aria-hidden="false" data-state="expanded" data-mobile-open="false">
+          <a class="sidebar-brand" href="./" aria-label="Heracles home">
+            <img class="sidebar-lockup" src="./brand/heracles-lockup.svg" alt="Heracles" />
+            <img class="sidebar-mark" src="./brand/heracles-mark.svg" alt="" aria-hidden="true" />
+          </a>
+          <div class="menu-heading">Training</div>
           <nav>
             <button class="menu-item is-active" type="button" data-page="home" aria-current="page">
-              <span class="menu-icon" aria-hidden="true">⌂</span>
-              Home
+              <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 11 9-8 9 8"></path><path d="M5 10v10h14V10"></path><path d="M9 20v-6h6v6"></path></svg>
+              <span class="menu-label">Home</span>
             </button>
             <button class="menu-item" type="button" data-page="session-history">
-              <span class="menu-icon history-icon" aria-hidden="true"><i></i><i></i><i></i></span>
-              Session history
+              <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l3 2"></path></svg>
+              <span class="menu-label">Session history</span>
             </button>
             <button class="menu-item" type="button" data-page="my-data">
-              <span class="menu-icon chart-icon" aria-hidden="true"><i></i><i></i><i></i></span>
-              My data
+              <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3v18h18"></path><path d="m7 16 4-5 3 3 5-7"></path></svg>
+              <span class="menu-label">My data</span>
             </button>
             <button class="menu-item" type="button" data-page="my-stuff">
-              <span class="menu-icon" aria-hidden="true">◇</span>
-              My Stuff
+              <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 8a2 2 0 0 0-2-2h-4l-2-2h-2L9 6H5a2 2 0 0 0-2 2v10h18Z"></path><path d="M3 11h18"></path></svg>
+              <span class="menu-label">My Stuff</span>
             </button>
             <button class="menu-item" type="button" data-page="literature">
-              <span class="menu-icon literature-icon" aria-hidden="true">§</span>
-              Literature
+              <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4h6a4 4 0 0 1 4 4v12a4 4 0 0 0-4-4H2Z"></path><path d="M22 4h-6a4 4 0 0 0-4 4v12a4 4 0 0 1 4-4h6Z"></path></svg>
+              <span class="menu-label">Literature</span>
             </button>
             <button class="menu-item" type="button" data-page="settings">
-              <span class="menu-icon" aria-hidden="true">⚙</span>
-              Settings
-            </button>
-            <button id="sign-out" class="menu-item menu-sign-out" type="button">
-              <span class="menu-icon" aria-hidden="true">↪</span>
-              Sign out
+              <svg class="menu-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z"></path><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21h-4v-.1A1.7 1.7 0 0 0 8.6 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3v-4h.1A1.7 1.7 0 0 0 4.6 8.6a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3h4v.1A1.7 1.7 0 0 0 15.4 4.6a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.4 9c.16.37.36.7.6 1 .3.3.7.4 1.1.4h.1v4h-.1c-.4 0-.8.1-1.1.4-.24.3-.44.63-.6 1Z"></path></svg>
+              <span class="menu-label">Settings</span>
             </button>
           </nav>
+          <button id="sidebar-rail" class="sidebar-rail" type="button" aria-label="Toggle navigation" title="Toggle navigation"></button>
         </aside>
 
         <section id="home-page" class="page-panel" data-page-panel="home">
@@ -755,6 +758,6 @@
       </section>
     </main>
 
-    <script type="module" src="./app.js?v=34"></script>
+    <script type="module" src="./app.js?v=35"></script>
   </body>
 </html>

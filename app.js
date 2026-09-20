@@ -67,7 +67,11 @@ const muscleViewInputs = [...document.querySelectorAll('input[name="muscle-view"
 const menuToggle = document.querySelector("#menu-toggle");
 const appMenu = document.querySelector("#app-menu");
 const menuBackdrop = document.querySelector("#menu-backdrop");
+const sidebarRail = document.querySelector("#sidebar-rail");
 const currentPageTitle = document.querySelector("#current-page-title");
+const SIDEBAR_STORAGE_KEY = "fabbro:application-sidebar-expanded";
+const sidebarMedia = window.matchMedia("(max-width: 900px)");
+let sidebarExpanded = readSidebarPreference();
 const topBar = document.querySelector(".top-bar");
 const menuItems = [...document.querySelectorAll("[data-page]")];
 const pagePanels = [...document.querySelectorAll("[data-page-panel]")];
@@ -148,17 +152,25 @@ const dashboardFeature = createDashboardFeature({
   ensureBodyWeightState: () => bodyWeightFeature.ensureState(),
   getBodyWeightState: () => bodyWeightFeature.getState(),
 });
+syncSidebarForViewport();
+
 menuToggle.addEventListener("click", () => {
-  if (menuToggle.getAttribute("aria-expanded") === "true") {
-    closeMenu();
-  } else {
-    openMenu();
+  if (isSidebarMobile()) {
+    if (appMenu.dataset.mobileOpen === "true") closeMenu();
+    else openMenu();
+    return;
   }
+
+  setSidebarExpanded(!sidebarExpanded);
+});
+
+sidebarRail?.addEventListener("click", () => {
+  if (!isSidebarMobile()) setSidebarExpanded(!sidebarExpanded);
 });
 
 menuBackdrop.addEventListener("click", closeMenu);
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && menuToggle.getAttribute("aria-expanded") === "true") {
+  if (event.key === "Escape" && isSidebarMobile() && appMenu.dataset.mobileOpen === "true") {
     closeMenu();
     menuToggle.focus();
   }
@@ -179,6 +191,7 @@ for (const input of muscleViewInputs) {
 }
 window.addEventListener("scroll", updateContextualNavTitle, { passive: true });
 window.addEventListener("resize", updateContextualNavTitle);
+window.addEventListener("resize", syncSidebarForViewport);
 
 sessionSearch.addEventListener("input", () => {
   clearSessionSearchButton.hidden = sessionSearch.value.length === 0;
@@ -315,6 +328,7 @@ function renderSession(session) {
   if (session) {
     if (activeUserId === session.user.id && !signedInView.hidden) return;
 
+    document.body.classList.add("is-authenticated");
     activeUserId = session.user.id;
     loadingView.hidden = true;
     signedOutView.hidden = true;
@@ -344,6 +358,7 @@ function renderSession(session) {
 }
 
 function showSignedOut() {
+  document.body.classList.remove("is-authenticated");
   activeUserId = null;
   loadingView.hidden = true;
   signedInView.hidden = true;
@@ -382,23 +397,83 @@ function clearError() {
   errorMessage.hidden = true;
 }
 
-function openMenu() {
-  menuToggle.setAttribute("aria-expanded", "true");
-  menuToggle.setAttribute("aria-label", "Close menu");
-  menuBackdrop.hidden = false;
-  appMenu.hidden = false;
+function readSidebarPreference() {
+  try {
+    const stored = window.localStorage.getItem(SIDEBAR_STORAGE_KEY);
+    return stored === null ? true : stored === "true";
+  } catch {
+    return true;
+  }
+}
+
+function isSidebarMobile() {
+  return sidebarMedia.matches;
+}
+
+function setSidebarExpanded(expanded, { persist = true } = {}) {
+  sidebarExpanded = Boolean(expanded);
+  signedInView.dataset.sidebarState = sidebarExpanded ? "expanded" : "collapsed";
+  appMenu.dataset.state = sidebarExpanded ? "expanded" : "collapsed";
+
+  if (!isSidebarMobile()) {
+    menuToggle.setAttribute("aria-expanded", String(sidebarExpanded));
+    menuToggle.setAttribute(
+      "aria-label",
+      sidebarExpanded ? "Collapse navigation" : "Expand navigation",
+    );
+  }
+
+  if (persist) {
+    try {
+      window.localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarExpanded));
+    } catch {
+      // Keep the preference for the current session when storage is unavailable.
+    }
+  }
+}
+
+function syncSidebarForViewport() {
+  if (isSidebarMobile()) {
+    appMenu.dataset.mobileOpen = "false";
+    appMenu.inert = true;
+    appMenu.setAttribute("aria-hidden", "true");
+    menuBackdrop.hidden = true;
+    menuToggle.setAttribute("aria-expanded", "false");
+    menuToggle.setAttribute("aria-label", "Open navigation");
+    return;
+  }
+
+  appMenu.dataset.mobileOpen = "false";
   appMenu.inert = false;
   appMenu.setAttribute("aria-hidden", "false");
+  menuBackdrop.hidden = true;
+  setSidebarExpanded(sidebarExpanded, { persist: false });
+}
+
+function openMenu() {
+  if (!isSidebarMobile()) {
+    setSidebarExpanded(true);
+    return;
+  }
+
+  appMenu.dataset.mobileOpen = "true";
+  appMenu.inert = false;
+  appMenu.setAttribute("aria-hidden", "false");
+  menuBackdrop.hidden = false;
+  menuToggle.setAttribute("aria-expanded", "true");
+  menuToggle.setAttribute("aria-label", "Close navigation");
   appMenu.querySelector(".menu-item.is-active")?.focus();
 }
 
 function closeMenu() {
-  menuToggle.setAttribute("aria-expanded", "false");
-  menuToggle.setAttribute("aria-label", "Open menu");
-  menuBackdrop.hidden = true;
-  appMenu.hidden = true;
+  if (!isSidebarMobile()) return;
+
+  appMenu.dataset.mobileOpen = "false";
   appMenu.inert = true;
   appMenu.setAttribute("aria-hidden", "true");
+  menuBackdrop.hidden = true;
+  menuToggle.setAttribute("aria-expanded", "false");
+  menuToggle.setAttribute("aria-label", "Open navigation");
 }
 
 function readSignedInPageFromUrl() {
