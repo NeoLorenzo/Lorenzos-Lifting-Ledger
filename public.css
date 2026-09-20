@@ -29,9 +29,10 @@ body:has(#signed-out:not([hidden])) {
   box-sizing: border-box;
 }
 
-#signed-out .public-site {
+#signed-out.public-site {
   width: 100%;
   max-width: var(--fs-page-max);
+  min-height: 100vh;
   margin: 0 auto;
   background: var(--fs-color-bg);
 }

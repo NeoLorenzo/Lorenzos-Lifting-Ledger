@@ -21,7 +21,8 @@ test("Heracles branding preserves deployment and PWA identity contracts", () => 
     'aria-label="Heracles home"',
     '<img class="public-brand-lockup" src="./fabbro-design/assets/Heracles Logo Colored With Text Beside.svg" alt="Heracles" />',
     '<img src="./fabbro-design/assets/Fabbro Systems Logo.svg" alt="" aria-hidden="true" />',
-    '<link rel="stylesheet" href="./public.css?v=1" />',
+    '<link rel="stylesheet" href="./styles.css?v=26" />',
+    '<link rel="stylesheet" href="./public.css?v=2" />',
     '<meta name="theme-color" content="#000000" />',
     "Heracles connects exercise performance",
     '<img class="sidebar-lockup" src="./brand/heracles-lockup.svg" alt="Heracles" />',
@@ -33,6 +34,33 @@ test("Heracles branding preserves deployment and PWA identity contracts", () => 
   );
   assert.match(index, /https:\/\/heracles\.fabbrosystems\.com\//);
   assert.doesNotMatch(index, /Lorenzo's Lifting Ledger|>Lifting Ledger</);
+
+  const publicCss = read("public.css");
+  assert.match(
+    publicCss,
+    /#signed-out\.public-site\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*var\(--fs-page-max\);[\s\S]*?margin:\s*0 auto;/,
+    "signed-out root must implement the canonical fluid 1680px Fabbro frame",
+  );
+  assert.doesNotMatch(
+    publicCss,
+    /#signed-out\s+\.public-site\s*\{/,
+    "canonical frame must target the signed-out root itself, not a descendant",
+  );
+
+  const sharedCss = read("styles.css");
+  assert.match(
+    sharedCss,
+    /\.public-site\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*var\(--fs-page-max\);[^}]*margin:\s*0 auto;/,
+    "shared public-site base must use the canonical Fabbro frame",
+  );
+  assert.doesNotMatch(
+    sharedCss,
+    /\.public-site\s*\{[^}]*76rem/,
+    "legacy 76rem public width cap must not return",
+  );
+
+  const serviceWorker = read("service-worker.js");
+  assert.ok(serviceWorker.includes('"/public.css?v=2"'), "public shell stylesheet must be precached");
 
   const packageJson = JSON.parse(read("package.json"));
   const packageLock = JSON.parse(read("package-lock.json"));

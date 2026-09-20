@@ -45,7 +45,8 @@ button {
 }
 
 .public-site {
-  width: min(100%, 76rem);
+  width: 100%;
+  max-width: var(--fs-page-max);
   margin: 0 auto;
 }
 
