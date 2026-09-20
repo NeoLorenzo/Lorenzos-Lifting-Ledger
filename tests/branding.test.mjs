@@ -19,8 +19,10 @@ test("Heracles branding preserves deployment and PWA identity contracts", () => 
     'property="og:title" content="Heracles | Evidence-aware training data"',
     "<title>Heracles | Evidence-aware training data</title>",
     'aria-label="Heracles home"',
-    '<span class="brand-mark" aria-hidden="true">H</span>',
-    "<strong>Heracles</strong>",
+    '<img class="public-brand-lockup" src="./fabbro-design/assets/Heracles Logo Colored With Text Beside.svg" alt="Heracles" />',
+    '<img src="./fabbro-design/assets/Fabbro Systems Logo.svg" alt="" aria-hidden="true" />',
+    '<link rel="stylesheet" href="./public.css?v=1" />',
+    '<meta name="theme-color" content="#000000" />',
     "Heracles connects exercise performance",
     '<img class="sidebar-lockup" src="./brand/heracles-lockup.svg" alt="Heracles" />',
   ]) assert.ok(index.includes(expected), `missing ${expected}`);
