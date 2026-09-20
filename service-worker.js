@@ -1,9 +1,10 @@
-const CACHE_NAME = "heracles-v43";
+const CACHE_NAME = "heracles-v44";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/fabbro-design/fabbro-tokens.css",
   "/styles.css?v=25",
+  "/public.css?v=2",
   "/app.js?v=35",
   "/analytics.js",
   "/presets.js",
