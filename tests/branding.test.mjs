@@ -10,8 +10,8 @@ test("Heracles branding preserves deployment and PWA identity contracts", () => 
   const manifest = JSON.parse(read("manifest.webmanifest"));
   assert.equal(manifest.name, "Heracles");
   assert.equal(manifest.short_name, "Heracles");
-  assert.equal(manifest.start_url, "./");
-  assert.equal(manifest.scope, "./");
+  assert.equal(manifest.start_url, "/");
+  assert.equal(manifest.scope, "/");
 
   const index = read("index.html");
   for (const expected of [
