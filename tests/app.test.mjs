@@ -633,7 +633,7 @@ test("manages owner-scoped unordered workout presets", async () => {
   assert.match(styles, /\.preset-list[\s\S]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
   assert.match(styles, /@media \(max-width: 760px\)[\s\S]*\.preset-list/);
   assert.match(readme, /`workout_presets`/);
-  assert.match(serviceWorker, /\.\/presets\.js/);
+  assert.match(serviceWorker, /\/presets\.js/);
 });
 
 test("creates, resumes, and concludes one persisted active workout session", async () => {
@@ -673,7 +673,7 @@ test("creates, resumes, and concludes one persisted active workout session", asy
   assert.match(migration, /security invoker/);
   assert.match(migration, /set search_path = ''/);
   assert.match(migration, /revoke all on function public\.start_or_resume_workout_session\(\) from public, anon/);
-  assert.match(serviceWorker, /lifting-ledger-v42/);
+  assert.match(serviceWorker, /heracles-v43/);
   assert.match(presetsFeature, /async function openSessionPresetPicker\(\)/);
   assert.match(setCountMigration, /row_number\(\) over \(order by random\(\)\)/);
   assert.match(setCountMigration, /generate_series\(1, membership\.set_count\)/);
