@@ -48,7 +48,16 @@ test("Heracles branding preserves deployment and PWA identity contracts", () => 
   );
 
   const sharedCss = read("styles.css");
-  assert.doesNotMatch(sharedCss, /\.public-site\s*\{[\s\S]*?76rem/, "legacy 76rem public width cap must not return");
+  assert.match(
+    sharedCss,
+    /\.public-site\s*\{[^}]*width:\s*100%;[^}]*max-width:\s*var\(--fs-page-max\);[^}]*margin:\s*0 auto;/,
+    "shared public-site base must use the canonical Fabbro frame",
+  );
+  assert.doesNotMatch(
+    sharedCss,
+    /\.public-site\s*\{[^}]*76rem/,
+    "legacy 76rem public width cap must not return",
+  );
 
   const serviceWorker = read("service-worker.js");
   assert.ok(serviceWorker.includes('"/public.css?v=2"'), "public shell stylesheet must be precached");
