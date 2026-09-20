@@ -65,7 +65,7 @@ test("ships a crawlable public science and product overview", async () => {
   assert.match(styles, /\.public-library-grid/);
   assert.match(robots, /Allow: \//);
   assert.match(robots, /sitemap\.xml/i);
-  assert.match(sitemap, /Lorenzos-Lifting-Ledger\//);
+  assert.match(sitemap, /https:\/\/heracles\.fabbrosystems\.com\//);
 });
 
 test("keeps signed-in application pages in explicit URL-backed history state", async () => {
