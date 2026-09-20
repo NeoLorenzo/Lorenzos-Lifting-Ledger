@@ -21,6 +21,7 @@ test("Heracles branding preserves deployment and PWA identity contracts", () => 
     'aria-label="Heracles home"',
     '<img class="public-brand-lockup" src="./fabbro-design/assets/Heracles Logo Colored With Text Beside.svg" alt="Heracles" />',
     '<img src="./fabbro-design/assets/Fabbro Systems Logo.svg" alt="" aria-hidden="true" />',
+    '<link rel="stylesheet" href="./styles.css?v=26" />',
     '<link rel="stylesheet" href="./public.css?v=2" />',
     '<meta name="theme-color" content="#000000" />',
     "Heracles connects exercise performance",
@@ -45,6 +46,9 @@ test("Heracles branding preserves deployment and PWA identity contracts", () => 
     /#signed-out\s+\.public-site\s*\{/,
     "canonical frame must target the signed-out root itself, not a descendant",
   );
+
+  const sharedCss = read("styles.css");
+  assert.doesNotMatch(sharedCss, /\.public-site\s*\{[\s\S]*?76rem/, "legacy 76rem public width cap must not return");
 
   const serviceWorker = read("service-worker.js");
   assert.ok(serviceWorker.includes('"/public.css?v=2"'), "public shell stylesheet must be precached");
