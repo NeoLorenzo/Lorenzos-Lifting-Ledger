@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://neolorenzo.github.io/Lorenzos-Lifting-Ledger/sitemap.xml
+Sitemap: https://heracles.fabbrosystems.com/sitemap.xml
