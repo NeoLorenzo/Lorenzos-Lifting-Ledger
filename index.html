@@ -4,24 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#000000" />
-    <meta name="description" content="An evidence-aware lifting tracker that maps exercises to muscles, tracks hard sets and exercise-specific performance, and documents every scientific assumption." />
+    <meta name="description" content="Heracles is an evidence-aware resistance-training system for live workout logging, interpretable strength progression, body-weight and body-measurement context, and explicit hypertrophy modelling." />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Heracles" />
-    <meta property="og:title" content="Heracles | Evidence-aware training data" />
-    <meta property="og:description" content="Understand what your training data can—and cannot—say about progression and hypertrophic exposure." />
+    <meta property="og:title" content="Heracles | Evidence-aware resistance training" />
+    <meta property="og:description" content="Record training, preserve the evidence, and interpret strength and hypertrophy signals without hiding the model." />
     <meta property="og:url" content="https://heracles.fabbrosystems.com/" />
     <meta name="twitter:card" content="summary" />
-    <meta name="twitter:title" content="Heracles | Evidence-aware training data" />
-    <meta name="twitter:description" content="Understand what your training data can—and cannot—say about progression and hypertrophic exposure." />
+    <meta name="twitter:title" content="Heracles | Evidence-aware resistance training" />
+    <meta name="twitter:description" content="Record training, preserve the evidence, and interpret strength and hypertrophy signals without hiding the model." />
     <link rel="canonical" href="https://heracles.fabbrosystems.com/" />
     <link rel="manifest" href="./manifest.webmanifest" />
     <link rel="icon" href="./fabbro-design/assets/Heracles Logo.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon.svg" />
     <link rel="stylesheet" href="./fabbro-design/fabbro-tokens.css" />
     <link rel="stylesheet" href="./styles.css?v=26" />
-    <link rel="stylesheet" href="./public.css?v=2" />
-    <title>Heracles | Evidence-aware training data</title>
+    <link rel="stylesheet" href="./public.css?v=3" />
+    <title>Heracles | Evidence-aware resistance training</title>
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",
@@ -31,7 +31,7 @@
             "@id": "https://heracles.fabbrosystems.com/#website",
             "url": "https://heracles.fabbrosystems.com/",
             "name": "Heracles",
-            "description": "An evidence-aware lifting tracker with transparent hypertrophy modelling."
+            "description": "An evidence-aware resistance-training system with live workout logging, interpretable strength progression, and transparent hypertrophy modelling."
           },
           {
             "@type": "WebApplication",
@@ -40,7 +40,7 @@
             "url": "https://heracles.fabbrosystems.com/",
             "applicationCategory": "HealthApplication",
             "operatingSystem": "Any",
-            "description": "A lifting log that tracks exercise-specific performance, hard sets, proximity to failure, and modelled muscle exposure without treating tonnage as hypertrophic volume."
+            "description": "A resistance-training system that records persistent workout sessions, equipment, load, repetitions and RIR; tracks strength and body evidence over time; and exposes the assumptions behind its analytical models."
           }
         ]
       }
@@ -60,6 +60,7 @@
             </a>
             <nav aria-label="Public navigation">
               <a href="#how-it-works">How it works</a>
+              <a href="#capabilities">Capabilities</a>
               <a href="#principles">Principles</a>
               <a href="#literature">Literature</a>
             </nav>
@@ -71,24 +72,24 @@
           <div id="top" class="public-main">
             <section class="public-hero" aria-labelledby="public-title">
               <div class="hero-copy">
-                <p class="eyebrow">A lifting log built around useful questions</p>
+                <p class="eyebrow">Evidence-aware resistance training</p>
                 <h1 id="public-title">Know what your training data actually means.</h1>
-                <p class="hero-intro">Heracles connects exercise performance to a transparent model of muscular involvement, keeping the evidence, assumptions and interpretation inspectable.</p>
+                <p class="hero-intro">Heracles combines a persistent training ledger with equipment-aware history, RIR-aware strength estimation, body evidence, and explicit movement and muscle models. The observations stay separate from the interpretations built on top of them.</p>
                 <div class="hero-actions">
                   <a class="primary-action" href="#how-it-works">Explore Heracles <span aria-hidden="true">↓</span></a>
                   <a class="secondary-action" href="#literature">Scientific foundations</a>
                 </div>
-                <ul class="model-facts" aria-label="Current model scope">
+                <ul class="model-facts" aria-label="Current Heracles model scope">
                   <li><strong>138</strong><span>catalogued exercises</span></li>
+                  <li><strong>4</strong><span>preserved e1RM estimates</span></li>
                   <li><strong>40</strong><span>detailed muscle entities</span></li>
-                  <li><strong>13</strong><span>clear UI muscle groups</span></li>
                 </ul>
               </div>
 
-              <aside class="model-preview" aria-label="Example of how a training set is interpreted">
+              <aside class="model-preview" aria-label="Example of how Heracles preserves and interprets a training set">
                 <div class="preview-heading">
-                  <span>From logbook to interpretation</span>
-                  <span class="preview-status">Transparent by design</span>
+                  <span>One set, preserved as evidence</span>
+                  <span class="preview-status">Evidence first</span>
                 </div>
                 <div class="preview-exercise">
                   <div>
@@ -100,62 +101,131 @@
                 <div class="preview-flow" aria-hidden="true"><span></span><span></span><span></span></div>
                 <div class="preview-layer">
                   <span class="layer-number">01</span>
-                  <div><strong>Exercise identity</strong><small>A stable catalogue name keeps history and modelling aligned.</small></div>
+                  <div><strong>Observed performance</strong><small>Exercise, equipment, load, repetitions, set type and RIR remain inspectable as recorded training evidence.</small></div>
                 </div>
                 <div class="preview-layer">
                   <span class="layer-number">02</span>
-                  <div><strong>Movement and muscle mappings</strong><small>Versioned coefficients expose how the exercise is interpreted.</small></div>
+                  <div><strong>Strength interpretation</strong><small>Observed and RIR-adjusted Brzycki and Epley estimates are preserved separately rather than averaged into one score.</small></div>
                 </div>
                 <div class="preview-layer">
                   <span class="layer-number">03</span>
-                  <div><strong>Useful personal context</strong><small>Hard sets, load, repetitions and RIR remain separate signals.</small></div>
+                  <div><strong>Hypertrophy interpretation</strong><small>Versioned movement and muscle models add relevant context without pretending to measure stimulus or growth directly.</small></div>
                 </div>
-                <p class="preview-note">No tonnage score. No unexplained “optimal” number.</p>
+                <p class="preview-note">Body weight can contextualize strength. Circumference measurements remain separate recorded observations.</p>
               </aside>
             </section>
 
             <section id="how-it-works" class="public-section process-section" aria-labelledby="process-title">
               <header class="section-heading">
                 <p class="eyebrow">How it works</p>
-                <h2 id="process-title">A record, a model, and a clear boundary between them.</h2>
-                <p>The app does not turn every input into a single score. It preserves the underlying performance data, then applies documented models only where they add a defensible interpretation.</p>
+                <h2 id="process-title">Train, record, interpret, track.</h2>
+                <p>Heracles covers the workout itself and the analysis that follows. It preserves the underlying evidence first, then derives only the signals that have an explicit purpose and documented boundary.</p>
               </header>
               <ol class="process-grid">
-                <li><span>01</span><h3>Log the set</h3><p>Record the exercise, load, repetitions, set type and proximity to failure. Warm-ups remain distinct from working sets.</p></li>
-                <li><span>02</span><h3>Resolve the exercise</h3><p>Workout history and the global catalogue use the same exercise identity, avoiding silent duplication and broken trends.</p></li>
-                <li><span>03</span><h3>Map relevant muscles</h3><p>An authored exercise-to-muscle layer identifies worthwhile hypertrophic relevance for a sufficiently hard set performed as intended.</p></li>
-                <li><span>04</span><h3>Read the trend</h3><p>Session history and personal statistics emphasize consistency, hard sets and exercise-specific progression rather than decorative totals.</p></li>
+                <li><span>01</span><h3>Train</h3><p>Start or resume a persistent workout, use previous-performance context, and keep the actual equipment and exercise identity attached to the session.</p></li>
+                <li><span>02</span><h3>Record</h3><p>Capture load, repetitions, RIR, set type and session context. Warm-ups, high-RIR work and analytical working sets remain distinguishable.</p></li>
+                <li><span>03</span><h3>Interpret</h3><p>Apply explicit strength and muscle-relevance models while preserving each estimate, assumption and authored mapping instead of collapsing them into one number.</p></li>
+                <li><span>04</span><h3>Track</h3><p>Review session history, exercise-specific progression, body-weight-relative strength and standardized body measurements as separate longitudinal evidence.</p></li>
               </ol>
+            </section>
+
+            <section id="capabilities" class="public-section capabilities-section" aria-labelledby="capabilities-title">
+              <header class="section-heading">
+                <p class="eyebrow">Current product</p>
+                <h2 id="capabilities-title">Built for the training session and the evidence it creates.</h2>
+                <p>Heracles is no longer only a logbook or a muscle-mapping model. The current application connects live training, personal history, strength interpretation and physical measurements in one resistance-training system.</p>
+              </header>
+              <div class="capability-grid">
+                <article>
+                  <span class="capability-label">Live training</span>
+                  <h3>Persistent workout sessions</h3>
+                  <p>Resume an in-progress workout, reference previous performance, preserve equipment context and recover durable edits when connectivity fails.</p>
+                </article>
+                <article>
+                  <span class="capability-label">Programming</span>
+                  <h3>Reusable workout presets</h3>
+                  <p>Create reusable exercise pools with set counts, then start a session without copying stale load, RIR or equipment assumptions forward.</p>
+                </article>
+                <article>
+                  <span class="capability-label">Strength</span>
+                  <h3>Four e1RM perspectives</h3>
+                  <p>Brzycki and Epley estimates are retained for observed repetitions and for repetitions adjusted by reported RIR. Heracles does not average them into false certainty.</p>
+                </article>
+                <article>
+                  <span class="capability-label">Body weight</span>
+                  <h3>Strength in body-weight context</h3>
+                  <p>Import body-weight evidence or synchronize Apple Health data, then optionally view each strength estimate relative to measured or interpolated body weight without extrapolation.</p>
+                </article>
+                <article>
+                  <span class="capability-label">Measurements</span>
+                  <h3>Standardized circumference history</h3>
+                  <p>Record repeatable body measurements by site and compare like with like over time, including separate relaxed and flexed upper-arm series.</p>
+                </article>
+                <article>
+                  <span class="capability-label">Hypertrophy model</span>
+                  <h3>Explicit muscle relevance</h3>
+                  <p>Versioned movement and muscle matrices connect exercises to forty detailed muscle entities while thirteen broader groups keep the interface readable.</p>
+                </article>
+              </div>
+            </section>
+
+            <section id="evidence-over-time" class="public-section measure-section" aria-labelledby="evidence-title">
+              <header class="section-heading">
+                <p class="eyebrow">Longitudinal evidence</p>
+                <h2 id="evidence-title">Different signals stay different.</h2>
+                <p>The system does not force training performance, body weight, circumference and modelled muscle relevance into a universal progress score. Each answers a different question.</p>
+              </header>
+              <div class="measure-table" role="table" aria-label="Heracles evidence types and their boundaries">
+                <div class="measure-row measure-head" role="row"><span role="columnheader">Evidence</span><span role="columnheader">What it helps answer</span><span role="columnheader">Boundary</span></div>
+                <div class="measure-row" role="row"><strong role="cell">Workout history</strong><span role="cell">What was trained, with which exercise, equipment, load, repetitions and effort?</span><span role="cell">A completed set is an observation, not a direct measure of adaptation.</span></div>
+                <div class="measure-row" role="row"><strong role="cell">Strength estimates</strong><span role="cell">How is exercise-specific performance changing across comparable sessions?</span><span role="cell">e1RM values are equation-based estimates, not measured one-repetition maxima or confidence intervals.</span></div>
+                <div class="measure-row" role="row"><strong role="cell">Body weight</strong><span role="cell">How does strength compare with body mass on the workout date?</span><span role="cell">Relative strength is shown only where measured or interpolated body-weight evidence exists; Heracles does not extrapolate.</span></div>
+                <div class="measure-row" role="row"><strong role="cell">Body measurements</strong><span role="cell">How are standardized circumference observations changing over time?</span><span role="cell">Tape measurements remain raw observations and are not converted into body-fat or body-composition estimates.</span></div>
+                <div class="measure-row" role="row"><strong role="cell">Muscle relevance</strong><span role="cell">Which muscles are worth considering for a sufficiently hard set of a given exercise?</span><span role="cell">This is an authored relevance model, not measured force, stimulus or hypertrophy.</span></div>
+              </div>
             </section>
 
             <section id="principles" class="public-section principle-section" aria-labelledby="principles-title">
               <div class="principle-copy">
-                <p class="eyebrow">What makes the approach different</p>
+                <p class="eyebrow">Product principles</p>
                 <h2 id="principles-title">More data is not automatically more insight.</h2>
-                <p>Many lifting dashboards can total whatever is easy to multiply. This project starts with the decision the metric is meant to support, then asks whether the calculation survives differences in effort, exercise mechanics, technique and equipment.</p>
-                <blockquote>Every metric should help a person evaluate training, monitor progression, understand relevant exposure, manage fatigue, or make a better programming decision.</blockquote>
+                <p>Heracles starts with the decision a metric is meant to support, then asks whether the calculation survives differences in effort, exercise mechanics, technique, equipment and measurement quality.</p>
+                <blockquote>Preserve the observation. Label the interpretation. Expose the assumptions. Do not manufacture certainty where the evidence does not support it.</blockquote>
               </div>
               <div class="principle-grid">
-                <article><span class="principle-icon">↗</span><h3>Performance stays exercise-specific</h3><p>Load and repetitions are interpreted within the same movement instead of being compared across mechanically different exercises.</p></article>
+                <article><span class="principle-icon">↗</span><h3>Performance stays exercise-specific</h3><p>Load and repetitions are interpreted within the same movement and equipment context instead of being compared across mechanically different exercises.</p></article>
                 <article><span class="principle-icon">≠</span><h3>Tonnage is not called volume</h3><p>Weight × repetitions measures external mass moved repeatedly. It is not treated as hypertrophic stimulus, workload quality or progression.</p></article>
-                <article><span class="principle-icon">◎</span><h3>Muscle detail has two levels</h3><p>Forty anatomical entities support modelling while thirteen larger groups keep session history readable. Users can switch between both views.</p></article>
-                <article><span class="principle-icon">§</span><h3>Uncertainty remains visible</h3><p>Published evidence, calculated estimates, authored models and product decisions are labelled as different kinds of knowledge.</p></article>
+                <article><span class="principle-icon">◎</span><h3>Estimates stay plural</h3><p>Observed and RIR-adjusted strength estimates remain separate, making disagreement between models visible instead of hiding it behind an average.</p></article>
+                <article><span class="principle-icon">§</span><h3>Uncertainty remains visible</h3><p>Recorded observations, calculated estimates, authored models, scientific evidence and product decisions are presented as different kinds of knowledge.</p></article>
               </div>
             </section>
 
-            <section class="public-section measure-section" aria-labelledby="measure-title">
-              <header class="section-heading compact-heading">
-                <p class="eyebrow">What the app pays attention to</p>
-                <h2 id="measure-title">Fewer metrics, each with a job.</h2>
+            <section id="fabbro-context" class="public-section family-section" aria-labelledby="family-title">
+              <header class="section-heading">
+                <p class="eyebrow">Fabbro Systems</p>
+                <h2 id="family-title">Evidence → state → action.</h2>
+                <p>Heracles goes deep on one domain. It remains useful as a standalone training system while also producing higher-quality physical-performance evidence for the wider Fabbro Systems ecosystem.</p>
               </header>
-              <div class="measure-table" role="table" aria-label="Training information and its purpose">
-                <div class="measure-row measure-head" role="row"><span role="columnheader">Signal</span><span role="columnheader">Purpose</span><span role="columnheader">Boundary</span></div>
-                <div class="measure-row" role="row"><strong role="cell">Working sets</strong><span role="cell">A practical starting point for relevant training exposure.</span><span role="cell">A set still depends on effort, execution and exercise context.</span></div>
-                <div class="measure-row" role="row"><strong role="cell">Load + repetitions</strong><span role="cell">Tracks performance within an exercise over time.</span><span role="cell">Load and repetitions are not combined into cross-exercise tonnage.</span></div>
-                <div class="measure-row" role="row"><strong role="cell">RIR</strong><span role="cell">Preserves proximity-to-failure context.</span><span role="cell">Self-reported and interpreted with appropriate caution.</span></div>
-                <div class="measure-row" role="row"><strong role="cell">Muscle relevance</strong><span role="cell">Connects a hard set to muscles worth considering.</span><span role="cell">An authored relevance model, not measured force or growth.</span></div>
-                <div class="measure-row" role="row"><strong role="cell">Estimated 1RM range</strong><span role="cell">Offers exercise-specific performance context.</span><span role="cell">An equation-based estimate, never a measured maximum.</span></div>
+              <div class="family-flow" aria-label="Fabbro Systems product relationship">
+                <a class="family-stage family-stage-current" href="#top">
+                  <span>01 · Evidence</span>
+                  <strong>Heracles</strong>
+                  <p>Records and interprets resistance-training evidence.</p>
+                </a>
+                <span class="family-arrow" aria-hidden="true">→</span>
+                <a class="family-stage" href="https://kleos.fabbrosystems.com/">
+                  <span>02 · State</span>
+                  <strong>Kleos</strong>
+                  <p>Models the broader current state of the person from evidence across domains.</p>
+                </a>
+                <span class="family-arrow" aria-hidden="true">→</span>
+                <a class="family-stage" href="https://ariadne.fabbrosystems.com/">
+                  <span>03 · Action</span>
+                  <strong>Ariadne</strong>
+                  <p>Connects current state and desired direction to priorities, projects and execution.</p>
+                </a>
               </div>
+              <p class="family-boundary">Heracles observes and interprets a domain. Kleos models current state. Ariadne decides and organizes desired movement.</p>
             </section>
 
             <section id="literature" class="public-section public-literature" aria-labelledby="public-literature-title">
@@ -177,7 +247,7 @@
                 <article><span class="evidence-badge decision-badge">Model limitations</span><h3>Current mapping limitations</h3><p>The project documents missing context—including force-sharing, muscle length and resistance profiles—rather than hiding it.</p><a class="document-link" href="?literature=mapping-limitations" data-document="mapping-limitations">Current limitations <span aria-hidden="true">→</span></a></article>
                 <article><span class="evidence-badge decision-badge">Product decision</span><h3>Why tonnage is excluded</h3><p>External mass × repetitions is rejected as a hypertrophy, progression, workload or personal-statistics metric.</p><a class="document-link" href="?literature=no-tonnage" data-document="no-tonnage">Tonnage decision <span aria-hidden="true">→</span></a></article>
                 <article><span class="evidence-badge protocol-badge">Product standard</span><h3>Design rules</h3><p>Transparent calculations, defensible metrics, owner-scoped data and visible limitations govern what reaches the interface.</p><a class="document-link" href="?literature=design-rules" data-document="design-rules">Design rules <span aria-hidden="true">→</span></a></article>
-                <article><span class="evidence-badge estimate-badge">Calculated estimate</span><h3>Estimated one-rep max</h3><p>Brzycki and Epley estimates form an exercise-specific range, with invalid domains and practical limitations made explicit.</p><div class="mini-formula"><span>Brzycki</span><code>weight × 36 ÷ (37 − reps)</code><span>Epley</span><code>weight × (1 + reps ÷ 30)</code></div></article>
+                <article><span class="evidence-badge estimate-badge">Calculated estimate</span><h3>Estimated one-rep max</h3><p>Brzycki and Epley estimates remain separate for observed and RIR-adjusted repetitions, with validity limits and interpretation boundaries kept explicit.</p><div class="mini-formula"><span>Brzycki</span><code>weight × 36 ÷ (37 − reps)</code><span>Epley</span><code>weight × (1 + reps ÷ 30)</code></div></article>
               </div>
 
               <aside class="citation-notice" aria-labelledby="public-citation-title">
@@ -197,9 +267,10 @@
                 <span>Fabbro Systems</span>
               </a>
             </div>
-            <p class="public-footer-copy">Evidence-aware resistance-training data and interpretation.</p>
+            <p class="public-footer-copy">Evidence-aware resistance training.</p>
             <nav class="public-footer-nav" aria-label="Footer navigation">
               <a href="#how-it-works">How it works</a>
+              <a href="#capabilities">Capabilities</a>
               <a href="#literature">Literature</a>
               <a href="https://fabbrosystems.com/">Fabbro Systems</a>
             </nav>

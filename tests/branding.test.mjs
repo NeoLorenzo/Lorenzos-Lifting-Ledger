@@ -16,15 +16,15 @@ test("Heracles branding preserves deployment and PWA identity contracts", () => 
   const index = read("index.html");
   for (const expected of [
     'property="og:site_name" content="Heracles"',
-    'property="og:title" content="Heracles | Evidence-aware training data"',
-    "<title>Heracles | Evidence-aware training data</title>",
+    'property="og:title" content="Heracles | Evidence-aware resistance training"',
+    "<title>Heracles | Evidence-aware resistance training</title>",
     'aria-label="Heracles home"',
     '<img class="public-brand-lockup" src="./fabbro-design/assets/Heracles Logo Colored With Text Beside.svg" alt="Heracles" />',
     '<img src="./fabbro-design/assets/Fabbro Systems Logo.svg" alt="" aria-hidden="true" />',
     '<link rel="stylesheet" href="./styles.css?v=26" />',
-    '<link rel="stylesheet" href="./public.css?v=2" />',
+    '<link rel="stylesheet" href="./public.css?v=3" />',
     '<meta name="theme-color" content="#000000" />',
-    "Heracles connects exercise performance",
+    "Heracles combines a persistent training ledger",
     '<img class="sidebar-lockup" src="./brand/heracles-lockup.svg" alt="Heracles" />',
   ]) assert.ok(index.includes(expected), `missing ${expected}`);
   const structuredData = JSON.parse(index.match(/<script type="application\/ld\+json">\s*([\s\S]*?)\s*<\/script>/)[1]);
@@ -60,7 +60,20 @@ test("Heracles branding preserves deployment and PWA identity contracts", () => 
   );
 
   const serviceWorker = read("service-worker.js");
-  assert.ok(serviceWorker.includes('"/public.css?v=2"'), "public shell stylesheet must be precached");
+  assert.ok(serviceWorker.includes('"/public.css?v=3"'), "public shell stylesheet must be precached");
+
+  for (const expected of [
+    'id="capabilities"',
+    "Persistent workout sessions",
+    "Four e1RM perspectives",
+    "synchronize Apple Health data",
+    "Standardized circumference history",
+    "relaxed and flexed upper-arm series",
+    "Heracles does not extrapolate",
+    "https://kleos.fabbrosystems.com/",
+    "https://ariadne.fabbrosystems.com/",
+    "Evidence → state → action.",
+  ]) assert.ok(index.includes(expected), `public product description missing ${expected}`);
 
   const packageJson = JSON.parse(read("package.json"));
   const packageLock = JSON.parse(read("package-lock.json"));
