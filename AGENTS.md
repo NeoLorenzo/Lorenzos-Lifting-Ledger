@@ -24,3 +24,25 @@
 - Do not commit or push unless explicitly instructed.
 
 If the task specification conflicts with the actual repository, make the smallest safe adaptation that preserves the intended behavior and report it explicitly.
+
+
+## Fabbro Design System
+
+Heracles adopts **Fabbro Design System 0.2.0** and **Fabbro Application Sidebar 1.0.0**.
+
+The vendored upstream snapshot lives in `fabbro-design/`.
+
+For authenticated application chrome:
+
+- desktop primary navigation must implement the canonical Fabbro Application Sidebar 1.0.0 contract;
+- Heracles uses the vanilla/non-React implementation contract rather than introducing React;
+- expanded width is 15.5rem and collapsed icon-rail width is 4.5rem;
+- expanded is the default desktop state;
+- mobile navigation becomes the canonical off-canvas drawer below 900px;
+- expanded identity uses the approved Heracles lockup; collapsed identity uses the approved Pillar mark;
+- navigation icons follow Lucide line-icon grammar;
+- the Fabbro Systems mark and Sign Out live in the top/right utility region, not inside primary navigation.
+
+Heracles owns page IDs, route/query behavior, labels, and domain-specific controls. Fabbro owns sidebar geometry, collapse behavior, active-state grammar, mobile drawer behavior, and family utility separation.
+
+Shared component changes must originate in Fabbro Systems, be versioned there, and then be synced here explicitly.

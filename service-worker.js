@@ -1,9 +1,10 @@
-const CACHE_NAME = "lifting-ledger-v41";
+const CACHE_NAME = "lifting-ledger-v42";
 const APP_SHELL = [
   "./",
   "./index.html",
-  "./styles.css?v=24",
-  "./app.js?v=34",
+  "./fabbro-design/fabbro-tokens.css",
+  "./styles.css?v=25",
+  "./app.js?v=35",
   "./analytics.js",
   "./presets.js",
   "./body-weight.js",
@@ -27,6 +28,9 @@ const APP_SHELL = [
   "./robots.txt",
   "./sitemap.xml",
   "./icons/icon.svg",
+  "./brand/heracles-mark.svg",
+  "./brand/heracles-lockup.svg",
+  "./brand/fabbro-mark.svg",
   "./docs/CURRENT_LIMITATIONS_OF_MUSCLE_GROUP_MAPPING.md",
   "./docs/DESIGN_RULES.md",
   "./docs/BODY_WEIGHT_DATA.md",

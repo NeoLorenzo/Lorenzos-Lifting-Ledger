@@ -65,7 +65,7 @@ test("ships a crawlable public science and product overview", async () => {
   assert.match(styles, /\.public-library-grid/);
   assert.match(robots, /Allow: \//);
   assert.match(robots, /sitemap\.xml/i);
-  assert.match(sitemap, /Lorenzos-Lifting-Ledger\//);
+  assert.match(sitemap, /https:\/\/heracles\.fabbrosystems\.com\//);
 });
 
 test("keeps signed-in application pages in explicit URL-backed history state", async () => {
@@ -673,7 +673,7 @@ test("creates, resumes, and concludes one persisted active workout session", asy
   assert.match(migration, /security invoker/);
   assert.match(migration, /set search_path = ''/);
   assert.match(migration, /revoke all on function public\.start_or_resume_workout_session\(\) from public, anon/);
-  assert.match(serviceWorker, /lifting-ledger-v41/);
+  assert.match(serviceWorker, /lifting-ledger-v42/);
   assert.match(presetsFeature, /async function openSessionPresetPicker\(\)/);
   assert.match(setCountMigration, /row_number\(\) over \(order by random\(\)\)/);
   assert.match(setCountMigration, /generate_series\(1, membership\.set_count\)/);
