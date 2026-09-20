@@ -46,7 +46,7 @@ The application has two access states:
 
 The signed-in workout flow supports persistent session state, equipment-aware exercise history, previous-performance context, and recovery-oriented autosave behavior. The application is deployed as a static GitHub Pages site and uses Supabase Auth plus owner-scoped workout data and global reference data in Postgres.
 
-> **Branding note:** the product is **Heracles**. The current GitHub repository and Pages URL still use the legacy `Lorenzos-Lifting-Ledger` slug; that infrastructure naming is being migrated separately.
+> **Branding note:** the product is **Heracles**. The GitHub repository retains the legacy `Lorenzos-Lifting-Ledger` slug for repository continuity, while the canonical production application lives at `heracles.fabbrosystems.com`.
 
 ## Security model
 
@@ -110,7 +110,7 @@ The four-value model spread is not averaged into one estimate, is not a confiden
 
 ## Live infrastructure
 
-- App: <https://neolorenzo.github.io/Lorenzos-Lifting-Ledger/> — current legacy deployment slug; the product name is Heracles.
+- App: <https://heracles.fabbrosystems.com/> — canonical production domain for Heracles.
 - Supabase project: currently retains the legacy display name `Lorenzo's Lifting Ledger` (`yfhmjwkscqbpzblrpsoy`, London).
 - Production Site URL and redirect allow-list are configured in Supabase.
 - GitHub Pages deploys from `main` at `/ (root)` with HTTPS enforced.
