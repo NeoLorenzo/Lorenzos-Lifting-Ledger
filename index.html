@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0b1120" />
+    <meta name="theme-color" content="#000000" />
     <meta name="description" content="An evidence-aware lifting tracker that maps exercises to muscles, tracks hard sets and exercise-specific performance, and documents every scientific assumption." />
     <meta name="robots" content="index, follow, max-image-preview:large" />
     <meta property="og:type" content="website" />
@@ -14,10 +14,11 @@
     <meta name="twitter:card" content="summary" />
     <link rel="canonical" href="https://heracles.fabbrosystems.com/" />
     <link rel="manifest" href="./manifest.webmanifest" />
-    <link rel="icon" href="./icons/icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="./fabbro-design/assets/Heracles Logo.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icons/icon.svg" />
     <link rel="stylesheet" href="./fabbro-design/fabbro-tokens.css" />
     <link rel="stylesheet" href="./styles.css?v=25" />
+    <link rel="stylesheet" href="./public.css?v=1" />
     <title>Heracles | Evidence-aware training data</title>
     <script type="application/ld+json">
       {
@@ -53,18 +54,14 @@
         <div id="public-home">
           <header class="public-nav">
             <a class="public-brand" href="#top" aria-label="Heracles home">
-              <span class="brand-mark" aria-hidden="true">H</span>
-              <span><strong>Heracles</strong><small>Evidence-aware training data</small></span>
+              <img class="public-brand-lockup" src="./fabbro-design/assets/Heracles Logo Colored With Text Beside.svg" alt="Heracles" />
             </a>
             <nav aria-label="Public navigation">
               <a href="#how-it-works">How it works</a>
               <a href="#principles">Principles</a>
               <a href="#literature">Literature</a>
             </nav>
-            <button id="google-sign-in" class="google-button public-sign-in" type="button">
-              <span class="google-mark" aria-hidden="true">G</span>
-              Sign in
-            </button>
+            <button id="google-sign-in" class="public-sign-in" type="button">Sign in</button>
           </header>
 
           <p id="auth-error" class="error public-auth-error" role="alert" hidden></p>
@@ -74,10 +71,10 @@
               <div class="hero-copy">
                 <p class="eyebrow">A lifting log built around useful questions</p>
                 <h1 id="public-title">Know what your training data actually means.</h1>
-                <p class="hero-intro">Heracles connects exercise performance to a transparent model of muscular involvement. It records the work you did, shows the assumptions behind every interpretation, and avoids impressive-looking statistics that cannot guide a training decision.</p>
+                <p class="hero-intro">Heracles connects exercise performance to a transparent model of muscular involvement, keeping the evidence, assumptions and interpretation inspectable.</p>
                 <div class="hero-actions">
-                  <a class="primary-action" href="#how-it-works">See how the model works <span aria-hidden="true">↓</span></a>
-                  <a class="text-action" href="#literature">Explore the scientific foundations</a>
+                  <a class="primary-action" href="#how-it-works">Explore Heracles <span aria-hidden="true">↓</span></a>
+                  <a class="secondary-action" href="#literature">Scientific foundations</a>
                 </div>
                 <ul class="model-facts" aria-label="Current model scope">
                   <li><strong>138</strong><span>catalogued exercises</span></li>
@@ -189,16 +186,28 @@
           </div>
 
           <footer class="public-footer">
-            <a class="public-brand footer-brand" href="#top"><span class="brand-mark" aria-hidden="true">H</span><strong>Heracles</strong></a>
-            <p>Built to keep training records, scientific models and product claims distinguishable.</p>
-            <a href="#literature">Scientific foundations ↑</a>
+            <div class="public-footer-identities">
+              <a class="public-brand footer-brand" href="#top" aria-label="Heracles home">
+                <img class="footer-product-lockup" src="./fabbro-design/assets/Heracles Logo Colored With Text Beside.svg" alt="Heracles" />
+              </a>
+              <a class="fabbro-endorsement" href="https://fabbrosystems.com/" aria-label="Fabbro Systems">
+                <img src="./fabbro-design/assets/Fabbro Systems Logo.svg" alt="" aria-hidden="true" />
+                <span>Fabbro Systems</span>
+              </a>
+            </div>
+            <p class="public-footer-copy">Evidence-aware resistance-training data and interpretation.</p>
+            <nav class="public-footer-nav" aria-label="Footer navigation">
+              <a href="#how-it-works">How it works</a>
+              <a href="#literature">Literature</a>
+              <a href="https://fabbrosystems.com/">Fabbro Systems</a>
+            </nav>
           </footer>
         </div>
 
         <section id="public-document-page" class="public-document-page" hidden>
           <header class="public-nav document-nav">
             <button id="public-document-back" class="document-back" type="button"><span aria-hidden="true">←</span> Back to overview</button>
-            <button id="public-document-sign-in" class="google-button public-sign-in" type="button"><span class="google-mark" aria-hidden="true">G</span> Sign in</button>
+            <button id="public-document-sign-in" class="public-sign-in" type="button">Sign in</button>
           </header>
           <div class="public-document-shell">
             <header class="document-header">
