@@ -45,7 +45,8 @@ jobs:
           grep -q '"start_url": "/"' /tmp/heracles-manifest.webmanifest
           grep -q '"scope": "/"' /tmp/heracles-manifest.webmanifest
           grep -q 'https://heracles.fabbrosystems.com/' /tmp/heracles-sitemap.xml
-          grep -q 'heracles-v43' /tmp/heracles-service-worker.js
+          grep -q 'const CACHE_NAME = "heracles-v' /tmp/heracles-service-worker.js
+          grep -q '"/manifest.webmanifest"' /tmp/heracles-service-worker.js
 
           if grep -E -q 'neolorenzo\.github\.io/Lorenzos-Lifting-Ledger|/Lorenzos-Lifting-Ledger/' /tmp/heracles.html; then
             echo "Legacy Heracles GitHub Pages path found on the live domain."
