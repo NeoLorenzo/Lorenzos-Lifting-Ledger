@@ -1,0 +1,54 @@
+name: Production smoke
+
+on:
+  workflow_run:
+    workflows:
+      - Validation
+    types:
+      - completed
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Smoke test live Heracles
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          for attempt in {1..12}; do
+            if curl --fail --silent --show-error --location https://heracles.fabbrosystems.com/ --output /tmp/heracles.html &&
+               curl --fail --silent --show-error --location https://heracles.fabbrosystems.com/manifest.webmanifest --output /tmp/heracles-manifest.webmanifest &&
+               curl --fail --silent --show-error --location https://heracles.fabbrosystems.com/sitemap.xml --output /tmp/heracles-sitemap.xml &&
+               curl --fail --silent --show-error --location https://heracles.fabbrosystems.com/service-worker.js --output /tmp/heracles-service-worker.js; then
+              break
+            fi
+
+            if (( attempt == 12 )); then
+              echo "Heracles production domain did not become reachable."
+              exit 1
+            fi
+
+            sleep 5
+          done
+
+          grep -q "Heracles" /tmp/heracles.html
+          grep -q 'https://heracles.fabbrosystems.com/' /tmp/heracles.html
+          grep -q '"start_url": "/"' /tmp/heracles-manifest.webmanifest
+          grep -q '"scope": "/"' /tmp/heracles-manifest.webmanifest
+          grep -q 'https://heracles.fabbrosystems.com/' /tmp/heracles-sitemap.xml
+          grep -q 'heracles-v43' /tmp/heracles-service-worker.js
+
+          if grep -E -q 'neolorenzo\.github\.io/Lorenzos-Lifting-Ledger|/Lorenzos-Lifting-Ledger/' /tmp/heracles.html; then
+            echo "Legacy Heracles GitHub Pages path found on the live domain."
+            exit 1
+          fi
