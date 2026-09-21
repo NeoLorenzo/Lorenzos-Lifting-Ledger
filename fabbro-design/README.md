@@ -21,3 +21,5 @@ Do not reinterpret canonical family-level geometry or behavior locally. Heracles
 - `fabbro-tokens.css`
 - `assets/`
 - `components/application-sidebar/`
+
+- `components/public-shell/` — canonical Public Shell 1.0.0 framework-agnostic contract

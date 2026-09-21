@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "name": "Fabbro Public Shell",
+  "version": "1.0.0",
+  "designSystemVersion": "0.3.0",
+  "scope": "signed-out public product surfaces",
+  "header": {
+    "desktop": {
+      "minHeight": "160px",
+      "gridTemplateColumns": "minmax(220px, 1fr) auto minmax(120px, 1fr)",
+      "pageGutter": "80px",
+      "navigationAlignment": "center",
+      "productLockupMaxWidth": "300px",
+      "signInPlacement": "far-right"
+    },
+    "compact": {
+      "maxWidth": "1200px",
+      "productLockupWidth": "240px",
+      "preserveSingleRow": true
+    },
+    "mobile": {
+      "maxWidth": "720px",
+      "gridTemplateColumns": "1fr auto",
+      "productLockupWidth": "min(190px, 54vw)",
+      "secondaryNavigation": "hidden-or-collapsed"
+    },
+    "navigation": {
+      "itemCount": "3-5",
+      "labels": "product-owned",
+      "font": "14px / 600 Inter",
+      "familyLinkInPrimaryNavigation": false
+    }
+  },
+  "typography": {
+    "kicker": "12px / 600 / 0.18em / uppercase",
+    "heroTitle": "64px / 900 / 0.20em / uppercase / 1.12",
+    "heroSubtitle": "32px / 400 / 1.3"
+  },
+  "focus": {
+    "outline": "2px solid #FFFFFF",
+    "outlineOffset": "3px"
+  },
+  "footer": {
+    "minHeight": "80px",
+    "pageGutter": "80px",
+    "productLockupWidth": "150px",
+    "familyMarkSize": "22px",
+    "navigationFont": "12px / 500 Inter"
+  }
+}

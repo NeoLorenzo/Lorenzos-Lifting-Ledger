@@ -45,7 +45,7 @@ body:has(#signed-out:not([hidden])) {
   position: static;
   z-index: auto;
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto minmax(120px, 1fr);
+  grid-template-columns: var(--fs-public-header-grid);
   gap: var(--fs-space-7);
   align-items: center;
   min-height: var(--fs-header-height);
@@ -67,7 +67,7 @@ body:has(#signed-out:not([hidden])) {
 
 #signed-out .public-brand-lockup {
   display: block;
-  width: min(300px, 100%);
+  width: min(var(--fs-public-header-lockup-max), 100%);
   height: auto;
 }
 
@@ -123,8 +123,8 @@ body:has(#signed-out:not([hidden])) {
 #signed-out .public-sign-in:focus-visible,
 #signed-out a:focus-visible,
 #signed-out button:focus-visible {
-  outline: 2px solid var(--fs-color-text);
-  outline-offset: 3px;
+  outline: var(--fs-focus-outline-width) solid var(--fs-color-text);
+  outline-offset: var(--fs-focus-outline-offset);
 }
 
 #signed-out .public-auth-error {
@@ -161,9 +161,9 @@ body:has(#signed-out:not([hidden])) {
 #signed-out .eyebrow {
   margin: 0;
   color: var(--fs-color-text-muted);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.18em;
+  font-size: var(--fs-type-kicker-size);
+  font-weight: var(--fs-type-kicker-weight);
+  letter-spacing: var(--fs-type-kicker-tracking);
   line-height: 1;
   text-transform: uppercase;
 }
@@ -837,7 +837,7 @@ body:has(#signed-out:not([hidden])) {
 
 #signed-out .footer-product-lockup {
   display: block;
-  width: 150px;
+  width: var(--fs-public-footer-product-lockup);
   height: auto;
 }
 
@@ -852,8 +852,8 @@ body:has(#signed-out:not([hidden])) {
 }
 
 #signed-out .fabbro-endorsement img {
-  width: 22px;
-  height: 22px;
+  width: var(--fs-public-footer-family-mark);
+  height: var(--fs-public-footer-family-mark);
 }
 
 #signed-out .public-footer-copy {
@@ -940,7 +940,7 @@ body:has(#signed-out:not([hidden])) {
   }
 
   #signed-out .public-brand-lockup {
-    width: 240px;
+    width: var(--fs-public-header-lockup-compact);
   }
 
   #signed-out .public-hero {
@@ -1015,7 +1015,7 @@ body:has(#signed-out:not([hidden])) {
   }
 
   #signed-out .public-brand-lockup {
-    width: min(190px, 54vw);
+    width: var(--fs-public-header-lockup-mobile);
   }
 
   #signed-out .public-nav nav {

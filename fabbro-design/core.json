@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "status": "implementation-baseline",
   "referenceFrame": {
     "desktopWidth": "1440px",
@@ -83,6 +83,15 @@
       "lineHeight": 1,
       "letterSpacing": "0",
       "source": "inferred"
+    },
+    "kicker": {
+      "fontFamily": "Inter",
+      "fontWeight": 600,
+      "fontSize": "12px",
+      "lineHeight": 1,
+      "letterSpacing": "0.18em",
+      "textTransform": "uppercase",
+      "source": "implementation-baseline"
     }
   },
   "layout": {
@@ -138,6 +147,33 @@
       "desktopSize": "24px",
       "visibleTextLabel": false,
       "orderBeforeSessionAction": true
+    }
+  },
+  "publicShell": {
+    "version": "1.0.0",
+    "header": {
+      "desktopGridColumns": "minmax(220px, 1fr) auto minmax(120px, 1fr)",
+      "desktopLockupMaxWidth": "300px",
+      "compactBreakpoint": "1200px",
+      "compactLockupWidth": "240px",
+      "mobileBreakpoint": "720px",
+      "mobileGridColumns": "1fr auto",
+      "mobileLockupWidth": "min(190px, 54vw)",
+      "navigationAlignment": "center",
+      "navigationLabels": "product-owned",
+      "navigationItemCount": "3-5",
+      "familyLinkInPrimaryNavigation": false,
+      "signInPlacement": "far-right"
+    },
+    "focus": {
+      "outlineWidth": "2px",
+      "outlineStyle": "solid",
+      "outlineColor": "#FFFFFF",
+      "outlineOffset": "3px"
+    },
+    "footer": {
+      "productLockupWidth": "150px",
+      "familyMarkSize": "22px"
     }
   },
   "applicationShell": {

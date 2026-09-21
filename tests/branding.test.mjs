@@ -81,3 +81,22 @@ test("Heracles branding preserves deployment and PWA identity contracts", () => 
   assert.equal(packageLock.name, packageJson.name);
   assert.equal(packageLock.packages[""].name, packageJson.name);
 });
+
+
+test("Heracles public shell consumes Fabbro Public Shell 1.0.0 tokens", () => {
+  const contract = JSON.parse(
+    fs.readFileSync(new URL("../fabbro-design/components/public-shell/contract.json", import.meta.url), "utf8")
+  );
+  const css = fs.readFileSync(new URL("../public.css", import.meta.url), "utf8");
+
+  assert.equal(contract.version, "1.0.0");
+  assert.equal(contract.designSystemVersion, "0.3.0");
+  assert.match(css, /var\(--fs-public-header-grid\)/);
+  assert.match(css, /var\(--fs-public-header-lockup-max\)/);
+  assert.match(css, /var\(--fs-public-header-lockup-compact\)/);
+  assert.match(css, /var\(--fs-public-header-lockup-mobile\)/);
+  assert.match(css, /var\(--fs-type-kicker-weight\)/);
+  assert.match(css, /var\(--fs-public-footer-product-lockup\)/);
+  assert.match(css, /var\(--fs-public-footer-family-mark\)/);
+  assert.match(css, /var\(--fs-focus-outline-width\)/);
+});
