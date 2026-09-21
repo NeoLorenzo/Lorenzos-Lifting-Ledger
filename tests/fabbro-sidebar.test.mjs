@@ -20,7 +20,7 @@ test("Heracles adopts Fabbro Design System 0.3.0 and Application Sidebar 1.0.0",
       accent: product.accent,
     },
     {
-      version: "0.2.0",
+      version: "0.3.0",
       product: "Heracles",
       symbol: "Pillar",
       coreIdea: "Strength",
