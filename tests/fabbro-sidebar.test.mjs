@@ -6,8 +6,8 @@ import test from "node:test";
 const root = process.cwd();
 const read = (file) => fs.readFileSync(path.join(root, file), "utf8");
 
-test("Heracles adopts Fabbro Design System 0.2.0 and Application Sidebar 1.0.0", () => {
-  assert.equal(read("fabbro-design/VERSION").trim(), "0.2.0");
+test("Heracles adopts Fabbro Design System 0.3.0 and Application Sidebar 1.0.0", () => {
+  assert.equal(read("fabbro-design/VERSION").trim(), "0.3.0");
   assert.equal(read("fabbro-design/components/application-sidebar/VERSION").trim(), "1.0.0");
 
   const product = JSON.parse(read("fabbro-design/product.json"));
