@@ -214,7 +214,12 @@ export function createPresetFeature(options) {
       exerciseList.className = "preset-card-exercises";
       for (const exercise of preset.exercises) {
         const exerciseItem = document.createElement("li");
-        exerciseItem.textContent = `${exercise.name} · ${exercise.setCount} ${exercise.setCount === 1 ? "set" : "sets"}`;
+        const exerciseName = document.createElement("span");
+        exerciseName.textContent = exercise.name;
+        const setCount = document.createElement("span");
+        setCount.className = "preset-set-count";
+        setCount.textContent = `${exercise.setCount} ${exercise.setCount === 1 ? "set" : "sets"}`;
+        exerciseItem.append(exerciseName, " · ", setCount);
         exerciseList.append(exerciseItem);
       }
 

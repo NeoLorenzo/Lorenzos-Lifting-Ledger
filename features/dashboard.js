@@ -314,6 +314,8 @@ export function createDashboardFeature(options) {
     }
     if (muscleTrendPanel) muscleTrendPanel.hidden = false;
     if (exerciseSourcesSection) exerciseSourcesSection.hidden = false;
+    applyMuscleGroupHue(muscleTrendPanel, group.code);
+    applyMuscleGroupHue(exerciseSourcesSection, group.code);
     if (muscleTrendTitle) muscleTrendTitle.textContent = group.name;
     if (exerciseSourcesTitle) exerciseSourcesTitle.textContent = group.name;
     renderTrendChart(calculateExposureTrend(periodRecords, exerciseMuscleLookup, group.code, range), range);
@@ -559,10 +561,20 @@ export function createDashboardFeature(options) {
       svg.append(band);
     }
     plot.append(svg);
+    // Inline value labels collide when many sessions are plotted; keep the
+    // latest label per series and reveal the rest through each marker tooltip.
+    plot.classList.toggle("is-dense", points.length > 6);
+    const latestPointBySeries = new Map();
+    for (const point of points) {
+      const latest = latestPointBySeries.get(point.seriesKey);
+      if (!latest || point.record.performed_on >= latest.record.performed_on) latestPointBySeries.set(point.seriesKey, point);
+    }
+    const latestPoints = new Set(latestPointBySeries.values());
     for (const [index, point] of points.entries()) {
       const marker = document.createElement("span");
       marker.className = "progression-marker";
       marker.classList.add(point.x <= 50 ? "is-start" : "is-end");
+      if (latestPoints.has(point)) marker.classList.add("is-latest");
       marker.style.left = `${point.x}%`;
       marker.style.bottom = `${point.y}%`;
       marker.style.setProperty("--series-color", seriesColors.get(point.seriesKey));
@@ -755,10 +767,21 @@ export function datePosition(value, dates) {
 export function getAdaptiveDateTicks(dates, availableWidth = 480) {
   if (dates.length <= 2) return dates;
   const maximum = Math.max(2, Math.min(6, Math.floor(availableWidth / 84)));
-  if (dates.length <= maximum) return dates;
-  const indexes = new Set([0, dates.length - 1]);
-  for (let index = 1; index < maximum - 1; index += 1) indexes.add(Math.round((index * (dates.length - 1)) / (maximum - 1)));
-  return [...indexes].sort((a, b) => a - b).map((index) => dates[index]);
+  // Labels sit at their true date position, so spacing is enforced in chart
+  // coordinates rather than by index to stop neighbouring labels colliding.
+  const minimumGap = (100 / Math.max(availableWidth, 1)) * 96;
+  const lastPosition = datePosition(dates.at(-1), dates);
+  const ticks = [dates[0]];
+  let previousPosition = datePosition(dates[0], dates);
+  for (const date of dates.slice(1, -1)) {
+    if (ticks.length >= maximum - 1) break;
+    const position = datePosition(date, dates);
+    if (position - previousPosition < minimumGap || lastPosition - position < minimumGap) continue;
+    ticks.push(date);
+    previousPosition = position;
+  }
+  ticks.push(dates.at(-1));
+  return ticks;
 }
 
 function stableStringHash(value) {
@@ -800,6 +823,14 @@ function getChangeDirectionClass(current, previous) {
   if (difference > 0) return "change-positive";
   if (difference < 0) return "change-negative";
   return "change-neutral";
+}
+
+function applyMuscleGroupHue(element, groupCode) {
+  if (!element?.classList) return;
+  for (const className of [...element.classList]) {
+    if (className.startsWith("muscle-group-")) element.classList.remove(className);
+  }
+  if (groupCode) element.classList.add(`muscle-group-${groupCode}`);
 }
 
 function createEmptyMessage(message) {

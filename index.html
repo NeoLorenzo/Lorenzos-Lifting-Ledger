@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="./fabbro-design/fabbro-tokens.css" />
     <link rel="stylesheet" href="./styles.css?v=26" />
     <link rel="stylesheet" href="./public.css?v=3" />
+    <link rel="stylesheet" href="./app.css?v=1" />
     <title>Heracles | Evidence-aware resistance training</title>
     <script type="application/ld+json">
       {
@@ -352,11 +353,54 @@
           <button id="sidebar-rail" class="sidebar-rail" type="button" aria-label="Toggle navigation" title="Toggle navigation"></button>
         </aside>
 
-        <section id="home-page" class="page-panel" data-page-panel="home">
-          <div class="start-session-home">
-            <button id="start-session" class="primary-button start-session-button" type="button" data-page-heading-anchor disabled>Loading session…</button>
-            <p id="start-session-status" class="start-session-status" role="status" aria-live="polite" hidden></p>
+        <section id="home-page" class="page-panel home-page" data-page-panel="home">
+          <header class="home-header">
+            <div>
+              <p id="home-date" class="eyebrow">Today</p>
+              <h1 id="home-greeting">Welcome back</h1>
+            </div>
+          </header>
+          <div id="home-hero" class="home-hero" data-state="loading">
+            <div class="home-hero-copy">
+              <p id="home-hero-status" class="home-hero-status">Ready to train</p>
+              <h2 id="home-hero-title">Start a workout</h2>
+              <p id="home-hero-copy">Pick a gym and a preset, or begin with an empty session and add exercises as you go.</p>
+            </div>
+            <div class="start-session-home">
+              <button id="start-session" class="primary-button start-session-button" type="button" data-page-heading-anchor disabled>Loading session…</button>
+              <p id="start-session-status" class="start-session-status" role="status" aria-live="polite" hidden></p>
+            </div>
           </div>
+          <section class="home-card home-activity" aria-labelledby="home-activity-title">
+            <div class="home-section-heading">
+              <h2 id="home-activity-title">Training activity</h2>
+              <p id="home-activity-summary" class="home-activity-summary">Working sets per day</p>
+            </div>
+            <div class="activity-heatmap-scroll">
+              <div id="home-activity-heatmap" class="activity-heatmap" role="img" aria-label="Working sets per day over the last year" data-state="loading"></div>
+            </div>
+            <div class="activity-footer">
+              <p id="home-activity-status" class="home-activity-status" role="status" aria-live="polite">Loading training activity…</p>
+              <div class="activity-legend" aria-hidden="true">
+                <span>Less</span>
+                <span class="activity-day" data-level="0" title="No working sets"></span>
+                <span class="activity-day" data-level="1" title="1–7 working sets"></span>
+                <span class="activity-day" data-level="2" title="8–14 working sets"></span>
+                <span class="activity-day" data-level="3" title="15–21 working sets"></span>
+                <span class="activity-day" data-level="4" title="22+ working sets"></span>
+                <span>More</span>
+              </div>
+            </div>
+            <div id="home-activity-tooltip" class="activity-tooltip" role="presentation" hidden></div>
+          </section>
+          <section class="home-card home-recent" aria-labelledby="home-recent-title">
+            <div class="home-section-heading">
+              <h2 id="home-recent-title">Recent sessions</h2>
+              <button class="text-button" type="button" data-page-link="session-history">View all <span aria-hidden="true">→</span></button>
+            </div>
+            <p id="home-recent-status" class="home-recent-status" role="status" aria-live="polite">Loading recent sessions…</p>
+            <ol id="home-recent-list" class="home-recent-list" hidden></ol>
+          </section>
           <dialog id="session-modal" class="session-modal" aria-labelledby="session-modal-title">
             <div class="session-modal-card">
               <button id="close-session-modal" class="text-button session-modal-close" type="button" aria-label="Close session">Close</button>
@@ -450,6 +494,7 @@
         <section id="my-data-page" class="page-panel" data-page-panel="my-data" hidden>
           <header class="dashboard-header">
             <div>
+              <p class="eyebrow">Analysis</p>
               <h1 id="my-data-heading">My data</h1>
               <p class="dashboard-intro">Understand what is changing in your training.</p>
             </div>
@@ -522,7 +567,7 @@
 
         <section id="settings-page" class="page-panel" data-page-panel="settings" hidden>
           <header class="data-header settings-header">
-            <div><p class="eyebrow">Account data</p><h1>Settings</h1></div>
+            <div><p class="eyebrow">Account data</p><h1>Settings</h1><p class="page-lede">Manage the body evidence Heracles uses to put your training in context.</p></div>
           </header>
           <section class="dashboard-section settings-section" aria-labelledby="body-weight-data-title">
             <div class="section-heading">
@@ -555,7 +600,9 @@
         <section id="my-stuff-page" class="page-panel" data-page-panel="my-stuff" hidden>
           <header class="data-header my-stuff-header">
             <div>
+              <p class="eyebrow">Library</p>
               <h1>My Stuff</h1>
+              <p class="page-lede">Reusable building blocks for starting workouts quickly.</p>
             </div>
           </header>
 
@@ -840,6 +887,6 @@
       </section>
     </main>
 
-    <script type="module" src="./app.js?v=35"></script>
+    <script type="module" src="./app.js?v=36"></script>
   </body>
 </html>
