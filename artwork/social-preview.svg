@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640">
+<defs>
+  <radialGradient id="bg" cx="78%" cy="50%" r="67%">
+    <stop offset="0%" stop-color="#200607"/>
+    <stop offset="55%" stop-color="#090202"/>
+    <stop offset="100%" stop-color="#000000"/>
+  </radialGradient>
+  <filter id="glow" x="-100%" y="-100%" width="300%" height="300%">
+    <feGaussianBlur stdDeviation="7"/>
+  </filter>
+</defs>
+<rect width="1280" height="640" fill="url(#bg)"/>
+<rect x="0" y="0" width="1280" height="640" fill="none" stroke="#151518" stroke-width="2"/>
+<g transform="translate(84 75)">
+  <path d="M0 12 L48 17 L96 12 L96 23 L0 23 Z" fill="#FF383C"/>
+  <rect x="15" y="27" width="66" height="7" rx="2" fill="#FF383C"/>
+</g>
+<text x="200" y="108" font-family="Inter, Arial, sans-serif" font-size="34" font-weight="650" letter-spacing="10" fill="#F4F4F5">HERACLES</text>
+<text x="84" y="258" font-family="Inter, Arial, sans-serif" font-size="67" font-weight="850" letter-spacing="2" fill="#F4F4F5">STRENGTH,</text>
+<text x="84" y="336" font-family="Inter, Arial, sans-serif" font-size="67" font-weight="850" letter-spacing="2" fill="#F4F4F5">MEASURED.</text>
+<rect x="84" y="367" width="72" height="5" rx="2.5" fill="#FF383C"/>
+<text x="84" y="414" font-family="Inter, Arial, sans-serif" font-size="23" font-weight="420" fill="#A0A0A0">Evidence-aware resistance training</text>
+<text x="84" y="532" font-family="Inter, Arial, sans-serif" font-size="13" font-weight="650" letter-spacing="3.1" fill="#696970">FABBRO SYSTEMS</text>
+<g transform="translate(810 95)">
+  <g opacity=".45" stroke="#3A2324" stroke-width="1.5">
+    <line x1="0" y1="430" x2="360" y2="430"/><line x1="0" y1="350" x2="360" y2="350"/>
+    <line x1="0" y1="270" x2="360" y2="270"/><line x1="0" y1="190" x2="360" y2="190"/>
+    <line x1="0" y1="110" x2="360" y2="110"/>
+  </g>
+  <g>
+    <rect x="26" y="292" width="48" height="138" rx="8" fill="#1A1112" stroke="#4D2628"/>
+    <rect x="96" y="250" width="48" height="180" rx="8" fill="#211314" stroke="#5C292B"/>
+    <rect x="166" y="192" width="48" height="238" rx="8" fill="#2A1517" stroke="#742D30"/>
+    <rect x="236" y="121" width="48" height="309" rx="8" fill="#341719" stroke="#8B3034"/>
+    <rect x="306" y="52" width="48" height="378" rx="8" fill="#40191C" stroke="#A73539"/>
+  </g>
+  <path d="M 50 320 C 118 300, 146 267, 190 238 C 236 207, 260 149, 330 88" fill="none" stroke="#FF383C" stroke-opacity=".28" stroke-width="16" stroke-linecap="round" filter="url(#glow)"/>
+  <path d="M 50 320 C 118 300, 146 267, 190 238 C 236 207, 260 149, 330 88" fill="none" stroke="#FF5A5D" stroke-width="4" stroke-linecap="round"/>
+  <g fill="#FFF3F3"><circle cx="50" cy="320" r="6"/><circle cx="190" cy="238" r="6"/><circle cx="330" cy="88" r="7"/></g>
+</g>
+<path d="M 84 584 H 440" stroke="#1C1C1F"/><circle cx="452" cy="584" r="2.5" fill="#FF383C"/>
+</svg>
