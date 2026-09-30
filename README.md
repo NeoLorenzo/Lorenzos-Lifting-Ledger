@@ -41,7 +41,7 @@ Heracles goes deep on one domain. Kleos goes broad across the person. Ariadne tu
 
 The application has two access states:
 
-- **Signed out:** a crawlable public front page explaining Heracles, its training model, scientific foundations, limitations, and design decisions, with **Sign in** in the top-right.
+- **Signed out:** a crawlable public front page with **Sign in** in the top-right. It shows the product through an animated live-workout demo, a tour of each signed-in screen (clearly labelled as illustrative example data), a scroll-driven walk-through of one set from entry to progression, an e1RM calculator that runs the app's own `set-model.js`, and an explorer for the complete exercise-to-muscle hypertrophic-relevance matrix loaded from its authoritative CSV. It also covers principles, evidence boundaries, the Fabbro Systems context, and the Literature library.
 - **Signed in:** Home (start or resume a workout, a year-long heatmap of analytical working sets per day, plus recent sessions) and live-workout flow, Session History, My Data analytics, My Stuff preset management, a Literature hub, Settings for body-weight data, and sign-out controls.
 
 The signed-in workout flow supports persistent session state, equipment-aware exercise history, previous-performance context, and recovery-oriented autosave behavior. The application is deployed as a static GitHub Pages site and uses Supabase Auth plus owner-scoped workout data and global reference data in Postgres.
@@ -151,6 +151,7 @@ npm test
 - `config.js` — public browser configuration only
 - `styles.css` — shared base styles and the Fabbro Application Sidebar shell
 - `public.css` — signed-out public site (Fabbro Public Shell)
+- `features/public-showcase.js` — signed-out interactive showcase (live-workout demo, product tour, set walk-through, e1RM calculator, relevance-matrix explorer); calculated values reuse `set-model.js` and `analytics.js`, and the matrix is read from `EXERCISE_TO_MUSCLE_HYPERTROPHIC_RELEVANCE.csv`
 - `app.css` — signed-in application design layer; every rule is scoped to `#signed-in` or `body.is-authenticated` so it cannot affect the public site
 - `manifest.webmanifest` and `service-worker.js` — installable PWA metadata and offline shell
 - `docs/` — app-facing scientific methods, product decisions, model interpretations, limitations, and evidence-quality specifications surfaced through Literature; filenames use uppercase snake case

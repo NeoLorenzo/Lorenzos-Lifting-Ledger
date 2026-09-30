@@ -454,7 +454,13 @@ test("defines and applies one per-dumbbell weight convention", async () => {
     read("README.md"),
   ]);
 
-  assert.doesNotMatch(html, /dumbbell/i);
+  // The signed-in shell must take every unit label from formatWeightUnit rather than hard-coding one.
+  const signedInShell = html.slice(html.indexOf('<section id="signed-in"'));
+  assert.doesNotMatch(signedInShell, /dumbbell/i);
+  // The public showcase illustrates dumbbell exercises, so it must use the same per-dumbbell label.
+  const publicHome = html.slice(html.indexOf('<div id="public-home">'), html.indexOf('<section id="signed-in"'));
+  assert.match(publicHome, /kg per dumbbell/);
+  assert.doesNotMatch(publicHome, /pair of dumbbells|dumbbells? × 2|combined dumbbell/i);
   assert.match(app, /\? "kg per dumbbell" : "kg"/);
   assert.match(app, /formatWeightUnit\(exercise\.exercises\.name\)/);
   assert.match(designRules, /Dumbbell weight is always per dumbbell/);

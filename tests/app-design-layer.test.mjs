@@ -22,7 +22,7 @@ function selectorsOf(css) {
 test("authenticated design layer loads after the shared and public stylesheets and is precached", async () => {
   const [html, serviceWorker] = await Promise.all([read("index.html"), read("service-worker.js")]);
   const styles = html.indexOf('href="./styles.css?v=26"');
-  const publicCss = html.indexOf('href="./public.css?v=3"');
+  const publicCss = html.indexOf('href="./public.css?v=4"');
   const appCss = html.indexOf('href="./app.css?v=1"');
   assert.ok(styles > -1 && publicCss > styles && appCss > publicCss, "app.css must load last");
   assert.ok(serviceWorker.includes('"/app.css?v=1"'), "app.css must be precached for the offline shell");
