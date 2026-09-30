@@ -1,14 +1,16 @@
-const CACHE_NAME = "heracles-v45";
+const CACHE_NAME = "heracles-v46";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/fabbro-design/fabbro-tokens.css",
   "/styles.css?v=26",
   "/public.css?v=3",
-  "/app.js?v=35",
+  "/app.css?v=1",
+  "/app.js?v=36",
   "/analytics.js",
   "/presets.js",
   "/body-weight.js",
+  "/features/activity-heatmap.js",
   "/features/body-weight.js",
   "/features/body-circumference.js",
   "/features/dashboard.js",

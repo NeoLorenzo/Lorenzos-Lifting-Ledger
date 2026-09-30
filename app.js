@@ -7,7 +7,13 @@ import { createDashboardFeature } from "./features/dashboard.js";
 import { createSessionFeature } from "./features/session/session-controller.js";
 import { persistSessionHistoryExerciseCorrection } from "./features/session/history-correction.js";
 import { initializePullToRefresh } from "./features/pull-to-refresh.js";
-import { formatSetClassification, isAnalyticalWorkingSet } from "./set-model.js";
+import {
+  activityCalendarStart,
+  buildActivityCalendar,
+  countWorkingSetsByDay,
+  toLocalIsoDate,
+} from "./features/activity-heatmap.js";
+import { classifySet, formatSetClassification, isAnalyticalWorkingSet } from "./set-model.js";
 
 const PAGE_TITLES = Object.freeze({
   home: "Home",
@@ -48,6 +54,22 @@ const publicDocumentContent = document.querySelector("#public-document-content")
 const datasetStatus = document.querySelector("#dataset-status");
 const startSessionButton = document.querySelector("#start-session");
 const startSessionStatus = document.querySelector("#start-session-status");
+const homeDate = document.querySelector("#home-date");
+const homeGreeting = document.querySelector("#home-greeting");
+const homeHero = document.querySelector("#home-hero");
+const homeHeroStatus = document.querySelector("#home-hero-status");
+const homeHeroTitle = document.querySelector("#home-hero-title");
+const homeHeroCopy = document.querySelector("#home-hero-copy");
+const homeRecentList = document.querySelector("#home-recent-list");
+const homeRecentStatus = document.querySelector("#home-recent-status");
+const HOME_RECENT_SESSION_LIMIT = 5;
+let homeRecentRequestId = 0;
+const homeActivitySection = document.querySelector(".home-activity");
+const homeActivityHeatmap = document.querySelector("#home-activity-heatmap");
+const homeActivitySummary = document.querySelector("#home-activity-summary");
+const homeActivityStatus = document.querySelector("#home-activity-status");
+const homeActivityTooltip = document.querySelector("#home-activity-tooltip");
+let homeActivityRequestId = 0;
 const sessionModal = document.querySelector("#session-modal");
 const closeSessionModalButton = document.querySelector("#close-session-modal");
 const sessionStartChoices = document.querySelector("#session-start-choices");
@@ -519,6 +541,11 @@ function showPage(pageName, { updateHistory = true } = {}) {
   closeMenu();
   window.scrollTo({ top: 0, behavior: "smooth" });
   window.requestAnimationFrame(updateContextualNavTitle);
+  if (pageName === "home") renderHomeGreeting();
+  if (pageName === "home" && activeUserId && supabaseClient) {
+    void loadHomeRecentSessions(supabaseClient);
+    void loadHomeActivity(supabaseClient);
+  }
   if (pageName === "live-session" && activeUserId && supabaseClient) {
     void liveSessionFeature.load();
   }
@@ -719,6 +746,7 @@ async function loadActiveSession(supabase) {
     showSessionWorkflowError(`Could not load your active session: ${error.message}`);
     startSessionButton.textContent = "Create Session";
     startSessionButton.disabled = false;
+    renderHomeHero();
   }
 }
 
@@ -808,12 +836,262 @@ function closeSessionModal() {
 function updateSessionButton() {
   startSessionButton.textContent = activeWorkoutSession ? "Resume Session" : "Create Session";
   startSessionButton.disabled = false;
+  renderHomeHero();
   window.requestAnimationFrame(updateContextualNavTitle);
 }
+
+function renderHomeHero() {
+  const active = Boolean(activeWorkoutSession);
+  if (homeHero) homeHero.dataset.state = active ? "active" : "idle";
+  homeHero?.classList.toggle("is-active", active);
+  if (homeHeroStatus) homeHeroStatus.textContent = active ? "Workout in progress" : "Ready to train";
+  if (homeHeroTitle) {
+    homeHeroTitle.textContent = active
+      ? activeWorkoutSession.source_preset_name || "Live workout"
+      : "Start a workout";
+  }
+  if (homeHeroCopy) {
+    const today = new Date();
+    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+    const started = activeWorkoutSession?.performed_on === todayIso ? "today" : formatDate(activeWorkoutSession?.performed_on ?? todayIso);
+    homeHeroCopy.textContent = active
+      ? `Started ${started}. Your logged sets are saved — pick up where you left off.`
+      : "Pick a gym and a preset, or begin with an empty session and add exercises as you go.";
+  }
+}
+
+function renderHomeGreeting(now = new Date()) {
+  if (homeDate) {
+    homeDate.textContent = new Intl.DateTimeFormat(undefined, { weekday: "long", day: "numeric", month: "long" }).format(now);
+  }
+  if (homeGreeting) {
+    const hour = now.getHours();
+    homeGreeting.textContent = hour < 5 ? "Good evening" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  }
+}
+
+async function loadHomeRecentSessions(supabase) {
+  if (!homeRecentList || !homeRecentStatus) return;
+  const requestId = ++homeRecentRequestId;
+  const requestedUserId = activeUserId;
+  if (!homeRecentList.childElementCount) {
+    homeRecentStatus.textContent = "Loading recent sessions…";
+    homeRecentStatus.hidden = false;
+  }
+
+  const [{ data, error }] = await Promise.all([
+    supabase
+      .from("workout_sessions")
+      .select("id, performed_on, status, source_preset_name, gyms(name), session_exercises(id, exercise_id, exercise_sets(weight, reps, is_warmup, reported_rir_bucket))")
+      .eq("owner_id", requestedUserId)
+      .order("performed_on", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(HOME_RECENT_SESSION_LIMIT),
+    ensureExerciseMuscleLookup(supabase).catch(() => null),
+  ]);
+
+  if (requestId !== homeRecentRequestId || requestedUserId !== activeUserId) return;
+  if (error) {
+    homeRecentStatus.textContent = `Could not load recent sessions: ${error.message}`;
+    homeRecentStatus.hidden = false;
+    return;
+  }
+  if (!data.length) {
+    homeRecentList.replaceChildren();
+    homeRecentList.hidden = true;
+    homeRecentStatus.textContent = "No sessions yet. Your completed workouts will appear here.";
+    homeRecentStatus.hidden = false;
+    return;
+  }
+
+  homeRecentList.replaceChildren(...data.map(createHomeRecentItem));
+  homeRecentList.hidden = false;
+  homeRecentStatus.hidden = true;
+}
+
+function createHomeRecentItem(session) {
+  const item = document.createElement("li");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "home-recent-item";
+  button.dataset.pageLink = session.status === "in_progress" ? "live-session" : "session-history";
+
+  const [year, month, day] = session.performed_on.split("-").map(Number);
+  const performedOn = new Date(year, month - 1, day);
+  const dateBlock = document.createElement("span");
+  dateBlock.className = "home-recent-date";
+  dateBlock.setAttribute("aria-hidden", "true");
+  const dayNumber = document.createElement("strong");
+  dayNumber.textContent = String(day);
+  const monthLabel = document.createElement("small");
+  monthLabel.textContent = new Intl.DateTimeFormat(undefined, { month: "short" }).format(performedOn);
+  dateBlock.append(dayNumber, monthLabel);
+
+  const copy = document.createElement("span");
+  copy.className = "home-recent-copy";
+  const title = document.createElement("strong");
+  title.textContent = session.source_preset_name || session.gyms?.name || "Workout session";
+  const exercises = session.session_exercises ?? [];
+  const workingSetCount = exercises.reduce(
+    (count, exercise) => count + (exercise.exercise_sets ?? []).filter(isAnalyticalWorkingSet).length,
+    0,
+  );
+  const context = document.createElement("span");
+  context.textContent = [
+    session.source_preset_name && session.gyms?.name ? session.gyms.name : null,
+    `${exercises.length} ${exercises.length === 1 ? "exercise" : "exercises"}`,
+    session.status === "in_progress" ? null : `${workingSetCount} working ${workingSetCount === 1 ? "set" : "sets"}`,
+  ].filter(Boolean).join(" · ");
+  copy.append(title, context);
+
+  const uiGroups = [...new Map(
+    exercises
+      .filter((exercise) => (exercise.exercise_sets ?? []).some(isAnalyticalWorkingSet))
+      .flatMap((exercise) => exerciseMuscleLookup.get(exercise.exercise_id) ?? [])
+      .map((muscle) => [muscle.uiGroup.code, muscle.uiGroup]),
+  ).values()].sort((a, b) => a.sourceOrder - b.sourceOrder || a.name.localeCompare(b.name));
+  if (uiGroups.length) {
+    const pills = document.createElement("span");
+    pills.className = "muscle-pill-list";
+    for (const group of uiGroups) {
+      const pill = document.createElement("span");
+      pill.className = `muscle-pill muscle-group-${group.code}`;
+      pill.textContent = group.name;
+      pills.append(pill);
+    }
+    copy.append(pills);
+  }
+
+  const trailing = document.createElement("span");
+  if (session.status === "in_progress") {
+    trailing.className = "session-status-badge";
+    trailing.textContent = "In progress";
+  } else {
+    trailing.innerHTML = '<svg class="home-recent-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>';
+  }
+
+  button.setAttribute("aria-label", `${title.textContent}, ${formatDate(session.performed_on)}, ${context.textContent}`);
+  button.append(dateBlock, copy, trailing);
+  item.append(button);
+  return item;
+}
+
+async function loadHomeActivity(supabase) {
+  if (!homeActivityHeatmap || !homeActivityStatus) return;
+  const requestId = ++homeActivityRequestId;
+  const requestedUserId = activeUserId;
+  const todayIso = toLocalIsoDate();
+  if (!homeActivityHeatmap.childElementCount) renderHomeActivity(new Map(), todayIso);
+  homeActivityHeatmap.dataset.state = "loading";
+
+  const { data, error } = await supabase
+    .from("workout_sessions")
+    .select("performed_on, session_exercises(exercise_sets(weight, reps, is_warmup, reported_rir_bucket))")
+    .eq("owner_id", requestedUserId)
+    .gte("performed_on", activityCalendarStart(todayIso))
+    .lte("performed_on", todayIso);
+
+  if (requestId !== homeActivityRequestId || requestedUserId !== activeUserId) return;
+  homeActivityHeatmap.dataset.state = "idle";
+  if (error) {
+    homeActivityStatus.textContent = `Could not load training activity: ${error.message}`;
+    homeActivityStatus.hidden = false;
+    return;
+  }
+  renderHomeActivity(countWorkingSetsByDay(data), todayIso);
+}
+
+function renderHomeActivity(countsByDay, todayIso) {
+  const calendar = buildActivityCalendar(countsByDay, todayIso);
+  const monthFormat = new Intl.DateTimeFormat(undefined, { month: "short", timeZone: "UTC" });
+  const weekdayFormat = new Intl.DateTimeFormat(undefined, { weekday: "short", timeZone: "UTC" });
+  // Keeps month labels from sliding under the pinned weekday column on narrow screens.
+  const corner = document.createElement("span");
+  corner.className = "activity-weekday activity-corner";
+  const cells = [corner];
+
+  for (const { column, month } of calendar.months) {
+    const label = document.createElement("span");
+    label.className = "activity-month";
+    label.style.gridColumn = `${column + 2} / span 3`;
+    label.textContent = monthFormat.format(new Date(Date.UTC(2026, month, 1)));
+    cells.push(label);
+  }
+  // Monday-first rows; label every other day like GitHub.
+  for (const weekday of [0, 2, 4]) {
+    const label = document.createElement("span");
+    label.className = "activity-weekday";
+    label.style.gridRow = String(weekday + 2);
+    label.textContent = weekdayFormat.format(new Date(Date.UTC(2026, 0, 5 + weekday)));
+    cells.push(label);
+  }
+  calendar.columns.forEach((days, column) => {
+    for (const day of days) {
+      const cell = document.createElement("span");
+      cell.className = day.isToday ? "activity-day is-today" : "activity-day";
+      cell.dataset.level = String(day.level);
+      cell.dataset.count = String(day.count);
+      cell.dataset.date = day.iso;
+      cell.style.gridColumn = String(column + 2);
+      cell.style.gridRow = String(day.weekday + 2);
+      cells.push(cell);
+    }
+  });
+
+  const wasRendered = homeActivityHeatmap.childElementCount > 0;
+  homeActivityHeatmap.replaceChildren(...cells);
+  const setsLabel = `${calendar.total} working ${calendar.total === 1 ? "set" : "sets"}`;
+  const daysLabel = `${calendar.activeDays} training ${calendar.activeDays === 1 ? "day" : "days"}`;
+  homeActivitySummary.textContent = `${setsLabel} · ${daysLabel} in the last year`;
+  homeActivityHeatmap.setAttribute("aria-label", `Working sets per day since ${formatDate(calendar.startIso)}: ${setsLabel} across ${daysLabel}.`);
+  homeActivityStatus.textContent = "Warm-ups and 4+ RIR sets are not counted.";
+  homeActivityStatus.hidden = false;
+  if (!wasRendered) {
+    // Most recent weeks sit on the right; show them first when the grid scrolls.
+    const scroller = homeActivityHeatmap.parentElement;
+    window.requestAnimationFrame(() => {
+      scroller.scrollLeft = scroller.scrollWidth;
+    });
+  }
+}
+
+function showHomeActivityTooltip(cell) {
+  if (!homeActivityTooltip || !homeActivitySection) return;
+  const count = Number(cell.dataset.count);
+  const [year, month, day] = cell.dataset.date.split("-").map(Number);
+  const dateLabel = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" })
+    .format(new Date(year, month - 1, day));
+  homeActivityTooltip.replaceChildren();
+  const countLabel = document.createElement("strong");
+  countLabel.textContent = count ? `${count} working ${count === 1 ? "set" : "sets"}` : "No working sets";
+  homeActivityTooltip.append(countLabel, ` on ${dateLabel}`);
+  homeActivityTooltip.hidden = false;
+
+  const sectionRect = homeActivitySection.getBoundingClientRect();
+  const cellRect = cell.getBoundingClientRect();
+  const halfWidth = homeActivityTooltip.offsetWidth / 2;
+  const center = cellRect.left + cellRect.width / 2 - sectionRect.left;
+  const left = Math.min(Math.max(center, halfWidth + 8), sectionRect.width - halfWidth - 8);
+  homeActivityTooltip.style.left = `${left}px`;
+  homeActivityTooltip.style.top = `${cellRect.top - sectionRect.top}px`;
+}
+
+function hideHomeActivityTooltip() {
+  if (homeActivityTooltip) homeActivityTooltip.hidden = true;
+}
+
+homeActivityHeatmap?.addEventListener("pointerover", (event) => {
+  const cell = event.target.closest(".activity-day");
+  if (cell) showHomeActivityTooltip(cell);
+  else hideHomeActivityTooltip();
+});
+homeActivityHeatmap?.addEventListener("pointerleave", hideHomeActivityTooltip);
+homeActivityHeatmap?.parentElement.addEventListener("scroll", hideHomeActivityTooltip, { passive: true });
 
 function setSessionButtonLoading(loading, label = "Loading session…") {
   startSessionButton.disabled = loading;
   if (loading) startSessionButton.textContent = label;
+  if (loading && homeHero) homeHero.dataset.state = "loading";
 }
 
 function showSessionWorkflowError(message) {
@@ -1119,23 +1397,50 @@ function createExerciseItem(exercise, performedOn) {
     equipmentName,
   ].filter(Boolean).join(" · ");
 
-  const sets = document.createElement("ul");
-  sets.className = "set-list";
+  const weightUnit = formatWeightUnit(exercise.exercises.name);
+  const sets = document.createElement("table");
+  sets.className = "set-table";
+  const setHead = sets.createTHead().insertRow();
+  for (const [className, label, unit] of [
+    ["set-number", "Set"],
+    ["set-load", "Load", weightUnit],
+    ["set-reps", "Reps"],
+    ["set-type", "Type"],
+  ]) {
+    const cell = document.createElement("th");
+    cell.scope = "col";
+    cell.className = className;
+    cell.textContent = label;
+    if (unit) {
+      const unitLabel = document.createElement("small");
+      unitLabel.textContent = unit;
+      cell.append(" ", unitLabel);
+    }
+    setHead.append(cell);
+  }
+  const setBody = sets.createTBody();
 
   const muscleViews = createExerciseMuscleViews(exercise);
 
   for (const set of [...exercise.exercise_sets].sort((a, b) => a.set_number - b.set_number)) {
-    const setItem = document.createElement("li");
-    const weightUnit = formatWeightUnit(exercise.exercises.name);
-    const weight = set.weight === null ? `— ${weightUnit}` : `${Number(set.weight).toLocaleString()} ${weightUnit}`;
-    const reps = set.reps === null ? "— reps" : `${set.reps} reps`;
+    const row = setBody.insertRow();
+    row.className = `is-${classifySet(set).replace("_", "-")}`;
     const labels = [
       formatSetClassification(set),
       set.is_drop_set ? "Drop set" : null,
       set.is_superset ? "Superset" : null,
     ].filter(Boolean);
-    setItem.textContent = `Set ${set.set_number}: ${weight} for ${reps}${labels.length ? ` · ${labels.join(" · ")}` : ""}`;
-    sets.append(setItem);
+    const cells = [
+      ["set-number", String(set.set_number)],
+      ["set-load", set.weight === null ? "—" : Number(set.weight).toLocaleString()],
+      ["set-reps", set.reps === null ? "—" : String(set.reps)],
+      ["set-type", labels.join(" · ")],
+    ];
+    for (const [className, text] of cells) {
+      const cell = row.insertCell();
+      cell.className = className;
+      cell.textContent = text;
+    }
   }
 
   item.append(headingRow, context);

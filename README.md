@@ -42,7 +42,7 @@ Heracles goes deep on one domain. Kleos goes broad across the person. Ariadne tu
 The application has two access states:
 
 - **Signed out:** a crawlable public front page explaining Heracles, its training model, scientific foundations, limitations, and design decisions, with **Sign in** in the top-right.
-- **Signed in:** Home and live-workout flow, Session History, My Data analytics, My Stuff preset management, a Literature hub, Settings for body-weight data, and sign-out controls.
+- **Signed in:** Home (start or resume a workout, a year-long heatmap of analytical working sets per day, plus recent sessions) and live-workout flow, Session History, My Data analytics, My Stuff preset management, a Literature hub, Settings for body-weight data, and sign-out controls.
 
 The signed-in workout flow supports persistent session state, equipment-aware exercise history, previous-performance context, and recovery-oriented autosave behavior. The application is deployed as a static GitHub Pages site and uses Supabase Auth plus owner-scoped workout data and global reference data in Postgres.
 
@@ -149,5 +149,8 @@ npm test
 - `relative-e1rm.js` — pure absolute-to-relative e1RM range and effective-mode helpers
 - `literature.js` — safe in-app Markdown rendering and the Literature document registry
 - `config.js` — public browser configuration only
+- `styles.css` — shared base styles and the Fabbro Application Sidebar shell
+- `public.css` — signed-out public site (Fabbro Public Shell)
+- `app.css` — signed-in application design layer; every rule is scoped to `#signed-in` or `body.is-authenticated` so it cannot affect the public site
 - `manifest.webmanifest` and `service-worker.js` — installable PWA metadata and offline shell
 - `docs/` — app-facing scientific methods, product decisions, model interpretations, limitations, and evidence-quality specifications surfaced through Literature; filenames use uppercase snake case
