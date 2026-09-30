@@ -1,12 +1,13 @@
-const CACHE_NAME = "heracles-v46";
+const CACHE_NAME = "heracles-v47";
 const APP_SHELL = [
   "/",
   "/index.html",
   "/fabbro-design/fabbro-tokens.css",
   "/styles.css?v=26",
-  "/public.css?v=3",
+  "/public.css?v=4",
   "/app.css?v=1",
-  "/app.js?v=36",
+  "/app.js?v=37",
+  "/features/public-showcase.js?v=1",
   "/analytics.js",
   "/presets.js",
   "/body-weight.js",
@@ -30,6 +31,7 @@ const APP_SHELL = [
   "/manifest.webmanifest",
   "/robots.txt",
   "/sitemap.xml",
+  "/EXERCISE_TO_MUSCLE_HYPERTROPHIC_RELEVANCE.csv",
   "/icons/icon.svg",
   "/brand/heracles-mark.svg",
   "/brand/heracles-lockup.svg",

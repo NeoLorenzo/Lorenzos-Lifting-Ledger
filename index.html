@@ -20,7 +20,7 @@
     <link rel="apple-touch-icon" href="./icons/icon.svg" />
     <link rel="stylesheet" href="./fabbro-design/fabbro-tokens.css" />
     <link rel="stylesheet" href="./styles.css?v=26" />
-    <link rel="stylesheet" href="./public.css?v=3" />
+    <link rel="stylesheet" href="./public.css?v=4" />
     <link rel="stylesheet" href="./app.css?v=1" />
     <title>Heracles | Evidence-aware resistance training</title>
     <script type="application/ld+json">
@@ -60,8 +60,9 @@
               <img class="public-brand-lockup" src="./fabbro-design/assets/Heracles Logo Colored With Text Beside.svg" alt="Heracles" />
             </a>
             <nav aria-label="Public navigation">
+              <a href="#the-app">The app</a>
               <a href="#how-it-works">How it works</a>
-              <a href="#capabilities">Capabilities</a>
+              <a href="#the-model">The model</a>
               <a href="#principles">Principles</a>
               <a href="#literature">Literature</a>
             </nav>
@@ -72,13 +73,15 @@
 
           <div id="top" class="public-main">
             <section class="public-hero" aria-labelledby="public-title">
-              <div class="hero-copy">
+              <canvas class="hero-matrix" data-matrix-backdrop aria-hidden="true"></canvas>
+              <div class="hero-copy reveal">
                 <p class="eyebrow">Evidence-aware resistance training</p>
                 <h1 id="public-title">Know what your training data actually means.</h1>
+                <p class="hero-subtitle">Log every set in the gym. See exactly what it says about your strength and which muscles it trained — with the working shown.</p>
                 <p class="hero-intro">Heracles combines a persistent training ledger with equipment-aware history, RIR-aware strength estimation, body evidence, and explicit movement and muscle models. The observations stay separate from the interpretations built on top of them.</p>
                 <div class="hero-actions">
-                  <a class="primary-action" href="#how-it-works">Explore Heracles <span aria-hidden="true">↓</span></a>
-                  <a class="secondary-action" href="#literature">Scientific foundations</a>
+                  <button class="primary-action" type="button" data-sign-in>Start your ledger <span aria-hidden="true">→</span></button>
+                  <a class="secondary-action" href="#the-app">See it in action <span aria-hidden="true">↓</span></a>
                 </div>
                 <ul class="model-facts" aria-label="Current Heracles model scope">
                   <li><strong>138</strong><span>catalogued exercises</span></li>
@@ -87,140 +90,656 @@
                 </ul>
               </div>
 
-              <aside class="model-preview" aria-label="Example of how Heracles preserves and interprets a training set">
-                <div class="preview-heading">
-                  <span>One set, preserved as evidence</span>
-                  <span class="preview-status">Evidence first</span>
-                </div>
-                <div class="preview-exercise">
-                  <div>
-                    <small>Exercise</small>
-                    <strong>Overhead Press</strong>
+              <div class="hero-stage" data-hero-demo>
+                <div class="hero-glow" aria-hidden="true"></div>
+                <figure class="phone" role="img" aria-label="Illustration of the Heracles live workout screen: a third set of an incline dumbbell press is logged at 32.5 kg per dumbbell for 7 reps at 1 RIR and autosaved.">
+                  <div class="phone-screen" aria-hidden="true">
+                    <div class="ld-top">
+                      <div>
+                        <span class="ld-title">Push A</span>
+                        <p class="ld-meta">Iron Works Gym · Wednesday 30 September</p>
+                      </div>
+                      <span class="ld-sync is-saved" data-demo-sync>Saved ✓</span>
+                    </div>
+                    <div class="ld-card">
+                      <div class="ld-card-head"><strong>Press (Dumbbell) (Incline 30)</strong><span class="ld-dots">•••</span></div>
+                      <div class="ld-history"><span>Last time on this machine — 23 Sep</span><span>›</span></div>
+                      <div class="ld-sets">
+                        <div class="ld-set">
+                          <div class="ld-set-head"><span>SET 1</span><span class="ld-warm"><i></i>Warm-up</span></div>
+                          <div class="ld-fields is-labelled"><span><small>Weight (kg per dumbbell)</small><b>30</b></span><span><small>Reps</small><b>9</b></span><span><small>RIR</small><b>2</b></span></div>
+                          <p class="ld-prev"><em>Last:</em> 30 kg per dumbbell × 8 @ 2 RIR</p>
+                        </div>
+                        <div class="ld-set">
+                          <div class="ld-set-head"><span>SET 2</span><span class="ld-warm"><i></i>Warm-up</span></div>
+                          <div class="ld-fields"><span><b>30</b></span><span><b>8</b></span><span><b>1</b></span></div>
+                          <p class="ld-prev"><em>Last:</em> 30 kg per dumbbell × 8 @ 1 RIR</p>
+                        </div>
+                        <div class="ld-set is-live" data-demo-set>
+                          <div class="ld-set-head"><span>SET 3</span><span class="ld-warm"><i></i>Warm-up</span></div>
+                          <div class="ld-fields">
+                            <span><b data-demo-field="weight">32.5</b></span>
+                            <span><b data-demo-field="reps">7</b></span>
+                            <span class="ld-rir-slot"><b data-demo-field="rir">1</b><span class="ld-rir-menu"><i class="is-clear">—</i><i>0</i><i class="is-selected">1</i><i>2</i><i>3</i><i>4+</i></span></span>
+                          </div>
+                          <p class="ld-prev"><em>Last:</em> 30 kg per dumbbell × 7 @ 1 RIR</p>
+                        </div>
+                      </div>
+                      <span class="ld-add">+ Add set</span>
+                    </div>
+                    <div class="ld-card ld-card-next">
+                      <div class="ld-card-head"><strong>Pushdown (Cable) (V-Bar)</strong><span class="ld-dots">•••</span></div>
+                    </div>
+                    <div class="ld-footer">
+                      <div class="ld-footer-row"><span class="ld-btn">+ Add exercise</span><span class="ld-btn is-primary">Finish workout</span></div>
+                      <span class="ld-cancel">Cancel workout</span>
+                    </div>
                   </div>
-                  <span class="preview-set">8 reps · 2 RIR</span>
+                </figure>
+
+                <div class="float-card float-estimate" data-demo-float aria-hidden="true">
+                  <span class="float-kicker">Calculated · 4 estimates</span>
+                  <strong class="float-range" data-demo-range>39.00–41.17</strong>
+                  <span class="float-unit">kg per dumbbell · estimated 1RM</span>
+                  <div class="float-bars" data-demo-bars><i></i><i></i><i></i><i></i></div>
                 </div>
-                <div class="preview-flow" aria-hidden="true"><span></span><span></span><span></span></div>
-                <div class="preview-layer">
-                  <span class="layer-number">01</span>
-                  <div><strong>Observed performance</strong><small>Exercise, equipment, load, repetitions, set type and RIR remain inspectable as recorded training evidence.</small></div>
+                <div class="float-card float-muscles" data-demo-float aria-hidden="true">
+                  <span class="float-kicker">Authored model · this set</span>
+                  <ul data-demo-groups>
+                    <li><span>Chest</span><b style="--v: 1">1.00</b></li>
+                    <li><span>Shoulders</span><b style="--v: 0.75">0.75</b></li>
+                    <li><span>Triceps</span><b style="--v: 0.75">0.75</b></li>
+                  </ul>
+                  <span class="float-unit">weighted sets</span>
                 </div>
-                <div class="preview-layer">
-                  <span class="layer-number">02</span>
-                  <div><strong>Strength interpretation</strong><small>Observed and RIR-adjusted Brzycki and Epley estimates are preserved separately rather than averaged into one score.</small></div>
+                <div class="float-card float-class" data-demo-float aria-hidden="true">
+                  <span class="float-dot"></span><span data-demo-class>1 RIR · Working set</span>
                 </div>
-                <div class="preview-layer">
-                  <span class="layer-number">03</span>
-                  <div><strong>Hypertrophy interpretation</strong><small>Versioned movement and muscle models add relevant context without pretending to measure stimulus or growth directly.</small></div>
-                </div>
-                <p class="preview-note">Body weight can contextualize strength. Circumference measurements remain separate recorded observations.</p>
-              </aside>
+              </div>
             </section>
 
-            <section id="how-it-works" class="public-section process-section" aria-labelledby="process-title">
-              <header class="section-heading">
-                <p class="eyebrow">How it works</p>
-                <h2 id="process-title">Train, record, interpret, track.</h2>
-                <p>Heracles covers the workout itself and the analysis that follows. It preserves the underlying evidence first, then derives only the signals that have an explicit purpose and documented boundary.</p>
+            <div class="proof-strip" aria-label="Current Heracles model scope in numbers">
+              <div class="proof-track">
+                <ul class="proof-list">
+                  <li><b>138</b> exercises</li>
+                  <li><b>40</b> movement patterns</li>
+                  <li><b>40</b> muscle entities</li>
+                  <li><b>13</b> readable muscle groups</li>
+                  <li><b>5,520</b> authored relevance cells</li>
+                  <li><b>1,600</b> functional-anatomy cells</li>
+                  <li><b>4</b> e1RM estimates per set</li>
+                  <li><b>0</b> tonnage metrics</li>
+                </ul>
+                <ul class="proof-list" aria-hidden="true">
+                  <li><b>138</b> exercises</li>
+                  <li><b>40</b> movement patterns</li>
+                  <li><b>40</b> muscle entities</li>
+                  <li><b>13</b> readable muscle groups</li>
+                  <li><b>5,520</b> authored relevance cells</li>
+                  <li><b>1,600</b> functional-anatomy cells</li>
+                  <li><b>4</b> e1RM estimates per set</li>
+                  <li><b>0</b> tonnage metrics</li>
+                </ul>
+              </div>
+            </div>
+
+            <section id="the-app" class="public-section tour-section" aria-labelledby="tour-title">
+              <header class="section-heading reveal">
+                <p class="eyebrow">The app</p>
+                <h2 id="tour-title">One place for the session and everything it proves.</h2>
+                <p>Heracles is built for the gym floor first: fast set entry, previous performance on screen, autosave that survives bad signal. Afterwards, the same records become history, trends and model-backed analysis.</p>
               </header>
-              <ol class="process-grid">
-                <li><span>01</span><h3>Train</h3><p>Start or resume a persistent workout, use previous-performance context, and keep the actual equipment and exercise identity attached to the session.</p></li>
-                <li><span>02</span><h3>Record</h3><p>Capture load, repetitions, RIR, set type and session context. Warm-ups, high-RIR work and analytical working sets remain distinguishable.</p></li>
-                <li><span>03</span><h3>Interpret</h3><p>Apply explicit strength and muscle-relevance models while preserving each estimate, assumption and authored mapping instead of collapsing them into one number.</p></li>
-                <li><span>04</span><h3>Track</h3><p>Review session history, exercise-specific progression, body-weight-relative strength and standardized body measurements as separate longitudinal evidence.</p></li>
-              </ol>
+
+              <div class="tour" data-tour>
+                <div class="tour-tabs" role="tablist" aria-label="Heracles screens">
+                  <button class="tour-tab" type="button" role="tab" id="tour-tab-home" aria-controls="tour-panel-home" aria-selected="true" data-tour-tab="home">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 9-8 9 8"></path><path d="M5 10v10h14V10"></path><path d="M9 20v-6h6v6"></path></svg>
+                    <span>Home</span><i class="tour-progress" aria-hidden="true"></i>
+                  </button>
+                  <button class="tour-tab" type="button" role="tab" id="tour-tab-train" aria-controls="tour-panel-train" aria-selected="false" tabindex="-1" data-tour-tab="train">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11"></path></svg>
+                    <span>Workout</span><i class="tour-progress" aria-hidden="true"></i>
+                  </button>
+                  <button class="tour-tab" type="button" role="tab" id="tour-tab-history" aria-controls="tour-panel-history" aria-selected="false" tabindex="-1" data-tour-tab="history">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l3 2"></path></svg>
+                    <span>History</span><i class="tour-progress" aria-hidden="true"></i>
+                  </button>
+                  <button class="tour-tab" type="button" role="tab" id="tour-tab-data" aria-controls="tour-panel-data" aria-selected="false" tabindex="-1" data-tour-tab="data">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"></path><path d="m7 16 4-5 3 3 5-7"></path></svg>
+                    <span>My data</span><i class="tour-progress" aria-hidden="true"></i>
+                  </button>
+                  <button class="tour-tab" type="button" role="tab" id="tour-tab-presets" aria-controls="tour-panel-presets" aria-selected="false" tabindex="-1" data-tour-tab="presets">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 8a2 2 0 0 0-2-2h-4l-2-2h-2L9 6H5a2 2 0 0 0-2 2v10h18Z"></path><path d="M3 11h18"></path></svg>
+                    <span>Presets</span><i class="tour-progress" aria-hidden="true"></i>
+                  </button>
+                  <button class="tour-tab" type="button" role="tab" id="tour-tab-body" aria-controls="tour-panel-body" aria-selected="false" tabindex="-1" data-tour-tab="body">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z"></path><path d="M5 21v-2a7 7 0 0 1 14 0v2"></path></svg>
+                    <span>Body</span><i class="tour-progress" aria-hidden="true"></i>
+                  </button>
+                </div>
+
+                <div class="tour-frame">
+                  <div class="app-window" aria-hidden="true">
+                    <div class="aw-bar"><i></i><i></i><i></i><span>heracles.fabbrosystems.com</span></div>
+                    <div class="aw-body">
+                      <nav class="aw-side">
+                        <img src="./brand/heracles-lockup.svg" alt="" />
+                        <span class="aw-heading">Training</span>
+                        <span class="aw-item" data-aw-item="home"><svg viewBox="0 0 24 24"><path d="m3 11 9-8 9 8"></path><path d="M5 10v10h14V10"></path><path d="M9 20v-6h6v6"></path></svg>Home</span>
+                        <span class="aw-item" data-aw-item="history"><svg viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l3 2"></path></svg>Session history</span>
+                        <span class="aw-item" data-aw-item="data"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"></path><path d="m7 16 4-5 3 3 5-7"></path></svg>My data</span>
+                        <span class="aw-item" data-aw-item="presets"><svg viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-2-2h-4l-2-2h-2L9 6H5a2 2 0 0 0-2 2v10h18Z"></path><path d="M3 11h18"></path></svg>My Stuff</span>
+                        <span class="aw-item"><svg viewBox="0 0 24 24"><path d="M2 4h6a4 4 0 0 1 4 4v12a4 4 0 0 0-4-4H2Z"></path><path d="M22 4h-6a4 4 0 0 0-4 4v12a4 4 0 0 1 4-4h6Z"></path></svg>Literature</span>
+                        <span class="aw-item" data-aw-item="body"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.5"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"></path></svg>Settings</span>
+                      </nav>
+                      <div class="aw-main">
+                        <div class="aw-top"><strong data-aw-title>Home</strong><span class="aw-top-right"><span class="ld-sync is-saved" data-aw-sync>Saved ✓</span><img src="./brand/fabbro-mark.svg" alt="" /><span class="aw-signout">Sign out</span></span></div>
+                        <div class="aw-screens">
+                          <!-- Home -->
+                          <div class="aw-screen" data-aw-screen="home">
+                            <div class="mk-page-head"><small>Wednesday 30 September</small><strong>Good morning</strong></div>
+                            <div class="mk-hero">
+                              <div><small class="mk-hero-status">Ready to train</small><strong>Start a workout</strong><p>Pick a gym and a preset, or begin with an empty session and add exercises as you go.</p></div>
+                              <span class="mk-btn is-primary is-large">Create Session</span>
+                            </div>
+                            <div class="mk-panel mk-activity">
+                              <div class="mk-panel-head"><strong>Training activity</strong><small>612 working sets in the last year</small></div>
+                              <div class="mk-heatmap" data-mini-heatmap></div>
+                              <div class="mk-activity-foot"><span>Illustrative example data</span><span class="mk-heat-legend">Less <i data-level="0"></i><i data-level="1"></i><i data-level="2"></i><i data-level="3"></i><i data-level="4"></i> More</span></div>
+                            </div>
+                            <div class="mk-panel mk-recent">
+                              <div class="mk-panel-head"><strong>Recent sessions</strong><small>View all →</small></div>
+                              <div class="mk-recent-item"><span class="mk-date"><b>23</b><small>Sep</small></span><span class="mk-recent-copy"><b>Push A</b><small>Iron Works Gym · 5 exercises · 15 working sets</small><span class="mk-pills"><i style="--hue: 345">Chest</i><i style="--hue: 222">Shoulders</i><i style="--hue: 4">Triceps</i></span></span><span class="mk-chev">›</span></div>
+                              <div class="mk-recent-item"><span class="mk-date"><b>19</b><small>Sep</small></span><span class="mk-recent-copy"><b>Legs</b><small>Iron Works Gym · 4 exercises · 12 working sets</small><span class="mk-pills"><i style="--hue: 88">Calves</i><i style="--hue: 292">Glutes</i><i style="--hue: 22">Hamstrings</i><i style="--hue: 126">Quads</i></span></span><span class="mk-chev">›</span></div>
+                            </div>
+                          </div>
+                          <!-- Workout -->
+                          <div class="aw-screen" data-aw-screen="train">
+                            <div class="mk-live-head"><div><strong>Push A</strong><small>Iron Works Gym · Wednesday 30 September</small></div><span class="ld-sync is-saved">Saved ✓</span></div>
+                            <div class="mk-ex">
+                              <div class="mk-ex-head"><strong>Press (Machine) (Incline)</strong><span>•••</span></div>
+                              <div class="mk-equip"><small>Machine / Equipment</small><span>Incline press — Bay 2</span></div>
+                              <div class="mk-hist is-open"><strong>Last time on this machine — 23 Sep</strong><ul><li>Set 1: 60 kg × 10 · 2 RIR</li><li>Set 2: 60 kg × 9 · 1 RIR</li><li>Set 3: 60 kg × 8 · 1 RIR</li></ul></div>
+                              <div class="mk-sets">
+                                <div class="mk-set is-labelled"><span class="mk-num">SET 1</span><span class="mk-in"><small>Weight (kg)</small><b>62.5</b></span><span class="mk-in"><small>Reps</small><b>10</b></span><span class="mk-in"><small>RIR</small><b>2</b></span><em><u>Last:</u> 60 kg × 10 @ 2 RIR</em><span class="mk-set-actions"><i></i>Warm-up ×</span></div>
+                                <div class="mk-set"><span class="mk-num">SET 2</span><span class="mk-in"><b>62.5</b></span><span class="mk-in"><b>9</b></span><span class="mk-in"><b>1</b></span><em><u>Last:</u> 60 kg × 9 @ 1 RIR</em><span class="mk-set-actions"><i></i>Warm-up ×</span></div>
+                                <div class="mk-set is-blank"><span class="mk-num">SET 3</span><span class="mk-in"><b></b></span><span class="mk-in"><b></b></span><span class="mk-in"><b>—</b></span><em><u>Last:</u> 60 kg × 8 @ 1 RIR</em><span class="mk-set-actions"><i></i>Warm-up ×</span></div>
+                              </div>
+                              <span class="mk-add">+ Add set</span>
+                            </div>
+                            <div class="mk-finish"><span class="mk-cancel">Cancel workout</span><span class="mk-btn">+ Add exercise</span><span class="mk-btn is-primary">Finish workout</span></div>
+                          </div>
+                          <!-- History -->
+                          <div class="aw-screen" data-aw-screen="history">
+                            <div class="mk-page-head"><small>Training log</small><strong>Session history</strong><p>48 workout sessions</p></div>
+                            <div class="mk-search"><span>Search by exercise</span><b>Press</b><i class="mk-seg"><u>Simplified</u><s>Detailed</s></i></div>
+                            <div class="mk-history">
+                              <div class="mk-entry is-open">
+                                <div class="mk-entry-head"><b>Iron Works Gym</b><small>23 Sep 2026 · 5 exercises · 15 working sets</small><span class="mk-pills"><i style="--hue: 345">Chest</i><i style="--hue: 222">Shoulders</i><i style="--hue: 4">Triceps</i></span></div>
+                                <div class="mk-entry-body">
+                                  <div class="mk-entry-ex"><b>Press (Dumbbell) (Incline 30)</b><small>3 sets</small><span class="mk-edit">Edit</span></div>
+                                  <table class="mk-table">
+                                    <thead><tr><th>Set</th><th>Load <small>kg per dumbbell</small></th><th>Reps</th><th>Type</th></tr></thead>
+                                    <tbody>
+                                      <tr><td>1</td><td>30</td><td>8</td><td>2 RIR · Working set</td></tr>
+                                      <tr><td>2</td><td>30</td><td>8</td><td>1 RIR · Working set</td></tr>
+                                      <tr><td>3</td><td>30</td><td>7</td><td>1 RIR · Working set</td></tr>
+                                    </tbody>
+                                  </table>
+                                </div>
+                              </div>
+                              <div class="mk-entry"><div class="mk-entry-head"><b>Iron Works Gym</b><small>19 Sep 2026 · 4 exercises · 12 working sets</small><span class="mk-pills"><i style="--hue: 88">Calves</i><i style="--hue: 292">Glutes</i><i style="--hue: 22">Hamstrings</i><i style="--hue: 126">Quads</i></span></div></div>
+                              <div class="mk-entry is-faded"><div class="mk-entry-head"><b>Iron Works Gym</b><small>16 Sep 2026 · 5 exercises · 14 working sets</small></div></div>
+                            </div>
+                          </div>
+                          <!-- My data -->
+                          <div class="aw-screen" data-aw-screen="data">
+                            <div class="mk-data-head"><div class="mk-page-head"><small>Analysis</small><strong>My data</strong></div><div class="mk-range"><span>4 weeks</span><span class="is-on">8 weeks</span><span>12 weeks</span><span>6 months</span><span>All time</span></div></div>
+                            <div class="mk-metrics">
+                              <div><small>Sessions</small><b>14</b></div>
+                              <div><small>Working sets</small><b>196</b></div>
+                              <div><small>Average sessions / week</small><b>1.75</b></div>
+                              <div><small>Exercises trained</small><b>19</b></div>
+                            </div>
+                            <div class="mk-data-grid">
+                              <div class="mk-panel">
+                                <small class="mk-kicker">Weighted sets</small><strong>Muscle exposure</strong>
+                                <ul class="mk-bars">
+                                  <li style="--hue: 345; --w: 0.92"><span>Chest</span><i></i><b>38.25</b></li>
+                                  <li style="--hue: 198; --w: 0.84"><span>Back</span><i></i><b>35.00</b></li>
+                                  <li style="--hue: 126; --w: 0.72"><span>Quads</span><i></i><b>30.00</b></li>
+                                  <li style="--hue: 222; --w: 0.66"><span>Shoulders</span><i></i><b>27.50</b></li>
+                                  <li style="--hue: 4; --w: 0.55"><span>Triceps</span><i></i><b>22.75</b></li>
+                                  <li style="--hue: 22; --w: 0.41"><span>Hamstrings</span><i></i><b>17.00</b></li>
+                                  <li style="--hue: 260; --w: 0.35"><span>Biceps</span><i></i><b>14.50</b></li>
+                                  <li style="--hue: 292; --w: 0.29"><span>Glutes</span><i></i><b>12.00</b></li>
+                                  <li style="--hue: 88; --w: 0.22"><span>Calves</span><i></i><b>9.00</b></li>
+                                </ul>
+                              </div>
+                              <div class="mk-panel">
+                                <strong>Exercise progression</strong>
+                                <span class="mk-chip-row"><span class="mk-series-chip">Press (Dumbbell) (Incline 30)</span></span>
+                                <svg class="mk-progress" viewBox="0 0 320 150" preserveAspectRatio="none" data-mini-progression></svg>
+                                <span class="mk-axis">Estimated 1RM (kg per dumbbell)</span>
+                              </div>
+                              <div class="mk-panel mk-change">
+                                <small class="mk-kicker">Last 4 weeks vs previous 4 weeks</small><strong>Recent change</strong>
+                                <ul>
+                                  <li><span>Working sets</span><b class="is-up">+12%</b></li>
+                                  <li><span>Chest</span><b class="is-up">+18%</b></li>
+                                  <li><span>Hamstrings</span><b class="is-down">−8%</b></li>
+                                  <li><span>Sessions</span><b class="is-flat">No change</b></li>
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                          <!-- Presets -->
+                          <div class="aw-screen" data-aw-screen="presets">
+                            <div class="mk-presets-head"><div class="mk-page-head"><small>Library</small><strong>My Stuff</strong><p>Reusable building blocks for starting workouts quickly.</p></div><span class="mk-btn is-primary">Create preset</span></div>
+                            <div class="mk-presets">
+                              <div class="mk-preset"><strong>Push A</strong><small>5 exercises · 3 sets each</small><ul><li>Fly (Pec Deck Machine)</li><li>Lateral Raise (Dumbbell) (Standing)</li><li>Press (Dumbbell) (Incline 30)</li><li>Press (Machine) (Incline)</li><li>Pushdown (Cable) (V-Bar)</li></ul></div>
+                              <div class="mk-preset"><strong>Pull A</strong><small>5 exercises · 3 sets each</small><ul><li>Curl (Dumbbell) (Incline)</li><li>Kelso Shrug (Machine) (Chest Supported)</li><li>Lat Pulldown (Cable Machine) (Wide Grip)</li><li>Rear Delt Fly (Machine)</li><li>Row (Machine) (Chest Supported) (Close Grip)</li></ul></div>
+                              <div class="mk-preset"><strong>Legs</strong><small>4 exercises · 3 sets each</small><ul><li>Calf Raises (Machine) (Standing)</li><li>Leg Curl (Machine) (Seated)</li><li>Leg Extension (Machine)</li><li>Leg Press (Machine)</li></ul></div>
+                            </div>
+                            <div class="mk-start">
+                              <strong>Start a session</strong>
+                              <span class="mk-btn is-primary">Create session from preset</span>
+                              <span class="mk-btn">Create session from scratch</span>
+                            </div>
+                          </div>
+                          <!-- Body -->
+                          <div class="aw-screen" data-aw-screen="body">
+                            <div class="mk-page-head"><small>Account data</small><strong>Settings</strong><p>Manage the body evidence Heracles uses to put your training in context.</p></div>
+                            <div class="mk-body-grid">
+                              <div class="mk-panel">
+                                <strong>Body Weight Data</strong>
+                                <dl class="mk-dl"><div><dt>Measurements</dt><dd>186</dd></div><div><dt>Measured coverage</dt><dd>12 Jan – 28 Sep 2026</dd></div><div><dt>Last imported</dt><dd>Apple Health · today</dd></div></dl>
+                                <svg class="mk-weight" viewBox="0 0 320 110" preserveAspectRatio="none" data-mini-weight></svg>
+                                <div class="mk-legend"><span><i class="is-dot"></i>Measured</span><span><i class="is-dash"></i>Interpolated between measurements</span></div>
+                              </div>
+                              <div class="mk-panel">
+                                <div class="mk-toggle"><i class="is-on"></i><span><strong>Show estimated 1RM relative to body weight</strong><small>Uses measured or interpolated body weight on each workout date.</small></span></div>
+                                <div class="mk-relative"><small>Press (Dumbbell) (Incline 30) · 30 Sep</small><b>0.49–0.51 × BW</b><span>per dumbbell · 80.4 kg on the workout date</span></div>
+                                <strong class="mk-sub">Body measurements</strong>
+                                <ul class="mk-circ"><li><span>Upper arm (left) · relaxed</span><b>36.5 cm</b></li><li><span>Upper arm (left) · flexed</span><b>39.0 cm</b></li><li><span>Waist</span><b>82.0 cm</b></li></ul>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="tour-captions">
+                    <article class="tour-caption" role="tabpanel" id="tour-panel-home" aria-labelledby="tour-tab-home" data-tour-panel="home">
+                      <p class="tour-kicker">Home</p>
+                      <h3>Your training at a glance.</h3>
+                      <p>Start or resume a workout in one tap. A year-long heatmap shows every day you logged working sets, and your latest sessions sit right below with the muscle groups they trained.</p>
+                      <ul class="tour-points"><li>Resume an interrupted workout exactly where it stopped</li><li>Heatmap shades use fixed set-count bands, so old days never re-scale</li><li>Jump straight into any recent session</li></ul>
+                    </article>
+                    <article class="tour-caption" role="tabpanel" id="tour-panel-train" aria-labelledby="tour-tab-train" data-tour-panel="train" hidden>
+                      <p class="tour-kicker">Live workout</p>
+                      <h3>Built for between-set seconds.</h3>
+                      <p>Your last performance on that exact exercise and machine sits beside every set. Weight, reps and RIR are one tap each, and every edit autosaves — offline edits wait on the device until the server confirms them.</p>
+                      <ul class="tour-points"><li>Finish bar stays within thumb reach</li><li>Equipment identity kept per session, so machines are never mixed up</li><li>Warm-ups marked explicitly and kept out of analysis</li></ul>
+                    </article>
+                    <article class="tour-caption" role="tabpanel" id="tour-panel-history" aria-labelledby="tour-tab-history" data-tour-panel="history" hidden>
+                      <p class="tour-kicker">Session history</p>
+                      <h3>Every session, searchable.</h3>
+                      <p>Find any workout by the exercises in it. Each set is laid out in an aligned table with its classification, and every session shows which muscles it trained — simplified into 13 groups or opened up into all 40 muscle entities.</p>
+                      <ul class="tour-points"><li>Search by exercise name</li><li>Simplified or detailed muscle view</li><li>Fix a past set's load, reps, RIR or equipment later</li></ul>
+                    </article>
+                    <article class="tour-caption" role="tabpanel" id="tour-panel-data" aria-labelledby="tour-tab-data" data-tour-panel="data" hidden>
+                      <p class="tour-kicker">My data</p>
+                      <h3>Trends you can interrogate.</h3>
+                      <p>Muscle exposure in weighted sets, estimated-1RM ranges per exercise and equipment, and recent change against your previous four weeks. Every figure links to the method that produced it.</p>
+                      <ul class="tour-points"><li>4 weeks to all-time ranges</li><li>Signed change labels, never color alone</li><li>Tap a muscle group to see which exercises trained it</li></ul>
+                    </article>
+                    <article class="tour-caption" role="tabpanel" id="tour-panel-presets" aria-labelledby="tour-tab-presets" data-tour-panel="presets" hidden>
+                      <p class="tour-kicker">My Stuff</p>
+                      <h3>Presets without stale numbers.</h3>
+                      <p>Save a reusable pool of exercises with a set count — from the catalogue or from a past session. Starting from a preset shuffles the order and creates blank sets, so yesterday's load is a reference, not a prescription.</p>
+                      <ul class="tour-points"><li>Build from scratch or a previous workout</li><li>Load, reps, RIR and equipment are never copied forward</li><li>Deleting a preset never touches history</li></ul>
+                    </article>
+                    <article class="tour-caption" role="tabpanel" id="tour-panel-body" aria-labelledby="tour-tab-body" data-tour-panel="body" hidden>
+                      <p class="tour-kicker">Body evidence</p>
+                      <h3>Strength in body-weight context.</h3>
+                      <p>Import scale weights by CSV or sync them from Apple Health. Switch on relative mode to see each estimate as a multiple of body weight on the day you lifted — only where a measured or interpolated value exists.</p>
+                      <ul class="tour-points"><li>Gaps filled only between real measurements</li><li>Tape measurements kept as raw observations</li><li>Delete your body-weight dataset at any time</li></ul>
+                    </article>
+                  </div>
+                </div>
+                <p class="tour-note">Screens show illustrative example data.</p>
+              </div>
+            </section>
+
+            <section id="how-it-works" class="public-section story-section" aria-labelledby="process-title">
+              <header class="section-heading reveal">
+                <p class="eyebrow">How it works</p>
+                <h2 id="process-title">Follow one set all the way through.</h2>
+                <p>Train, record, interpret, track. Heracles keeps what you did separate from what it infers, so every number further down the chain can be traced back to the set that produced it.</p>
+              </header>
+
+              <div class="story" data-story>
+                <div class="story-step is-active" data-story-step="train">
+                  <div class="story-copy">
+                    <span class="story-index">01</span>
+                    <h3>Train</h3>
+                    <p>Start from a preset or from scratch. Heracles lays out your exercises with blank sets and puts last session's performance on the same exercise and equipment right next to them.</p>
+                    <p class="story-meta">Entered · your workout</p>
+                  </div>
+                  <figure class="story-visual" aria-label="A session started from the Push A preset with previous performance shown for each set.">
+                    <div class="sv-card">
+                      <div class="sv-head"><span class="sv-pill">From preset · Push A</span><span class="sv-muted">Order shuffled · blank sets</span></div>
+                      <ol class="sv-ex-list">
+                        <li><b>Press (Dumbbell) (Incline 30)</b><span>3 sets</span></li>
+                        <li><b>Pushdown (Cable) (V-Bar)</b><span>3 sets</span></li>
+                        <li><b>Press (Machine) (Incline)</b><span>3 sets</span></li>
+                        <li><b>Lateral Raise (Dumbbell) (Standing)</b><span>3 sets</span></li>
+                        <li><b>Fly (Pec Deck Machine)</b><span>3 sets</span></li>
+                      </ol>
+                      <div class="sv-history">
+                        <strong>Last time on this machine — 23 Sep</strong>
+                        <span>Set 1: 30 kg per dumbbell × 8 · 2 RIR</span>
+                        <span>Set 2: 30 kg per dumbbell × 8 · 1 RIR</span>
+                        <span>Set 3: 30 kg per dumbbell × 7 · 1 RIR</span>
+                      </div>
+                    </div>
+                  </figure>
+                </div>
+
+                <div class="story-step" data-story-step="record">
+                  <div class="story-copy">
+                    <span class="story-index">02</span>
+                    <h3>Record</h3>
+                    <p>Log load, reps and reps in reserve. Every set is classified the moment it is complete, and the edit is saved in the background — even when the gym has no signal.</p>
+                    <p class="story-meta">Entered · load, reps, RIR</p>
+                  </div>
+                  <figure class="story-visual" aria-label="A set of 32.5 kg per dumbbell for 7 reps at 1 RIR classified as a working set and saved.">
+                    <div class="sv-card">
+                      <div class="sv-set">
+                        <div><small>Weight</small><b>32.5</b><em>kg per dumbbell</em></div>
+                        <div><small>Reps</small><b>7</b><em>completed</em></div>
+                        <div><small>RIR</small><b>1</b><em>reported</em></div>
+                      </div>
+                      <p class="sv-classified"><span class="sv-dot"></span>1 RIR · Working set</p>
+                      <ul class="sv-classes">
+                        <li><b>Warm-up</b><span>Marked explicitly. No RIR. Excluded from analysis.</span></li>
+                        <li class="is-on"><b>Working set</b><span>Reported RIR 0–3. Counts toward analysis.</span></li>
+                        <li><b>4+ RIR</b><span>Kept as history. Not counted as a working set.</span></li>
+                        <li><b>Draft</b><span>Partly filled. Blocks concluding until finished.</span></li>
+                      </ul>
+                      <div class="sv-sync"><span class="ld-sync is-saved">Saved ✓</span><span class="ld-sync is-saving">Saving…</span><span class="ld-sync is-offline">Offline</span><span class="ld-sync is-failed">Failed</span></div>
+                    </div>
+                  </figure>
+                </div>
+
+                <div class="story-step" data-story-step="interpret">
+                  <div class="story-copy">
+                    <span class="story-index">03</span>
+                    <h3>Interpret</h3>
+                    <p>Two equations, run on completed reps and on reps plus reported RIR, give four strength estimates. They are kept apart — never averaged into one false certainty. The exercise's authored relevance row turns the set into weighted sets per muscle.</p>
+                    <p class="story-meta">Calculated · estimate &nbsp;·&nbsp; Authored · model</p>
+                  </div>
+                  <figure class="story-visual" aria-label="Four estimated one-rep-max values for the set and its weighted-set contribution to chest, shoulders and triceps.">
+                    <div class="sv-card">
+                      <table class="sv-estimates" data-story-estimates>
+                        <caption>Estimated 1RM · kg per dumbbell</caption>
+                        <tbody>
+                          <tr><th scope="row">Brzycki</th><td>completed reps</td><td><code>32.5 × 36 ÷ (37 − 7)</code></td><td><b>39.00</b></td></tr>
+                          <tr><th scope="row">Epley</th><td>completed reps</td><td><code>32.5 × (1 + 7 ÷ 30)</code></td><td><b>40.08</b></td></tr>
+                          <tr><th scope="row">Brzycki</th><td>reps + RIR</td><td><code>32.5 × 36 ÷ (37 − 8)</code></td><td><b>40.34</b></td></tr>
+                          <tr><th scope="row">Epley</th><td>reps + RIR</td><td><code>32.5 × (1 + 8 ÷ 30)</code></td><td><b>41.17</b></td></tr>
+                        </tbody>
+                      </table>
+                      <p class="sv-footnote">A model spread — not a confidence interval, not a measured max.</p>
+                      <div class="sv-relevance">
+                        <small>Press (Dumbbell) (Incline 30) · relevance row</small>
+                        <ul class="sv-muscles" data-story-muscles>
+                          <li style="--v: 1"><span>Pectoralis Major — Clavicular</span><b>1.00</b></li>
+                          <li style="--v: 0.75"><span>Pectoralis Major — Sternocostal</span><b>0.75</b></li>
+                          <li style="--v: 0.75"><span>Anterior Deltoid</span><b>0.75</b></li>
+                          <li style="--v: 0.75"><span>Triceps Brachii — Lateral Head</span><b>0.75</b></li>
+                          <li style="--v: 0.75"><span>Triceps Brachii — Medial Head</span><b>0.75</b></li>
+                          <li style="--v: 0.5"><span>Triceps Brachii — Long Head</span><b>0.50</b></li>
+                        </ul>
+                        <p class="sv-footnote">Group value = highest child-muscle coefficient per set: Chest 1.00 · Shoulders 0.75 · Triceps 0.75 weighted sets.</p>
+                      </div>
+                    </div>
+                  </figure>
+                </div>
+
+                <div class="story-step" data-story-step="track">
+                  <div class="story-copy">
+                    <span class="story-index">04</span>
+                    <h3>Track</h3>
+                    <p>One representative working set per session and equipment becomes a point in your progression, drawn as the full range of its four estimates. Body weight, tape measurements and muscle exposure sit alongside as separate evidence.</p>
+                    <p class="story-meta">Calculated · over time</p>
+                  </div>
+                  <figure class="story-visual" aria-label="Illustrative estimated-one-rep-max progression over eight sessions shown as a band between the lowest and highest of four estimates.">
+                    <div class="sv-card">
+                      <div class="sv-chart-head"><strong>Press (Dumbbell) (Incline 30)</strong><span>Estimated 1RM range · kg per dumbbell</span></div>
+                      <svg class="sv-chart" viewBox="0 0 480 240" data-story-chart></svg>
+                      <p class="sv-footnote">Illustrative example data. Each band spans the four estimates for that session's representative set.</p>
+                    </div>
+                  </figure>
+                </div>
+              </div>
+            </section>
+
+            <section id="estimate-lab" class="public-section lab-section" aria-labelledby="lab-title">
+              <header class="section-heading reveal">
+                <p class="eyebrow">Try the math</p>
+                <h2 id="lab-title">Four estimates. Zero black boxes.</h2>
+                <p>This calculator runs the same estimation code as the app. Change a set and watch the four perspectives move — and see exactly when Heracles refuses to produce a number.</p>
+              </header>
+
+              <div class="lab" data-lab>
+                <form class="lab-controls" data-lab-form>
+                  <div class="lab-field">
+                    <label for="lab-load">Load <output data-lab-out="load">100 kg</output></label>
+                    <input id="lab-load" type="range" min="2.5" max="250" step="2.5" value="100" data-lab-input="load" />
+                  </div>
+                  <div class="lab-field">
+                    <label for="lab-reps">Completed reps <output data-lab-out="reps">8</output></label>
+                    <input id="lab-reps" type="range" min="1" max="36" step="1" value="8" data-lab-input="reps" />
+                  </div>
+                  <fieldset class="lab-field lab-rir">
+                    <legend>Reported RIR</legend>
+                    <div class="lab-seg">
+                      <label><input type="radio" name="lab-rir" value="0" /><span>0</span></label>
+                      <label><input type="radio" name="lab-rir" value="1" /><span>1</span></label>
+                      <label><input type="radio" name="lab-rir" value="2" checked /><span>2</span></label>
+                      <label><input type="radio" name="lab-rir" value="3" /><span>3</span></label>
+                      <label><input type="radio" name="lab-rir" value="4" /><span>4+</span></label>
+                    </div>
+                  </fieldset>
+                  <fieldset class="lab-field lab-kind">
+                    <legend>Equipment</legend>
+                    <div class="lab-seg">
+                      <label><input type="radio" name="lab-kind" value="standard" checked /><span>Barbell / machine</span></label>
+                      <label><input type="radio" name="lab-kind" value="dumbbell" /><span>Dumbbell</span></label>
+                    </div>
+                  </fieldset>
+                  <div class="lab-field">
+                    <label for="lab-bw">Body weight on the day <small>(optional, kg)</small></label>
+                    <input id="lab-bw" type="number" min="0" step="0.1" inputmode="decimal" placeholder="e.g. 80.4" data-lab-input="bw" />
+                  </div>
+                </form>
+
+                <div class="lab-output" aria-live="polite">
+                  <p class="lab-class" data-lab-class>2 RIR · Working set</p>
+                  <div class="lab-line" data-lab-line aria-hidden="true">
+                    <div class="lab-band" data-lab-band></div>
+                    <span class="lab-mark" data-lab-mark="observedBrzycki"></span>
+                    <span class="lab-mark" data-lab-mark="observedEpley"></span>
+                    <span class="lab-mark" data-lab-mark="adjustedBrzycki"></span>
+                    <span class="lab-mark" data-lab-mark="adjustedEpley"></span>
+                  </div>
+                  <dl class="lab-values" data-lab-values>
+                    <div data-lab-row="observedBrzycki"><dt>Brzycki <small>completed reps</small></dt><dd><b data-lab-value>124.14</b><code data-lab-formula>100 × 36 ÷ (37 − 8)</code></dd></div>
+                    <div data-lab-row="observedEpley"><dt>Epley <small>completed reps</small></dt><dd><b data-lab-value>126.67</b><code data-lab-formula>100 × (1 + 8 ÷ 30)</code></dd></div>
+                    <div data-lab-row="adjustedBrzycki"><dt>Brzycki <small>reps + RIR</small></dt><dd><b data-lab-value>133.33</b><code data-lab-formula>100 × 36 ÷ (37 − 10)</code></dd></div>
+                    <div data-lab-row="adjustedEpley"><dt>Epley <small>reps + RIR</small></dt><dd><b data-lab-value>133.33</b><code data-lab-formula>100 × (1 + 10 ÷ 30)</code></dd></div>
+                  </dl>
+                  <p class="lab-unit" data-lab-unit>Estimated 1RM in kg</p>
+                  <p class="lab-refusal" data-lab-refusal hidden></p>
+                  <p class="lab-caveat">Calculated estimates from equations, not a measured one-rep max. The spread between them is a model range, not a confidence interval.</p>
+                </div>
+              </div>
+            </section>
+
+            <section id="the-model" class="public-section model-section" aria-labelledby="model-title">
+              <header class="section-heading reveal">
+                <p class="eyebrow">The model, in full</p>
+                <h2 id="model-title">5,520 decisions. All of them public.</h2>
+                <p>Every one of the 138 exercises is rated against every one of 40 muscles. This is the complete hypertrophic-relevance matrix the app uses — loaded live from the published source file. Pick an exercise and inspect its row.</p>
+              </header>
+
+              <div class="matrix" data-matrix>
+                <div class="matrix-toolbar">
+                  <label class="matrix-search" for="matrix-exercise">
+                    <span>Exercise</span>
+                    <input id="matrix-exercise" type="search" list="matrix-exercise-options" placeholder="Search 138 exercises" autocomplete="off" data-matrix-search />
+                    <datalist id="matrix-exercise-options" data-matrix-options></datalist>
+                  </label>
+                  <div class="matrix-compare" aria-label="Documented modelling decisions to compare">
+                    <span>Compare</span>
+                    <button type="button" data-matrix-pick="Leg Curl (Machine) (Seated)">Seated leg curl</button>
+                    <button type="button" data-matrix-pick="Leg Curl (Machine) (Prone)">Prone leg curl</button>
+                    <button type="button" data-matrix-pick="Extension (Cable) (Overhead) (Unilateral)">Overhead extension</button>
+                    <button type="button" data-matrix-pick="Pushdown (Cable) (V-Bar)">Pushdown</button>
+                    <button type="button" data-matrix-pick="Lat Pulldown (Cable Machine) (Wide Grip)">Lat pulldown</button>
+                  </div>
+                </div>
+
+                <div class="matrix-body">
+                  <div class="matrix-canvas-wrap">
+                    <div class="matrix-rows" data-matrix-rows aria-hidden="true"></div>
+                    <div class="matrix-scroll">
+                      <canvas class="matrix-canvas" data-matrix-canvas role="img" aria-label="Heatmap of the 138 by 40 exercise-to-muscle hypertrophic relevance matrix. Use the exercise search to inspect a row."></canvas>
+                    </div>
+                  </div>
+                  <aside class="matrix-inspector" data-matrix-inspector aria-live="polite">
+                    <p class="matrix-status" data-matrix-status>Loading the published matrix…</p>
+                  </aside>
+                </div>
+
+                <div class="matrix-legend">
+                  <span><i style="--l: 0"></i>0 · not counted</span>
+                  <span><i style="--l: 0.25"></i>0.25 · small but worthwhile</span>
+                  <span><i style="--l: 0.5"></i>0.50 · substantial secondary</span>
+                  <span><i style="--l: 0.75"></i>0.75 · major target</span>
+                  <span><i style="--l: 1"></i>1.00 · principal target</span>
+                  <a class="document-link" href="?literature=exercise-muscle-relevance" data-document="exercise-muscle-relevance">How every cell was decided <span aria-hidden="true">→</span></a>
+                </div>
+                <p class="matrix-note">An authored model of worthwhile involvement for one hard set — not measured force, stimulus or growth. Columns are ordered by each exercise's principal muscle group.</p>
+              </div>
             </section>
 
             <section id="capabilities" class="public-section capabilities-section" aria-labelledby="capabilities-title">
-              <header class="section-heading">
+              <header class="section-heading reveal">
                 <p class="eyebrow">Current product</p>
                 <h2 id="capabilities-title">Built for the training session and the evidence it creates.</h2>
-                <p>Heracles is no longer only a logbook or a muscle-mapping model. The current application connects live training, personal history, strength interpretation and physical measurements in one resistance-training system.</p>
+                <p>Heracles connects live training, personal history, strength interpretation and physical measurements in one resistance-training system — and it installs to your home screen like a native app.</p>
               </header>
               <div class="capability-grid">
-                <article>
+                <article class="cap cap-wide reveal">
+                  <span class="cap-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11"></path></svg></span>
                   <span class="capability-label">Live training</span>
                   <h3>Persistent workout sessions</h3>
                   <p>Resume an in-progress workout, reference previous performance, preserve equipment context and recover durable edits when connectivity fails.</p>
+                  <div class="cap-sync" aria-hidden="true"><span class="ld-sync is-offline">Offline · 3 edits queued</span><span class="cap-arrow">→</span><span class="ld-sync is-saving">Saving…</span><span class="cap-arrow">→</span><span class="ld-sync is-saved">Saved ✓</span></div>
                 </article>
-                <article>
+                <article class="cap reveal">
+                  <span class="cap-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-2-2h-4l-2-2h-2L9 6H5a2 2 0 0 0-2 2v10h18Z"></path><path d="M3 11h18"></path></svg></span>
                   <span class="capability-label">Programming</span>
                   <h3>Reusable workout presets</h3>
                   <p>Create reusable exercise pools with set counts, then start a session without copying stale load, RIR or equipment assumptions forward.</p>
                 </article>
-                <article>
+                <article class="cap reveal">
+                  <span class="cap-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 19h16"></path><path d="M6 15l4-4 3 3 5-6"></path></svg></span>
                   <span class="capability-label">Strength</span>
                   <h3>Four e1RM perspectives</h3>
                   <p>Brzycki and Epley estimates are retained for observed repetitions and for repetitions adjusted by reported RIR. Heracles does not average them into false certainty.</p>
                 </article>
-                <article>
+                <article class="cap reveal">
+                  <span class="cap-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20h14l-2-11H7Z"></path><path d="M9.5 9a2.5 2.5 0 0 1 5 0"></path></svg></span>
                   <span class="capability-label">Body weight</span>
                   <h3>Strength in body-weight context</h3>
                   <p>Import body-weight evidence or synchronize Apple Health data, then optionally view each strength estimate relative to measured or interpolated body weight without extrapolation.</p>
                 </article>
-                <article>
+                <article class="cap reveal">
+                  <span class="cap-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 8h18v8H3Z"></path><path d="M7 8v3M11 8v4M15 8v3M19 8v4"></path></svg></span>
                   <span class="capability-label">Measurements</span>
                   <h3>Standardized circumference history</h3>
                   <p>Record repeatable body measurements by site and compare like with like over time, including separate relaxed and flexed upper-arm series.</p>
                 </article>
-                <article>
+                <article class="cap cap-wide reveal">
+                  <span class="cap-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg></span>
                   <span class="capability-label">Hypertrophy model</span>
                   <h3>Explicit muscle relevance</h3>
                   <p>Versioned movement and muscle matrices connect exercises to forty detailed muscle entities while thirteen broader groups keep the interface readable.</p>
+                  <div class="cap-chain" aria-hidden="true"><span>138 exercises</span><i>×</i><span>40 patterns</span><i>×</i><span>40 muscles</span><i>→</i><span>13 groups</span></div>
                 </article>
               </div>
             </section>
 
+            <section id="principles" class="public-section principle-section" aria-labelledby="principles-title">
+              <div class="refuse reveal" aria-hidden="true">
+                <span class="refuse-formula">weight × reps</span>
+              </div>
+              <div class="principle-copy reveal">
+                <p class="eyebrow">Product principles</p>
+                <h2 id="principles-title">What Heracles refuses to calculate matters too.</h2>
+                <p>Many apps multiply weight × reps and call it volume. Twenty-five easy reps with a light weight can out-score eight hard ones with a heavy weight, and a leg press out-scores a leg extension by sheer stack size. Tonnage measures mass moved — not effort, mechanics or which muscles did the work — so Heracles never uses it as a training, progress or hypertrophy metric.</p>
+                <blockquote>Preserve the observation. Label the interpretation. Expose the assumptions. Do not manufacture certainty where the evidence does not support it.</blockquote>
+                <a class="document-link" href="?literature=no-tonnage" data-document="no-tonnage">Why tonnage is excluded <span aria-hidden="true">→</span></a>
+              </div>
+              <div class="principle-grid">
+                <article class="reveal"><span class="principle-icon">↗</span><h3>Performance stays exercise-specific</h3><p>Load and repetitions are interpreted within the same movement and equipment context instead of being compared across mechanically different exercises.</p></article>
+                <article class="reveal"><span class="principle-icon">≠</span><h3>Tonnage is not called volume</h3><p>Weight × repetitions measures external mass moved repeatedly. It is not treated as hypertrophic stimulus, workload quality or progression.</p></article>
+                <article class="reveal"><span class="principle-icon">◎</span><h3>Estimates stay plural</h3><p>Observed and RIR-adjusted strength estimates remain separate, making disagreement between models visible instead of hiding it behind an average.</p></article>
+                <article class="reveal"><span class="principle-icon">§</span><h3>Uncertainty remains visible</h3><p>Recorded observations, calculated estimates, authored models, scientific evidence and product decisions are presented as different kinds of knowledge.</p></article>
+              </div>
+            </section>
+
             <section id="evidence-over-time" class="public-section measure-section" aria-labelledby="evidence-title">
-              <header class="section-heading">
+              <header class="section-heading reveal">
                 <p class="eyebrow">Longitudinal evidence</p>
                 <h2 id="evidence-title">Different signals stay different.</h2>
                 <p>The system does not force training performance, body weight, circumference and modelled muscle relevance into a universal progress score. Each answers a different question.</p>
               </header>
               <div class="measure-table" role="table" aria-label="Heracles evidence types and their boundaries">
                 <div class="measure-row measure-head" role="row"><span role="columnheader">Evidence</span><span role="columnheader">What it helps answer</span><span role="columnheader">Boundary</span></div>
-                <div class="measure-row" role="row"><strong role="cell">Workout history</strong><span role="cell">What was trained, with which exercise, equipment, load, repetitions and effort?</span><span role="cell">A completed set is an observation, not a direct measure of adaptation.</span></div>
-                <div class="measure-row" role="row"><strong role="cell">Strength estimates</strong><span role="cell">How is exercise-specific performance changing across comparable sessions?</span><span role="cell">e1RM values are equation-based estimates, not measured one-repetition maxima or confidence intervals.</span></div>
-                <div class="measure-row" role="row"><strong role="cell">Body weight</strong><span role="cell">How does strength compare with body mass on the workout date?</span><span role="cell">Relative strength is shown only where measured or interpolated body-weight evidence exists; Heracles does not extrapolate.</span></div>
-                <div class="measure-row" role="row"><strong role="cell">Body measurements</strong><span role="cell">How are standardized circumference observations changing over time?</span><span role="cell">Tape measurements remain raw observations and are not converted into body-fat or body-composition estimates.</span></div>
-                <div class="measure-row" role="row"><strong role="cell">Muscle relevance</strong><span role="cell">Which muscles are worth considering for a sufficiently hard set of a given exercise?</span><span role="cell">This is an authored relevance model, not measured force, stimulus or hypertrophy.</span></div>
-              </div>
-            </section>
-
-            <section id="principles" class="public-section principle-section" aria-labelledby="principles-title">
-              <div class="principle-copy">
-                <p class="eyebrow">Product principles</p>
-                <h2 id="principles-title">More data is not automatically more insight.</h2>
-                <p>Heracles starts with the decision a metric is meant to support, then asks whether the calculation survives differences in effort, exercise mechanics, technique, equipment and measurement quality.</p>
-                <blockquote>Preserve the observation. Label the interpretation. Expose the assumptions. Do not manufacture certainty where the evidence does not support it.</blockquote>
-              </div>
-              <div class="principle-grid">
-                <article><span class="principle-icon">↗</span><h3>Performance stays exercise-specific</h3><p>Load and repetitions are interpreted within the same movement and equipment context instead of being compared across mechanically different exercises.</p></article>
-                <article><span class="principle-icon">≠</span><h3>Tonnage is not called volume</h3><p>Weight × repetitions measures external mass moved repeatedly. It is not treated as hypertrophic stimulus, workload quality or progression.</p></article>
-                <article><span class="principle-icon">◎</span><h3>Estimates stay plural</h3><p>Observed and RIR-adjusted strength estimates remain separate, making disagreement between models visible instead of hiding it behind an average.</p></article>
-                <article><span class="principle-icon">§</span><h3>Uncertainty remains visible</h3><p>Recorded observations, calculated estimates, authored models, scientific evidence and product decisions are presented as different kinds of knowledge.</p></article>
+                <div class="measure-row reveal" role="row"><strong role="cell"><i class="kind kind-entered">Entered</i>Workout history</strong><span role="cell">What was trained, with which exercise, equipment, load, repetitions and effort?</span><span role="cell">A completed set is an observation, not a direct measure of adaptation.</span></div>
+                <div class="measure-row reveal" role="row"><strong role="cell"><i class="kind kind-calculated">Calculated</i>Strength estimates</strong><span role="cell">How is exercise-specific performance changing across comparable sessions?</span><span role="cell">e1RM values are equation-based estimates, not measured one-repetition maxima or confidence intervals.</span></div>
+                <div class="measure-row reveal" role="row"><strong role="cell"><i class="kind kind-entered">Measured</i>Body weight</strong><span role="cell">How does strength compare with body mass on the workout date?</span><span role="cell">Relative strength is shown only where measured or interpolated body-weight evidence exists; Heracles does not extrapolate.</span></div>
+                <div class="measure-row reveal" role="row"><strong role="cell"><i class="kind kind-entered">Measured</i>Body measurements</strong><span role="cell">How are standardized circumference observations changing over time?</span><span role="cell">Tape measurements remain raw observations and are not converted into body-fat or body-composition estimates.</span></div>
+                <div class="measure-row reveal" role="row"><strong role="cell"><i class="kind kind-authored">Authored</i>Muscle relevance</strong><span role="cell">Which muscles are worth considering for a sufficiently hard set of a given exercise?</span><span role="cell">This is an authored relevance model, not measured force, stimulus or hypertrophy.</span></div>
               </div>
             </section>
 
             <section id="fabbro-context" class="public-section family-section" aria-labelledby="family-title">
-              <header class="section-heading">
+              <header class="section-heading reveal">
                 <p class="eyebrow">Fabbro Systems</p>
                 <h2 id="family-title">Evidence → state → action.</h2>
                 <p>Heracles goes deep on one domain. It remains useful as a standalone training system while also producing higher-quality physical-performance evidence for the wider Fabbro Systems ecosystem.</p>
               </header>
               <div class="family-flow" aria-label="Fabbro Systems product relationship">
-                <a class="family-stage family-stage-current" href="#top">
+                <a class="family-stage family-stage-current reveal" href="#top">
                   <span>01 · Evidence</span>
                   <strong>Heracles</strong>
                   <p>Records and interprets resistance-training evidence.</p>
                 </a>
                 <span class="family-arrow" aria-hidden="true">→</span>
-                <a class="family-stage" href="https://kleos.fabbrosystems.com/">
+                <a class="family-stage reveal" href="https://kleos.fabbrosystems.com/">
                   <span>02 · State</span>
                   <strong>Kleos</strong>
                   <p>Models the broader current state of the person from evidence across domains.</p>
                 </a>
                 <span class="family-arrow" aria-hidden="true">→</span>
-                <a class="family-stage" href="https://ariadne.fabbrosystems.com/">
+                <a class="family-stage reveal" href="https://ariadne.fabbrosystems.com/">
                   <span>03 · Action</span>
                   <strong>Ariadne</strong>
                   <p>Connects current state and desired direction to priorities, projects and execution.</p>
@@ -230,31 +749,48 @@
             </section>
 
             <section id="literature" class="public-section public-literature" aria-labelledby="public-literature-title">
-              <header class="section-heading literature-heading">
+              <header class="section-heading literature-heading reveal">
                 <div>
                   <p class="eyebrow">Scientific foundations</p>
                   <h2 id="public-literature-title">The reasoning is part of the product.</h2>
                 </div>
-                <p>These documents expose the evidence standard, data model, authored assumptions, limitations and product decisions behind the interface.</p>
+                <p>These documents expose the evidence standard, data model, authored assumptions, limitations and product decisions behind the interface. Read them before you sign in.</p>
               </header>
 
               <div class="public-library-grid">
-                <article><span class="evidence-badge protocol-badge">Evaluation protocol</span><h3>How studies are judged</h3><p>Evidence is assessed claim by claim, with attention to directness, trained populations, comparators, adherence and uncertainty.</p><a class="document-link" href="?literature=study-selection" data-document="study-selection">Study-selection protocol <span aria-hidden="true">→</span></a></article>
-                <article><span class="evidence-badge taxonomy-badge">Authored taxonomy</span><h3>Muscle-group taxonomy</h3><p>Forty muscle entities balance anatomical resolution with what can be modelled and defended for hypertrophy applications.</p><a class="document-link" href="?literature=muscle-taxonomy" data-document="muscle-taxonomy">Muscle taxonomy <span aria-hidden="true">→</span></a></article>
-                <article><span class="evidence-badge model-badge">Authored model</span><h3>Movement-pattern coefficients</h3><p>Independent contribution ratings organize exercises biomechanically without pretending to be measured joint torque or stimulus.</p><div class="document-links"><a class="document-link" href="?literature=movement-coefficients" data-document="movement-coefficients">Coefficient guide <span aria-hidden="true">→</span></a><a class="document-link secondary-link" href="?literature=movement-data-model" data-document="movement-data-model">Data model <span aria-hidden="true">→</span></a></div></article>
-                <article><span class="evidence-badge model-badge">Functional anatomy</span><h3>Movement to muscle function</h3><p>A 40 × 40 matrix records anatomical capability as a functional prior, while leaving exercise context to downstream layers.</p><a class="document-link" href="?literature=movement-muscle-function" data-document="movement-muscle-function">Functional-anatomy model <span aria-hidden="true">→</span></a></article>
-                <article><span class="evidence-badge model-badge">Derived model</span><h3>Exercise to muscle composition</h3><p>Ordinary matrix composition provides a traceable bridge from exercises through patterns to muscles without becoming a growth score.</p><a class="document-link" href="?literature=exercise-muscle-composition" data-document="exercise-muscle-composition">Composition method <span aria-hidden="true">→</span></a></article>
-                <article><span class="evidence-badge model-badge">Exercise-specific model</span><h3>Hypertrophic relevance</h3><p>An authored 138 × 40 layer filters anatomical possibility through exercise context for one sufficiently hard, competently performed set.</p><a class="document-link" href="?literature=exercise-muscle-relevance" data-document="exercise-muscle-relevance">Relevance method <span aria-hidden="true">→</span></a></article>
-                <article><span class="evidence-badge decision-badge">Model limitations</span><h3>Current mapping limitations</h3><p>The project documents missing context—including force-sharing, muscle length and resistance profiles—rather than hiding it.</p><a class="document-link" href="?literature=mapping-limitations" data-document="mapping-limitations">Current limitations <span aria-hidden="true">→</span></a></article>
-                <article><span class="evidence-badge decision-badge">Product decision</span><h3>Why tonnage is excluded</h3><p>External mass × repetitions is rejected as a hypertrophy, progression, workload or personal-statistics metric.</p><a class="document-link" href="?literature=no-tonnage" data-document="no-tonnage">Tonnage decision <span aria-hidden="true">→</span></a></article>
-                <article><span class="evidence-badge protocol-badge">Product standard</span><h3>Design rules</h3><p>Transparent calculations, defensible metrics, owner-scoped data and visible limitations govern what reaches the interface.</p><a class="document-link" href="?literature=design-rules" data-document="design-rules">Design rules <span aria-hidden="true">→</span></a></article>
-                <article><span class="evidence-badge estimate-badge">Calculated estimate</span><h3>Estimated one-rep max</h3><p>Brzycki and Epley estimates remain separate for observed and RIR-adjusted repetitions, with validity limits and interpretation boundaries kept explicit.</p><div class="mini-formula"><span>Brzycki</span><code>weight × 36 ÷ (37 − reps)</code><span>Epley</span><code>weight × (1 + reps ÷ 30)</code></div></article>
+                <article class="reveal"><span class="evidence-badge protocol-badge">Evaluation protocol</span><h3>How studies are judged</h3><p>Evidence is assessed claim by claim, with attention to directness, trained populations, comparators, adherence and uncertainty.</p><a class="document-link" href="?literature=study-selection" data-document="study-selection">Study-selection protocol <span aria-hidden="true">→</span></a></article>
+                <article class="reveal"><span class="evidence-badge taxonomy-badge">Authored taxonomy</span><h3>Muscle-group taxonomy</h3><p>Forty muscle entities balance anatomical resolution with what can be modelled and defended for hypertrophy applications.</p><a class="document-link" href="?literature=muscle-taxonomy" data-document="muscle-taxonomy">Muscle taxonomy <span aria-hidden="true">→</span></a></article>
+                <article class="reveal"><span class="evidence-badge model-badge">Authored model</span><h3>Movement-pattern coefficients</h3><p>Independent contribution ratings organize exercises biomechanically without pretending to be measured joint torque or stimulus.</p><div class="document-links"><a class="document-link" href="?literature=movement-coefficients" data-document="movement-coefficients">Coefficient guide <span aria-hidden="true">→</span></a><a class="document-link secondary-link" href="?literature=movement-data-model" data-document="movement-data-model">Data model <span aria-hidden="true">→</span></a></div></article>
+                <article class="reveal"><span class="evidence-badge model-badge">Functional anatomy</span><h3>Movement to muscle function</h3><p>A 40 × 40 matrix records anatomical capability as a functional prior, while leaving exercise context to downstream layers.</p><a class="document-link" href="?literature=movement-muscle-function" data-document="movement-muscle-function">Functional-anatomy model <span aria-hidden="true">→</span></a></article>
+                <article class="reveal"><span class="evidence-badge model-badge">Derived model</span><h3>Exercise to muscle composition</h3><p>Ordinary matrix composition provides a traceable bridge from exercises through patterns to muscles without becoming a growth score.</p><a class="document-link" href="?literature=exercise-muscle-composition" data-document="exercise-muscle-composition">Composition method <span aria-hidden="true">→</span></a></article>
+                <article class="reveal"><span class="evidence-badge model-badge">Exercise-specific model</span><h3>Hypertrophic relevance</h3><p>An authored 138 × 40 layer filters anatomical possibility through exercise context for one sufficiently hard, competently performed set.</p><a class="document-link" href="?literature=exercise-muscle-relevance" data-document="exercise-muscle-relevance">Relevance method <span aria-hidden="true">→</span></a></article>
+                <article class="reveal"><span class="evidence-badge decision-badge">Model limitations</span><h3>Current mapping limitations</h3><p>The project documents missing context—including force-sharing, muscle length and resistance profiles—rather than hiding it.</p><a class="document-link" href="?literature=mapping-limitations" data-document="mapping-limitations">Current limitations <span aria-hidden="true">→</span></a></article>
+                <article class="reveal"><span class="evidence-badge decision-badge">Product decision</span><h3>Why tonnage is excluded</h3><p>External mass × repetitions is rejected as a hypertrophy, progression, workload or personal-statistics metric.</p><a class="document-link" href="?literature=no-tonnage" data-document="no-tonnage">Tonnage decision <span aria-hidden="true">→</span></a></article>
+                <article class="reveal"><span class="evidence-badge protocol-badge">Product standard</span><h3>Design rules</h3><p>Transparent calculations, defensible metrics, owner-scoped data and visible limitations govern what reaches the interface.</p><a class="document-link" href="?literature=design-rules" data-document="design-rules">Design rules <span aria-hidden="true">→</span></a></article>
               </div>
 
               <aside class="citation-notice" aria-labelledby="public-citation-title">
                 <span class="notice-mark" aria-hidden="true">!</span>
                 <div><h3 id="public-citation-title">Evidence library status</h3><p>The study-selection protocol remains a working specification with unresolved citation placeholders. Those passages are not treated as fully sourced claims; reviewed study records and bibliographic references will be added as the library develops.</p></div>
               </aside>
+            </section>
+
+            <section class="final-cta" aria-labelledby="final-cta-title">
+              <div class="final-cta-inner reveal">
+                <img class="final-mark" src="./fabbro-design/assets/Heracles Logo.svg" alt="" aria-hidden="true" />
+                <p class="eyebrow">Start with your next session</p>
+                <h2 id="final-cta-title">Every set is evidence. Start keeping it.</h2>
+                <p>Sign in with Google and log your next workout. Your training data belongs to your account alone, enforced by row-level security in the database — not just hidden in the interface.</p>
+                <div class="hero-actions">
+                  <button class="primary-action" type="button" data-sign-in>Sign in with Google <span aria-hidden="true">→</span></button>
+                  <a class="secondary-action" href="#literature">Read the science first</a>
+                </div>
+                <ul class="final-facts">
+                  <li>Installs to your home screen</li>
+                  <li>Autosaves through bad signal</li>
+                  <li>Every calculation documented</li>
+                </ul>
+              </div>
             </section>
           </div>
 
@@ -270,8 +806,8 @@
             </div>
             <p class="public-footer-copy">Evidence-aware resistance training.</p>
             <nav class="public-footer-nav" aria-label="Footer navigation">
+              <a href="#the-app">The app</a>
               <a href="#how-it-works">How it works</a>
-              <a href="#capabilities">Capabilities</a>
               <a href="#literature">Literature</a>
               <a href="https://fabbrosystems.com/">Fabbro Systems</a>
             </nav>
@@ -887,6 +1423,7 @@
       </section>
     </main>
 
-    <script type="module" src="./app.js?v=36"></script>
+    <script type="module" src="./app.js?v=37"></script>
+    <script type="module" src="./features/public-showcase.js?v=1"></script>
   </body>
 </html>

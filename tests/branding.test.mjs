@@ -22,7 +22,7 @@ test("Heracles branding preserves deployment and PWA identity contracts", () => 
     '<img class="public-brand-lockup" src="./fabbro-design/assets/Heracles Logo Colored With Text Beside.svg" alt="Heracles" />',
     '<img src="./fabbro-design/assets/Fabbro Systems Logo.svg" alt="" aria-hidden="true" />',
     '<link rel="stylesheet" href="./styles.css?v=26" />',
-    '<link rel="stylesheet" href="./public.css?v=3" />',
+    '<link rel="stylesheet" href="./public.css?v=4" />',
     '<meta name="theme-color" content="#000000" />',
     "Heracles combines a persistent training ledger",
     '<img class="sidebar-lockup" src="./brand/heracles-lockup.svg" alt="Heracles" />',
@@ -60,7 +60,7 @@ test("Heracles branding preserves deployment and PWA identity contracts", () => 
   );
 
   const serviceWorker = read("service-worker.js");
-  assert.ok(serviceWorker.includes('"/public.css?v=3"'), "public shell stylesheet must be precached");
+  assert.ok(serviceWorker.includes('"/public.css?v=4"'), "public shell stylesheet must be precached");
 
   for (const expected of [
     'id="capabilities"',
